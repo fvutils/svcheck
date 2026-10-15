@@ -35,10 +35,17 @@ add_subdirectory(${PACKAGES_DIR}/slang ${CMAKE_BINARY_DIR}/slang EXCLUDE_FROM_AL
 #* svcheck
 #*****************************************************************************
 # One version, kept in the Python package.
-file(STRINGS ${CMAKE_SOURCE_DIR}/python/svcheck/__version__.py SVCHECK_VERSION_LINE
-     REGEX "^version = ")
-string(REGEX REPLACE "^version = \"([^\"]+)\".*" "\\1" SVCHECK_VERSION "${SVCHECK_VERSION_LINE}")
+file(STRINGS ${CMAKE_SOURCE_DIR}/python/svcheck/__version__.py SVCHECK_BASE_LINE
+     REGEX "^BASE = ")
+file(STRINGS ${CMAKE_SOURCE_DIR}/python/svcheck/__version__.py SVCHECK_SUFFIX_LINE
+     REGEX "^SUFFIX = ")
+string(REGEX REPLACE "^BASE = \"([^\"]*)\".*" "\\1" SVCHECK_BASE "${SVCHECK_BASE_LINE}")
+string(REGEX REPLACE "^SUFFIX = \"([^\"]*)\".*" "\\1" SVCHECK_SUFFIX "${SVCHECK_SUFFIX_LINE}")
+set(SVCHECK_VERSION "${SVCHECK_BASE}${SVCHECK_SUFFIX}")
 message(STATUS "svcheck: version ${SVCHECK_VERSION}")
+# Reconfigure when it changes (CI stamps SUFFIX).
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+             ${CMAKE_SOURCE_DIR}/python/svcheck/__version__.py)
 
 add_executable(svcheck
   src/cli/main.cpp)

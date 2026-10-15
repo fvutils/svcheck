@@ -77,7 +77,7 @@ When each open question must be answered, so that work never waits on one by sur
 | P0.2 | **Repository skeleton** to design §8: `CMakeLists.txt`, `ivpm.yaml`, `pyproject.toml`, `src/{ast,lower,host,elab,cli}`, `python/svcheck`, `rules/`, `scripts/`, `tests/`. Also a `CLAUDE.md` with build and test commands. README replaced with a one-paragraph description. | `ivpm update && cmake --build` from clean | done |
 | P0.3 | **Dependencies through ivpm:** slang v11.0 (pinned tag), rapidyaml v0.16.0 (pssparser's pin), pyastbuilder, UVM 1800.2-2020.3.1 (1.2 deferred to P1.7). Settle slang's own fetched dependencies (fmt, boost-unordered, mimalloc). Either vendor them through ivpm or turn them off (`SLANG_USE_MIMALLOC=OFF`), so the build has no network access at CMake time. | clean build offline after `ivpm update` | done (P0-2) |
 | P0.4 | **Hello slang:** `svcheck --dump-diags -f uvm.f` compiles `uvm_pkg` and prints slang's diagnostic count and timing. | 0.12 s ± noise vs. pyslang's number (design §6) | done: 0.08 s (§6) |
-| P0.5 | **Wheel and CI.** Use the same ivpm-build/cython path as pssparser, with the CLI as a console script. CI runs build plus pytest. Set up with the `dvkit-infra` skill: wheels go to PyPI from **GitHub** (release authority `github`, the DVKit default); docs publish from **Forgejo** to dvkit.org (a `docs.yml` once there are docs to build). | green CI on a trivial test | active |
+| P0.5 | **Wheel and CI.** Use the same ivpm-build/cython path as pssparser, with the CLI as a console script. CI runs build plus pytest. Set up with the `dvkit-infra` skill: wheels go to PyPI from **GitHub** (release authority `github`, the DVKit default); docs publish from **Forgejo** to dvkit.org (a `docs.yml` once there are docs to build). | green CI on a trivial test | active: workflow pair and `scripts/ci/build-wheel.sh` pass in both CI images locally (P0-7); waits on a push |
 | P0.6 | Q-SC2 settled (R-5); recorded in design §2. | decision logged | done: provisional prefix `SVCHK` |
 
 ### P1. Spike = SC1 (3–4 weeks)
@@ -163,6 +163,7 @@ Filled in by P0.4 and P1.7.
 | P0-4 | ivpm-build's CMake hook runs only for extension modules. The wheel therefore uses a `build_py` hook (`CmakeBuilder`), copies the executable to `svcheck/bin/`, and is tagged `py3-none-<plat>`. It installs and runs in a clean Python 3.14 venv. It is a `linux_x86_64` tag, not manylinux: that is release CI's job (P2.10) | revisit when Cython bindings arrive (P2) |
 | P0-5 | slang's `Driver` already reads `-f`/`-F`, `+incdir+` and `+define+` | R-4 needs little code. P1.5 adds only the compilation-context checks and **not run** reporting |
 | P0-6 | ivpm unpacks rapidyaml with its top directory (`packages/rapidyaml/rapidyaml.v0.16.0/`), as pssparser's F-1 found. slang, fmt and uvm-core are unpacked flat | the P1.1 engine build globs for the rapidyaml tree, as `lint.cmake` does |
+| P0-7 | The wheel is built in a manylinux_2_28 container and repaired by auditwheel to `py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64` (3.3 MB). The workflow pair shares one build script; Forgejo uses pssparser's CI image (manylinux plus node, which act needs) and maps git deps to git.dvkit.org. The release archives (slang, fmt, rapidyaml, uvm-core) still come from github.com on both forges. The version file is now `BASE` + `SUFFIX`, so CI can stamp dev builds | a Forgejo build still depends on GitHub for the archives. Mirror them if that matters. Linux x86_64 only for now; aarch64/macOS/Windows wheels are a P2.10 question |
 
 ## 7. Log
 
@@ -178,3 +179,6 @@ Filled in by P0.4 and P1.7.
   yet. P0.5 (CI) waits for where svcheck publishes; P0.6 waits for the namespace.
 - **2026-10-15** User decisions: R-1…R-5 approved; rule-ID prefix **`SVCHK`** (provisional, final at
   P2.0), so **P0.6 done**; wheels publish to PyPI from GitHub, docs from Forgejo. P0.5 active.
+- **2026-10-15** P0 committed (`0c8dc9c`). P0.5: CI pair (`.github/` + `.forgejo/workflows/ci.yml`, from
+  the DVKit templates) and `scripts/ci/build-wheel.sh`. Both pass when trial-run locally in the
+  manylinux_2_28 and Forgejo images (P0-7). Waiting on a push to get a green run on the forges.

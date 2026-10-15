@@ -23,4 +23,13 @@ packages/python/bin/python -m pytest
   `packages/` (`FETCHCONTENT_SOURCE_DIR_*`, `FETCHCONTENT_FULLY_DISCONNECTED`). A new slang
   FetchContent dep needs an ivpm entry, not network access.
 - When bumping slang, bump `fmt` in `ivpm.yaml` to slang's `external/CMakeLists.txt` tag.
-- The version lives only in `python/svcheck/__version__.py`; CMake reads it.
+- The version lives only in `python/svcheck/__version__.py` (`BASE` + `SUFFIX`); CMake reads it.
+  A release is a `v<BASE>` tag; CI stamps `SUFFIX` on branch builds.
+
+## CI
+
+`.github/workflows/ci.yml` and `.forgejo/workflows/ci.yml` are a pair (DVKit convention, the
+`dvkit-infra` skill): change them together, and keep the differences to runner constraints. The
+build itself is `scripts/ci/build-wheel.sh` (manylinux_2_28 container; trial it with the
+`docker run` line in its header). Wheels publish from GitHub on a tag; the release-authority
+switch at dvkit.org decides, not the workflow. Never commit internal host names or addresses.

@@ -1,3 +1,8 @@
-# 0.0.0 until the first release; tag-derived versioning (as pssparser's
-# __version__.py) arrives with release 0.1 (svcheck-plan P2.10).
-version = "0.0.0"
+# The version, in one place: setup.py and CMake (for the native --version) read
+# it. BASE is the release number and the tag must match it (`v` + BASE); CI
+# fills SUFFIX on branch builds with a PEP 440 dev + local segment
+# (.dev<run>+gh.g<sha>), which PyPI rejects, so a CI wheel can never be
+# released.
+BASE = "0.0.0"
+SUFFIX = ""
+version = BASE + SUFFIX

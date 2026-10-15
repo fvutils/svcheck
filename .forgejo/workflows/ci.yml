@@ -1,0 +1,186 @@
+# fvutils/svcheck -- Forgejo Actions.
+#
+# COPY OF A PAIR. Its counterpart is .github/workflows/ci.yml; both come from
+# dvkit/forgejo-ops templates/ci.{github,forgejo}.yml. If .forgejo/workflows/
+# is absent the Forgejo runner falls back to running the GitHub file, with no
+# arbitration about which forge ships a release.
+#
+# Forgejo runner constraints (measured, dvkit-infra workflows.md): no
+# third-party actions (bare `uses:` resolves against code.forgejo.org), and act
+# needs node inside a job container -- hence the pssparser CI image, which is
+# manylinux_2_28 plus node (source: psstools/pssparser .forgejo/ci-image).
+#
+# They differ in the `authority ==` comparison and in runner constraints only:
+# the container image, the artifact actions, and (Forgejo) dependency URLs
+# remapped to git.dvkit.org plus the internal-identifier check. The build
+# itself is scripts/ci/build-wheel.sh, shared by both.
+#
+# svcheck's wheel is native (py3-none-manylinux_2_28_x86_64: one executable,
+# no extension module), so the build runs in the manylinux_2_28 image rather
+# than on the bare runner as the template does.
+#
+# Publish jobs FAIL CLOSED on an unreachable release-authority switch on a tag
+# (template decision, 2026-08-30).
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------- gate ----
+  gate:
+    # Release master switch, resolved in its own job because `if:` on a job
+    # cannot reference a step in that job.
+    name: Release authority
+    runs-on: ubuntu-latest
+    outputs:
+      authority: ${{ steps.resolve.outputs.authority }}
+    steps:
+      - id: resolve
+        # One line on purpose: a multi-line `python3 -c` has to start at column
+        # 0, which terminates the YAML block scalar.
+        run: |
+          url=https://dvkit.org/.well-known/release-authority.json
+          if ! body=$(curl -fsS --max-time 10 "$url"); then
+            case "$GITHUB_REF" in
+              refs/tags/v*)
+                echo "::error::release-authority switch unreachable; refusing to publish"
+                exit 1 ;;
+              *)
+                echo "authority=none" >> "$GITHUB_OUTPUT"
+                echo "switch unreachable on a non-tag ref; nothing to release"
+                exit 0 ;;
+            esac
+          fi
+          auth=$(printf '%s' "$body" | python3 -c 'import json,os,sys; d=json.load(sys.stdin); r=os.environ["GITHUB_REPOSITORY"]; print(d["repos"].get(r) or d["orgs"].get(r.split("/")[0]) or d["default"])')
+          echo "release authority for $GITHUB_REPOSITORY: $auth"
+          echo "authority=$auth" >> "$GITHUB_OUTPUT"
+
+  # --------------------------------------------------------------- build ----
+  build:
+    name: Build and test (linux x86_64)
+    runs-on: ubuntu-latest
+    container:
+      image: dvkit/pssparser-ci:manylinux_2_28-x86_64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for internal identifiers in tracked files
+        # This repo is published to git.dvkit.org, so anything committed here is
+        # public. The pathspec excludes the whole workflow directory, so that a
+        # second workflow's copy of this pattern does not match.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          pattern='perch-char\.ts\.net|\.ts\.net|a9550|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
+          if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/' ; then
+            echo "::error::internal identifier found in a tracked file (see matches above)"
+            exit 1
+          fi
+          echo "OK: no internal identifiers in tracked files"
+
+      - name: Configure ivpm dependency resolution
+        # Git dependencies resolve from git.dvkit.org, not github.com, and
+        # anonymously, so the job needs no credential. The release-archive
+        # dependencies (slang, fmt, rapidyaml, uvm-core) still come from
+        # github.com.
+        run: |
+          mkdir -p ~/.config/ivpm
+          cat > ~/.config/ivpm/config.yaml <<'CFG'
+          git-url-map:
+            - from: "https://github.com/mballance-utils/"
+              to:   "https://git.dvkit.org/mballance-utils/"
+            - from: "https://github.com/fvutils/"
+              to:   "https://git.dvkit.org/fvutils/"
+          git-auth:
+            - host: "git.dvkit.org"
+              order: ["https"]
+          CFG
+
+      - name: Stamp the build version
+        # Tag builds keep the clean number. Everything else gets a PEP 440
+        # local version segment, which PyPI rejects outright:
+        #   0.0.0.dev12+fj.g7775f37
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              echo "tag build -- leaving the version clean"
+              ;;
+            *)
+              stamp=".dev${GITHUB_RUN_ID}+fj.g$(git rev-parse --short=7 HEAD)"
+              echo "stamping $stamp"
+              sed -i 's/^SUFFIX = ""$/SUFFIX = "'"$stamp"'"/' python/svcheck/__version__.py
+              grep -q "^SUFFIX = \"$stamp\"$" python/svcheck/__version__.py || {
+                echo "::error::failed to stamp $stamp into python/svcheck/__version__.py"
+                exit 1
+              }
+              ;;
+          esac
+          grep -E '^(BASE|SUFFIX) = ' python/svcheck/__version__.py
+
+      - name: Build, repair and test the wheel
+        run: scripts/ci/build-wheel.sh
+
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: dist-svcheck
+          path: dist/*
+          if-no-files-found: error
+
+  # ------------------------------------------------------------- publish ----
+  publish:
+    name: Publish to PyPI
+    # A TAG, and the switch naming THIS forge. A push to a branch never
+    # releases anything. SKIPS -- does not fail -- when the switch names the
+    # other side.
+    if: startsWith(github.ref, 'refs/tags/v') && needs.gate.outputs.authority == 'forgejo'
+    needs: [gate, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: dist-svcheck
+          path: dist
+
+      - name: Check the tag IS the version
+        # The SOURCE agrees with the tag, and the BUILT ARTIFACTS agree with
+        # the source. A PyPI version can be yanked but never reused.
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          base=$(python3 -c "import re; s=open('python/svcheck/__version__.py').read(); print(re.search(r'^BASE = \"([^\"]+)\"$', s, re.M).group(1))")
+          echo "tag=$tag  source=$base"
+          if [ "$tag" != "$base" ]; then
+            echo "::error::tag v$tag does not match BASE $base in python/svcheck/__version__.py"
+            exit 1
+          fi
+          for f in dist/*; do
+            case "$(basename "$f")" in
+              svcheck-${base}-py3-none-*.whl) ;;
+              *) echo "::error::artifact $(basename "$f") is not version ${base}"; exit 1 ;;
+            esac
+          done
+          echo "OK: tag, source version and every artifact agree on ${base}"
+
+      - name: Publish
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          if [ -z "$TWINE_PASSWORD" ]; then
+            echo "::error::PYPI_API_TOKEN is not visible to this repository"
+            exit 1
+          fi
+          python3 -m venv /tmp/twineenv
+          /tmp/twineenv/bin/pip install -q --upgrade pip twine
+          /tmp/twineenv/bin/twine check dist/*
+          # Idempotence net: a double-fire must be a no-op.
+          /tmp/twineenv/bin/twine upload --non-interactive --skip-existing dist/*

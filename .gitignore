@@ -216,3 +216,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+
+# ivpm-managed dependency tree and local build venv
+/packages/
+# Agent-skill links that `ivpm update` writes for its own skill
+/.agents/
+/.cursor/
+/.claude/skills/ivpm
+# Native binary copied into the Python package by setup.py
+/python/svcheck/bin/
+# clangd link into build/
+/compile_commands.json
+*.swp

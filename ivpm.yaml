@@ -1,0 +1,67 @@
+
+package:
+  name: svcheck
+  version: 0.0.1
+
+  setup-deps:
+  - ninja
+  - ivpm-build
+
+  dep-sets:
+
+  #**************************************************************************
+  #* default-dev -- everything needed to build and test from a checkout
+  #**************************************************************************
+  - name: default-dev
+    deps:
+    # slang, pinned to the release whose pyslang (11.0.0) produced the numbers
+    # in svcheck-design.md §6. `type: raw`: the archive carries a pyproject.toml
+    # for pyslang, and ivpm must not try to pip-install it. MIT.
+    - name: slang
+      url: https://github.com/MikePopoloski/slang/archive/refs/tags/v11.0.tar.gz
+      type: raw
+    # slang's CMake fetches fmt with FetchContent at configure time
+    # (external/CMakeLists.txt). Supplying the same tag here and pointing
+    # FETCHCONTENT_SOURCE_DIR_FMT at it keeps the configure offline
+    # (svcheck-plan PR-1). Must match slang's GIT_TAG when slang is bumped. MIT.
+    - name: fmt
+      url: https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz
+      type: raw
+    # YAML loader for the rule engine; the same pin as pssparser (D-C2). MIT.
+    - name: rapidyaml
+      url: https://github.com/biojppm/rapidyaml/releases/download/v0.16.0/rapidyaml.v0.16.0.src.zip
+      type: raw
+    # UVM sources: test data and the `examples:` snippet context. 2020.3.1 is
+    # the default (svcheck-plan L-6). Apache-2.0.
+    - name: uvm-core
+      url: https://github.com/accellera-official/uvm-core/archive/refs/tags/2020.3.1.tar.gz
+      type: raw
+    - name: pyastbuilder
+      url: https://github.com/mballance-utils/pyastbuilder.git
+    - name: pytest
+      src: pypi
+    - name: ninja
+      src: pypi
+    - name: ivpm-build
+      src: pypi
+
+  #**************************************************************************
+  #* default -- what a consumer building svcheck from source needs
+  #**************************************************************************
+  - name: default
+    deps:
+    - name: slang
+      url: https://github.com/MikePopoloski/slang/archive/refs/tags/v11.0.tar.gz
+      type: raw
+    - name: fmt
+      url: https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz
+      type: raw
+    - name: rapidyaml
+      url: https://github.com/biojppm/rapidyaml/releases/download/v0.16.0/rapidyaml.v0.16.0.src.zip
+      type: raw
+    - name: pyastbuilder
+      src: pypi
+    - name: ninja
+      src: pypi
+    - name: ivpm-build
+      src: pypi

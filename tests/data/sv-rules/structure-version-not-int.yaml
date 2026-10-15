@@ -1,0 +1,6 @@
+sv-rules:
+  version: "1"
+  rules: []
+
+# expect: SVCHK210 error @ 2:13 'version' must be an integer, not a string
+# refused

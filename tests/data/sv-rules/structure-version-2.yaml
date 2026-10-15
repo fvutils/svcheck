@@ -1,0 +1,9 @@
+sv-rules:
+  version: 2
+  uses: [other.yaml]          # a v2 key: not judged by v1's rules
+  rules:
+    - id: ACME001
+      name: from-the-future
+
+# expect: SVCHK210 error @ 2:12 this file is sv-rules version 2, but this svcheck reads version 1; upgrade svcheck to load it
+# refused

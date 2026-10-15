@@ -115,6 +115,8 @@ what lets `elab` become `svelab` by moving it, not by rewriting it.
 **Decided (user, 2026-10-15):** for SC1, svcheck is *inspired* by pssparser's checking engine
 but does not reuse its source. This avoids a cross-project dependency and lets each project
 innovate freely. Generalising or combining comes later.
+*Refined the same day:* copying is allowed (Q-SC1), and svcheck-plan R-1 forks the whole engine.
+There is still no dependency between the two projects. The lineage table below records the fork.
 
 **What carries over is the design, not the code.** pssparser's engine (`src/lint`, about 18.5k
 lines of C++, lint-core-plan C0–C8) is the reference, and its documents are the
@@ -143,9 +145,27 @@ specification svcheck starts from:
   direction. Each copy is recorded in the **lineage table** below, so a later comparison knows
   what started shared.
 
-| svcheck path | Copied from (pssparser path @ revision) | Date | Changed since |
-|---|---|---|---|
-| *(none yet)* | | | |
+Every row below is from pssparser `57c6b14`, copied 2026-10-15 (svcheck-plan P1.1). Throughout:
+namespace `pssp` became `svcheck`, the codes `PSSP2xx` became `SVCHK2xx`, and the root key
+`pss-rules` became `sv-rules`. pssparser's documents are still cited by their own names.
+
+| svcheck path | Copied from (pssparser) | Changed since |
+|---|---|---|
+| `src/engine/cel/` | `src/lint/cel/` | the function registry holds only the standard library; the host adds its own through `cel::setHostLib` (C9.2) |
+| `src/engine/regex/` | `src/lint/regex/` | none |
+| `src/engine/yaml/` | `src/lint/yaml/` | none |
+| `src/engine/util/` | `src/lint/util/` | none |
+| `src/engine/catalog/` | `src/lint/catalog/` | `catalog.json` is hand-maintained. It holds only the engine's own markers (SVCHK000, 004, 007, 201–206, 210–223, 230), and provisional SV families |
+| `src/engine/rules/` | `src/lint/rules/` | `SVCHK` is the reserved namespace, and built-in rules use it alone |
+| `src/engine/run/` | `src/lint/run/` | `Context.{h,cpp}` is new: the language-neutral half of `lib/PssLib.h`'s `lib::Context`, with hooks for the host (C9.1). The Runner takes it in place of the PSS model |
+| `src/engine/pipeline/` | `src/lint/pipeline/` | waiver extraction is the host's (C9.3). `collectPragmas` reads the host's tokens; the `@lint_pkg::waive` annotation form was dropped |
+| `src/engine/LintEngine.*` | `src/lint/LintEngine.*` | `run()` takes schema nodes and a host `run::Context`. `collectWaivers()` takes the host's tokens |
+| `src/engine/LintTestHooks.*` | `src/lint/LintTestHooks.*` | the hooks that take a PSS tree were dropped (to return in P1.2). `dispatch()` (JSON) is new |
+| `src/engine/include/svcheck/` | `src/include/pssp/lint/`, `IMarker.h`, `src/Marker.h` | `ILintEngine` as above; `Marker` is header-only; `ast/Location.h` is written by hand |
+| `src/engine/schema/Reflect.*` | the interface of pyastbuilder `gen-reflect`'s generated `Reflect.h` | the tables are installed by the host at run time (C9.1), not compiled in |
+| `src/engine/{cel,rules,catalog}/*.py` | the same paths | paths and names only |
+| `scripts/cel_differential.py` | `scripts/cel_differential.py` | drives `svcheck --engine-test-hooks` |
+| `tests/engine/test_{cel_*,regex,yaml*,rule_loader}.py`, `tests/data/{cel-conformance,sv-rules}/` | `tests/python/lintcore/`, `tests/data/{cel-conformance,pss-rules}/` | the root key and namespaces are renamed. The tests that need a PSS schema or PSS sources are held back (`tests/engine/needs_schema.txt`) until P1.2 |
 
 **pssparser's C9** (separating its own core from PSS) is no longer a prerequisite. It stays in
 lint-core-plan as a deferred item for when the engines are combined.
@@ -315,7 +335,8 @@ format, the CEL profile or a function's meaning departs from pssparser's.
 | **`uses:` (helpers shared between files) is needed in v1** | every UVM rule uses the shared vocabulary (`uvm.yaml`); without it each file repeats about 20 lines. For PSS this is deferred Q-F2 |
 | **File-level options** are needed with `uses:` | a role helper reads an option (`driver_pattern`) |
 | Examples compile in a default context with `uvm_pkg` | short UVM examples |
-| Namespaces | built-in SV rules need a namespace that is not an EDA standard name. `UVM` is IEEE 1800.2's, so probably not that (Q-UVM5) |
+| Namespaces | built-in SV rules need a namespace that is not an EDA standard name. `UVM` is IEEE 1800.2's, so probably not that (Q-UVM5). Provisionally **`SVCHK`** for everything svcheck owns: built-in rules and the engine's own markers (SVCHK000, 004, 007, 2xx), which built-in rule numbers must avoid. Final at svcheck-plan P2.0 |
+| Waivers: only `// svcheck waive <id>: <reason>` | pssparser's second form, the `@lint_pkg::waive` annotation, is PSS syntax |
 
 Example (sv-uvm-rules-assessment §4 has eleven):
 

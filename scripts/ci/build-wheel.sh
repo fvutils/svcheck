@@ -41,7 +41,7 @@ echo "=== test against the built wheel ==="
 # Against the wheel rather than the source tree: what is tested is what ships.
 rm -rf /tmp/svcheck-testenv
 "$PY" -m venv /tmp/svcheck-testenv
-/tmp/svcheck-testenv/bin/pip install -q pytest dist/*.whl
+/tmp/svcheck-testenv/bin/pip install -q pytest cel-python dist/*.whl
 # From a directory without python/svcheck on the path, so the import is the
 # installed package.
 /tmp/svcheck-testenv/bin/python -m pytest -q -p no:cacheprovider tests

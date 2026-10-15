@@ -1,0 +1,44 @@
+# builtin
+# A built-in rule file uses the SVCHK namespace only (format §5).
+sv-rules:
+  defaults:
+    tier: style
+    family: process
+  rules:
+    - id: ACME001
+      name: site-namespace
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: ACME001
+        - code: |
+            component pss_top { }
+    - id: SVCHK-NET001
+      name: qualified-svchk
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: SVCHK-NET001
+        - code: |
+            component pss_top { }
+    - id: SVCHK950
+      name: plain-svchk
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: SVCHK950
+        - code: |
+            component pss_top { }
+
+# expect: SVCHK217 error @ 8:11 'ACME001' is in namespace 'ACME'; a built-in rule's IDs are in the SVCHK namespace
+# expect: SVCHK217 error @ 19:11 'SVCHK-NET001' is in namespace 'SVCHK-NET'; a built-in rule's IDs are in the SVCHK namespace
+# loads: SVCHK950

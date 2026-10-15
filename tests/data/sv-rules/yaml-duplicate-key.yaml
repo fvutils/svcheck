@@ -1,0 +1,8 @@
+sv-rules:
+  rules:
+    - id: ACME001
+      name: a
+      id: ACME002
+
+# expect: SVCHK218 error @ 5:7 duplicate key 'id' (first defined on line 3)
+# refused

@@ -1,0 +1,13 @@
+sv-rules:
+  rules:
+    - id: ACME001
+      name: still-loads
+      tier: style
+      summary: The rules still load
+      message: "m"
+      match: { kind: ExprBin }
+defaults:
+  tier: style
+
+# expect: SVCHK211 error @ 9:1 'defaults' beside 'sv-rules': 'sv-rules' must be the only top-level key; file-level settings go under it
+# loads: ACME001

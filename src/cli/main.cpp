@@ -2,14 +2,21 @@
 //
 // P0 (svcheck-plan.md P0.4): compile the sources named on the command line
 // (slang's standard arguments, so -f, +incdir+ and +define+ work) and, with
-// --dump-diags, report slang's diagnostic counts and the time taken. The rule
-// engine arrives in P1.
+// --dump-diags, report slang's diagnostic counts and the time taken.
+//
+// P1.1: `svcheck --engine-test-hooks` serves the rule engine's test hooks
+// (LintTestHooks::dispatch), one JSON request per stdin line and one JSON
+// reply per stdout line, for tests/engine. Not a user option.
 
 #include <chrono>
 #include <cstdio>
+#include <cstring>
+#include <iostream>
 #include <map>
 #include <optional>
 #include <string>
+
+#include "LintTestHooks.h"
 
 #include "slang/ast/Compilation.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
@@ -23,7 +30,19 @@ static double seconds(Clock::time_point a, Clock::time_point b) {
     return std::chrono::duration<double>(b - a).count();
 }
 
+static int serveTestHooks() {
+    svcheck::lint::LintTestHooks hooks;
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        std::cout << hooks.dispatch(line) << '\n' << std::flush;
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
+    if (argc == 2 && std::strcmp(argv[1], "--engine-test-hooks") == 0)
+        return serveTestHooks();
+
     driver::Driver driver;
     driver.addStandardArgs();
 

@@ -38,6 +38,11 @@ package:
       type: raw
     - name: pyastbuilder
       url: https://github.com/mballance-utils/pyastbuilder.git
+    # The differential oracle for the engine's CEL evaluator
+    # (tests/engine/test_cel_differential.py; skipped when absent). Test-only.
+    # Apache-2.0.
+    - name: cel-python
+      src: pypi
     - name: pytest
       src: pypi
     - name: ninja

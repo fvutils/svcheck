@@ -1,0 +1,6 @@
+sv-rules:
+  rules:
+    ACME001: {}
+
+# expect: SVCHK210 error @ 3:5 'rules' must be a list of rules, not a mapping
+# refused

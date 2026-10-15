@@ -1,0 +1,5 @@
+sv-rules:
+  version: 1
+
+# expect: SVCHK210 error @ 2:3 'sv-rules' has no 'rules' list (write 'rules: []' for a file with no rules yet)
+# refused

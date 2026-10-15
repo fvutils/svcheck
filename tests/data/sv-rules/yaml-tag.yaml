@@ -1,0 +1,5 @@
+sv-rules:
+  rules: !!seq []
+
+# expect: SVCHK218 error @ 2:10 YAML tags ('!...') are not supported in rule files
+# refused

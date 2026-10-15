@@ -1,0 +1,5 @@
+pss_rules:
+  rules: []
+
+# expect: SVCHK210 error @ 1:1 not a rule file: there is no top-level 'sv-rules' key; did you mean 'sv-rules'?
+# refused

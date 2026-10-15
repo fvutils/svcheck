@@ -1,0 +1,492 @@
+{
+ "schema": "svcheck-catalog/1",
+ "generated_by": "hand-maintained (derived from pssparser 57c6b14 src/lint/catalog/catalog.json)",
+ "taxonomy": {
+  "tiers": [
+   [
+    "correctness",
+    "warning"
+   ],
+   [
+    "suspicious",
+    "warning"
+   ],
+   [
+    "portability",
+    "warning"
+   ],
+   [
+    "simplify",
+    "info"
+   ],
+   [
+    "style",
+    "hint"
+   ],
+   [
+    "pedantic",
+    "warning"
+   ],
+   [
+    "restriction",
+    "warning"
+   ],
+   [
+    "nursery",
+    "warning"
+   ],
+   [
+    "tool",
+    "warning"
+   ]
+  ],
+  "families": [
+   "uvm",
+   "factory",
+   "class",
+   "decl",
+   "naming",
+   "expression",
+   "process",
+   "metric"
+  ],
+  "profiles": [
+   "minimal",
+   "recommended",
+   "library",
+   "strict",
+   "all",
+   "none"
+  ],
+  "default_profile": "minimal",
+  "profile_tiers": {
+   "minimal": [],
+   "recommended": [
+    "correctness",
+    "suspicious",
+    "portability",
+    "simplify"
+   ],
+   "library": [
+    "correctness",
+    "suspicious",
+    "portability",
+    "simplify"
+   ],
+   "strict": [
+    "correctness",
+    "suspicious",
+    "portability",
+    "simplify",
+    "pedantic"
+   ],
+   "all": [
+    "correctness",
+    "suspicious",
+    "portability",
+    "simplify",
+    "style",
+    "pedantic",
+    "restriction"
+   ],
+   "none": []
+  },
+  "doc_url": ""
+ },
+ "markers": [
+  {
+   "id": "SVCHK000",
+   "name": "internal-error",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [
+    "PSS000"
+   ],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "Internal error",
+   "detail": "svcheck reached a state it believed could not happen.  This is a defect in svcheck, not necessarily in the model, and it should be reported together with the input that triggers it.  The message names the phase or link pass that failed:\n\n* ``internal error in resolving references: ...``\n* ``internal error while building the AST: ...``\n\nResults for the rest of the model are incomplete: the pass that failed stopped, and the passes after it did not run.  The command-line tool exits with status 3 when an internal error is reported.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK004",
+   "name": "deprecated-alias",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "info",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "An old marker ID was used where an ID is accepted",
+   "detail": "A configuration key, ``-W`` flag or other ID-accepting input named a code that has moved -- for example a built-in rule renumbered at a release.  The old code still works: it is rewritten to the new one, and this note says so once per spelling, naming where it was written.  Update the input to the new ID to silence the note.\n\nCodes move when their meaning is reclassified: a warning about legal code is lint (``LINT``), and a diagnostic about svcheck itself is ``PSSP``; ``PSS`` is kept for LRM violations.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK007",
+   "name": "too-many-errors",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [
+    "PSS029"
+   ],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "Too many errors; stopped reporting further errors",
+   "detail": "``--max-errors`` (default 20; ``0`` disables the cap) was reached for this file. Only error-severity markers count against it -- warnings and hints never trigger it, and a clean file never sees it. Emitted once, at the location of the error that pushed the count over the limit; every further error in that file is dropped, not merely hidden, so re-running with a higher (or ``0``) ``--max-errors`` is the only way to see what comes after it.\n\nMessage: ``too many errors (<N>); stopped reporting further errors for this file``",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK201",
+   "name": "bad-rule-metadata",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "warning",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A lint rule's metadata is invalid",
+   "detail": "A ``MarkerDef`` with lint metadata breaks one of the rules in the plug-in guide's *Rule metadata* section: a name that is not unique or not kebab-case, a tier, family or level outside its closed set, a ``LINT`` ID with no tier, a ``nursery`` rule with no ``since``, a fix with no example showing it, or a severity that differs from the tier's default without a ``Severity:`` paragraph in ``detail``.  The message names the field.  The checker is not registered.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK202",
+   "name": "unused-waiver",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "warning",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A waiver matched no diagnostic",
+   "detail": "A ``// svcheck waive`` comment covered no diagnostic, although a rule it names ran on this run.  Usually the code it excused has been fixed: delete the waiver.  A waiver for a rule that did not run -- turned off, outside the lint profile, or from a checker that was not loaded -- is not reported, so a waiver does not flap with the configuration.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK203",
+   "name": "unknown-waiver-rule",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "warning",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A waiver names no known rule",
+   "detail": "An ID in a ``// svcheck waive`` comment is not a marker ID, rule name or selector that any loaded checker declares.  Usually a typo; the message suggests the nearest match.  A rule from an extension that is not installed looks the same.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK204",
+   "name": "waiver-on-error",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "warning",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A waiver names an error that cannot be waived",
+   "detail": "An LRM error means the model was not built, so waiving it would report success for a run that compiled nothing.  The waiver has no effect.  Fix the error, and delete the waiver.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK205",
+   "name": "waiver-without-reason",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "warning",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A waiver gives no reason",
+   "detail": "Every waiver says why: the text after ``:`` in the comment.  The waiver still applies; this asks for the reason.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK206",
+   "name": "stale-baseline-entry",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "info",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A baseline entry matched fewer findings than it recorded",
+   "detail": "The baseline records a finding that this run no longer reports: it was fixed, or the code changed enough to be a different finding.  The diagnostic points at the entry in the baseline file.  Rewrite the baseline with ``--write-baseline`` so that the finding cannot come back unnoticed.  It is reported only for an entry whose file was checked and whose rule ran, so checking a subset of the files, or turning a rule off, does not make entries stale.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK210",
+   "name": "rule-file-structure",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule file is not a sv-rules file",
+   "detail": "The file is refused as a whole: it is empty, its top level is not a mapping with the single key ``sv-rules``, ``sv-rules`` is not a mapping or has no ``rules`` list, or it declares a ``version`` this svcheck does not read.  A file of a later version is never partly loaded; the message names both versions.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK211",
+   "name": "rule-unknown-key",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule file has a key the format does not define",
+   "detail": "Rule files are strict: an unknown key is an error, never ignored, so a misspelt ``wher:`` cannot leave a rule firing on every node.  The message suggests the nearest key.  A key in a rule disables that rule.  Keys starting with ``x-`` are the author's own and are ignored.  Settings beside ``sv-rules`` at the top level belong under it.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK212",
+   "name": "rule-field-invalid",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule field is missing or has a wrong value",
+   "detail": "A required field is missing (``id``, ``name``, ``tier``, ``summary``, ``message``, ``match``; ``since`` in the nursery tier; ``family``, ``doc`` and examples that fire and do not fire in a built-in rule), or a field has the wrong type or a value outside its set.  This includes ``options`` specs, ``let`` names, example expectations, a field under ``defaults`` that cannot be defaulted, and ``fix``, which is reserved.  The rule is not loaded.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK213",
+   "name": "rule-unknown-kind",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule's match names an unknown node kind",
+   "detail": "``match.kind``, ``inside`` and ``not_inside`` name AST classes from the schema (``ast/*.yaml``), as ``ExprBin`` or ``Action``.  The message suggests the nearest class.  The rule is not loaded.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK214",
+   "name": "rule-expression-syntax",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule expression is not valid CEL",
+   "detail": "A ``where``, ``report``, ``let``, ``define`` or message ``${...}`` expression does not parse, or uses a part of CEL that sv-rules leaves out (see ``docs/lint-functions.rst``).  The position is mapped back to the line and column in the rule file.  Write CEL in a block scalar (``>-``) or a quoted string, since ``:``, ``#`` and ``?`` would otherwise trip YAML.  In a message, ``$${`` is a literal ``${``.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK215",
+   "name": "rule-expression-type",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule expression does not type-check",
+   "detail": "Every expression has a static type, checked when the rule loads: an unknown name, field, function or option, a wrong argument type, ``where`` that is not a bool, ``report`` that is not a list of nodes, or a message interpolation that is not a string, number, bool or node.  The rule is not loaded.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK216",
+   "name": "rule-expression-limit",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule expression exceeds a limit",
+   "detail": "Comprehensions nest more than two deep in one expression or helper (move the inner part into a ``define:`` helper), ``define:`` helpers call each other in a cycle (the message gives the path), or a regular expression is outside the supported RE2 syntax.  These limits keep every rule's run time bounded.  The rule is not loaded.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK217",
+   "name": "rule-id-conflict",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule's ID or name is reserved or already taken",
+   "detail": "A site rule file may not use the ``SVCHK`` namespace, with or without a team qualifier (``SVCHK-NET001`` is refused too); a built-in rule file uses ``SVCHK`` only.  Across every loaded rule file and extension, a rule's ID and aliases are unique among IDs and aliases, and its name among names; the message names the other rule's file and line.  Team namespaces are separate: ``ACME-NET001`` and ``ACME-DMA001`` do not clash.  The rule is not loaded.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK218",
+   "name": "rule-file-yaml",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule file is not valid YAML for sv-rules",
+   "detail": "A YAML syntax error, a duplicate key, a tag (``!!str``), or more than one document in the file.  The file is refused as a whole.  Rule files use YAML 1.2 core-schema scalars: ``yes``, ``no``, ``on`` and ``off`` are strings.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK219",
+   "name": "rule-helper-shadowed",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "info",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A rule's helper shadows the file's helper of the same name",
+   "detail": "A ``define:`` helper of a rule has the name of a file-level helper, so within that rule it replaces the file's.  That may be intended; rename one of them if it is not.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK220",
+   "name": "rule-evaluation-error",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "warning",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A lint rule failed while evaluating",
+   "detail": "A rule's ``where``, ``report`` or message expression evaluated to an error on a node: most often a field read through an unset one (``node.super_t.elems`` on a type with no base), which a rule guards with ``has()`` or ``.?``.  The message names the rule, the expression and the node.  The rule is skipped for the rest of that file, once; the other rules still run.  A finding whose message failed is kept, with ``?`` in place of the failed part.  The model is not at fault: fix the rule, or turn it off.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK221",
+   "name": "rule-budget-exceeded",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "warning",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A lint rule used up its evaluation budget for a file",
+   "detail": "Each rule may spend a fixed number of evaluation steps on each file, counted across every node it matches, so a costly rule cannot stall the editor.  A rule that runs out is skipped for the rest of that file; the findings it already made stand, and the other rules still run.  The message names the rule and the node it was evaluating.  Make the rule cheaper: a narrower ``match``, or a ``where`` that rejects early.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK222",
+   "name": "rule-example-failed",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A lint rule's example does not give the findings it expects",
+   "detail": "``svcheck --check-rules`` runs each rule's ``examples:``: every example is parsed and linked on its own, and only its rule runs.  The rule must report exactly where the example's ``// expect:`` comments say, and nowhere else; an example with no ``expect`` must report nothing.  An example that does not parse or link, or on which the rule fails, fails too.  The marker is at the example in the rule file, and its message gives the position in the example's text.  Fix the rule or the example: an example is the rule's documentation, so the two must agree.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK223",
+   "name": "rule-unknown-type",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "info",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A lint rule names a type the model does not have",
+   "detail": "A rule's ``type_named`` or ``derives_from`` names a type (``acme_pkg::claim_c``) that is not in the model being checked: a typo, or a package that was not compiled in.  The rule still runs, with ``type_named`` giving ``optional.none()`` and ``derives_from`` false for that name, so it may report nothing.  The note is given once per rule and name, at the node the rule was evaluating when it first asked.  Fix the name, or add the package's files to the run.",
+   "lrm": []
+  },
+  {
+   "id": "SVCHK230",
+   "name": "lint-skipped",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "info",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "Lint did not run because the model has errors",
+   "detail": "Lint rules run only on a model that parsed, linked and passed the semantic checks without an error, since a rule on a broken model would report noise.  The message gives the number of errors.  Fix them, and lint runs.",
+   "lrm": []
+  }
+ ],
+ "patterns": [
+  [
+   "(?i)^internal error\\b",
+   "SVCHK000"
+  ]
+ ]
+}

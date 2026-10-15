@@ -1,0 +1,8 @@
+sv-rules:
+  rules: []
+---
+sv-rules:
+  rules: []
+
+# expect: SVCHK218 error @ 4:1 a rule file holds one YAML document; found 2 ('---' separates documents)
+# refused

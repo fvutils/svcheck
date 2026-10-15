@@ -1,0 +1,40 @@
+# builtin
+sv-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: SVCHK901
+      name: missing-builtin-fields
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: SVCHK902
+      name: only-firing-examples
+      family: process
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: SVCHK902
+    - id: SVCHK903
+      name: complete-builtin
+      family: process
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - name: fires
+          code: |
+            component pss_top { }   // expect: SVCHK903
+        - name: near miss
+          code: |
+            component pss_top { }
+
+# expect: SVCHK212 error @ 6:7 rule 'SVCHK901' has no 'family', which a built-in rule must have
+# expect: SVCHK212 error @ 6:7 rule 'SVCHK901' has no 'doc', which a built-in rule must have
+# expect: SVCHK212 error @ 6:7 rule 'SVCHK901' has no 'examples', which a built-in rule must have
+# expect: SVCHK212 error @ 19:9 a built-in rule needs at least one example that fires and one that does not; this one has none that does not
+# loads: SVCHK903

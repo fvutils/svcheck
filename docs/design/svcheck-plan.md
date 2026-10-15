@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | P0 in progress, 2026-10-15: P0.1–P0.4 and P0.6 done; P0.5 (CI) active. R-1…R-5 approved. |
+| **Status** | 2026-10-15: P0 done except P0.5's Forgejo run, which isn't confirmed yet (GitHub is green). **P1.1 done**; P1.2 next. R-1…R-5 approved. |
 | **Implements** | `svcheck-design.md` (the design). This plan refines its §10 into items that can be tracked; it does not change the design's decisions. Where it recommends something new, the item says so and lists it under §2. |
 | **Tracking** | Each item has an ID (`P1.3`), a status and an exit criterion. Update the status column and add a dated line to the log (§7) when an item starts or ends. |
 
@@ -77,7 +77,7 @@ When each open question must be answered, so that work never waits on one by sur
 | P0.2 | **Repository skeleton** to design §8: `CMakeLists.txt`, `ivpm.yaml`, `pyproject.toml`, `src/{ast,lower,host,elab,cli}`, `python/svcheck`, `rules/`, `scripts/`, `tests/`. Also a `CLAUDE.md` with build and test commands. README replaced with a one-paragraph description. | `ivpm update && cmake --build` from clean | done |
 | P0.3 | **Dependencies through ivpm:** slang v11.0 (pinned tag), rapidyaml v0.16.0 (pssparser's pin), pyastbuilder, UVM 1800.2-2020.3.1 (1.2 deferred to P1.7). Settle slang's own fetched dependencies (fmt, boost-unordered, mimalloc). Either vendor them through ivpm or turn them off (`SLANG_USE_MIMALLOC=OFF`), so the build has no network access at CMake time. | clean build offline after `ivpm update` | done (P0-2) |
 | P0.4 | **Hello slang:** `svcheck --dump-diags -f uvm.f` compiles `uvm_pkg` and prints slang's diagnostic count and timing. | 0.12 s ± noise vs. pyslang's number (design §6) | done: 0.08 s (§6) |
-| P0.5 | **Wheel and CI.** Use the same ivpm-build/cython path as pssparser, with the CLI as a console script. CI runs build plus pytest. Set up with the `dvkit-infra` skill: wheels go to PyPI from **GitHub** (release authority `github`, the DVKit default); docs publish from **Forgejo** to dvkit.org (a `docs.yml` once there are docs to build). | green CI on a trivial test | active: workflow pair and `scripts/ci/build-wheel.sh` pass in both CI images locally (P0-7); waits on a push |
+| P0.5 | **Wheel and CI.** Use the same ivpm-build/cython path as pssparser, with the CLI as a console script. CI runs build plus pytest. Set up with the `dvkit-infra` skill: wheels go to PyPI from **GitHub** (release authority `github`, the DVKit default); docs publish from **Forgejo** to dvkit.org (a `docs.yml` once there are docs to build). | green CI on a trivial test | GitHub green (run 38813715993, `dfd92a3`). Forgejo not confirmed: the repo is private, so its Actions setting and runs can't be seen from here (P0-7) |
 | P0.6 | Q-SC2 settled (R-5); recorded in design §2. | decision logged | done: provisional prefix `SVCHK` |
 
 ### P1. Spike = SC1 (3–4 weeks)
@@ -86,8 +86,8 @@ Order: P1.1 and P1.2 in parallel. P1.3 needs P1.2's node handles. P1.4–P1.6 ne
 
 | ID | Item | Exit | Status |
 |---|---|---|---|
-| P1.1 | **Fork the engine** (R-1, R-2). Copy `cel/ regex/ yaml/ util/ catalog/ rules/ run/ pipeline/` from pssparser `57c6b14` into `src/engine/`. Add a lineage-table row per directory. Then cut the PSS out: `run/` walks a host `INodeHandle` (C9.1); the function registry is filled by the host (C9.2); waiver *extraction* moves to the host (C9.3); `LintEngine` takes a host for the schema, root key, snippet compile and ID policy (C9.4). The engine is a CMake target with no slang include path (C9.5). Copy the engine's CEL conformance and regex tests along with it. | engine target builds alone; copied CEL/regex/YAML tests pass; root key `sv-rules:` accepted | todo |
-| P1.2 | **Syntax schema and handles.** `scripts/gen_syntax_schema.py` reads slang's `scripts/syntax.txt` and emits the kind table and field accessors; `kindmap` groups become `kind: [...]` lists. Node handles over `SyntaxNode` carry kind, fields, children, parent, identity and a macro-aware location (S-3). | a CEL rule matching `ClassDeclaration` fires on a snippet | todo |
+| P1.1 | **Fork the engine** (R-1, R-2). Copy `cel/ regex/ yaml/ util/ catalog/ rules/ run/ pipeline/` from pssparser `57c6b14` into `src/engine/`. Add a lineage-table row per directory. Then cut the PSS out: `run/` walks a host `INodeHandle` (C9.1); the function registry is filled by the host (C9.2); waiver *extraction* moves to the host (C9.3); `LintEngine` takes a host for the schema, root key, snippet compile and ID policy (C9.4). The engine is a CMake target with no slang include path (C9.5). Copy the engine's CEL conformance and regex tests along with it. | engine target builds alone; copied CEL/regex/YAML tests pass; root key `sv-rules:` accepted | **done** (P1-1…P1-5): 1033 pass. Of the copied tests, 203 that need a PSS schema or PSS sources are held back for P1.2, and 4 for P1.5 (`tests/engine/needs_schema.txt`) |
+| P1.2 | **Syntax schema and handles.** `scripts/gen_syntax_schema.py` reads slang's `scripts/syntax.txt` and emits the kind table and field accessors; `kindmap` groups become `kind: [...]` lists. Node handles over `SyntaxNode` carry kind, fields, children, parent, identity and a macro-aware location (S-3). | a CEL rule matching `ClassDeclaration` fires on a snippet; `tests/engine/needs_schema.txt` empty (its tests re-targeted at SV kinds and snippets) | todo |
 | P1.3 | **Curated semantic model, spike subset** (design §3.6). In pyastbuilder YAML: package, class (base, params, specialisation, `isAbstract`), subroutine (virtual, override), call, assignment, case, `Opaque`. Write the lowering pass from slang's semantic model: user code in full, library code as declarations only, each node with a back-handle to its slang symbol. **For Q-SC5**, also write a thin accessor table over slang's `ClassType`/`SubroutineSymbol` that is just enough for the 4 UVM rules, so both sides can be compared on the same rules. | both paths answer the 4 UVM rules' examples | todo |
 | P1.4 | **Function library, spike subset:** navigation; `derives_from`, `member`, `members`, `overrides`, `is_super_call`, `in_library`, `resolves_to`, `type_of`, `const_value`, `macro_of` (decides Q-UVM2); `uses:` and file-level options (divergence-log rows). Snippet compilation for `examples:` against a cached `uvm_pkg`. | the 10 rules' examples run through the copied examples-as-tests harness | todo |
 | P1.5 | **CLI and compilation context:** `.f` reader (R-4), `--rules`, `--format text|json|sarif` (already in the fork), scope computation, and **not run** reporting (design §3.3). | `svcheck -f tb.f --rules r.yaml` on fw-wb-dma | todo |
@@ -165,6 +165,16 @@ Filled in by P0.4 and P1.7.
 | P0-6 | ivpm unpacks rapidyaml with its top directory (`packages/rapidyaml/rapidyaml.v0.16.0/`), as pssparser's F-1 found. slang, fmt and uvm-core are unpacked flat | the P1.1 engine build globs for the rapidyaml tree, as `lint.cmake` does |
 | P0-7 | The wheel is built in a manylinux_2_28 container and repaired by auditwheel to `py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64` (3.3 MB). The workflow pair shares one build script; Forgejo uses pssparser's CI image (manylinux plus node, which act needs) and maps git deps to git.dvkit.org. The release archives (slang, fmt, rapidyaml, uvm-core) still come from github.com on both forges. The version file is now `BASE` + `SUFFIX`, so CI can stamp dev builds | a Forgejo build still depends on GitHub for the archives. Mirror them if that matters. Linux x86_64 only for now; aarch64/macOS/Windows wheels are a P2.10 question |
 
+### P1 findings
+
+| # | Finding | Effect |
+|---|---|---|
+| P1-1 | The schema cut is smaller than C9.1 suggested. pssparser's engine reads its schema only through `Reflect.h`'s tables (class, field, enum and struct arrays with accessor function pointers), so making those runtime variables the host installs (`src/engine/schema/Reflect.h`) leaves `cel/`, `rules/` and `run/Walker` source almost unchanged. There is no `INodeHandle` class: a node is `{kind, ptr}`, and the host's `FieldInfo` accessors interpret `ptr` | P1.2 writes slang's syntax tables in gen-reflect's layout. The Walker's PSS conventions (a `location` struct field, `name: ExprId`, the implicit `FieldCompRef`) have no effect without those classes; P1.2 replaces them with the SV host's equivalents |
+| P1-2 | The root key and ID policy (C9.4) are literals in the fork (`sv-rules`, `SVCHK`), not a host object: svcheck has one host. `SVCHK` is the reserved namespace and the built-in one; the engine's markers keep pssparser's numbers (SVCHK000, 004, 007, 201–206, 210–223, 230) | built-in rule numbers must avoid those until P2.0 settles the namespace (design §4) |
+| P1-3 | Snippet compilation for `examples:` is not in pssparser's C++ engine: its examples-as-tests harness is Python over a PSS parse. Nothing was cut for it in P1.1 | it lands with the harness in P1.4, as a host hook |
+| P1-4 | The tests drive the shipped binary: `svcheck --engine-test-hooks` serves `LintTestHooks::dispatch` as JSON lines, and `tests/engine/hooks.py` has the method names of pssparser's Cython hooks, so the copied tests run with only paths and names changed. The CEL differential test (2000 expressions against cel-python) passes; cel-python is now in `default-dev` and in the CI test venv | the Python bindings stay a P2 question (P0-4, PR-3) |
+| P1-5 | The tests held back: 85 parse PSS source, 76 name PSS schema types, 42 match PSS node kinds, 4 drive a whole `LintEngine` (`mkLintEngine`). I checked each failure's message before listing it: none was a fault in the fork. The namespace policy is checked separately (`test_fork_policy.py`) | P1.2 re-targets the first three groups; P1.5 adds engine-level hooks for the last |
+
 ## 7. Log
 
 - **2026-10-15** Plan drafted from `svcheck-design.md` and a survey of pssparser `57c6b14`,
@@ -182,3 +192,9 @@ Filled in by P0.4 and P1.7.
 - **2026-10-15** P0 committed (`0c8dc9c`). P0.5: CI pair (`.github/` + `.forgejo/workflows/ci.yml`, from
   the DVKit templates) and `scripts/ci/build-wheel.sh`. Both pass when trial-run locally in the
   manylinux_2_28 and Forgejo images (P0-7). Waiting on a push to get a green run on the forges.
+- **2026-10-15** `main` pushed (`dfd92a3`). GitHub CI green; Forgejo's run not confirmed (private repo).
+- **2026-10-15** **P1.1 done.** The engine is forked from pssparser `57c6b14` into `src/engine/` and
+  builds as `svcheck_engine` with no slang include path. Cuts: a runtime schema the host
+  installs (C9.1), a host function library (C9.2), host-supplied waiver tokens (C9.3), and a
+  `run::Context` in place of the PSS model (C9.4). Lineage is in design §3.1, divergences in §4.
+  1033 tests pass; 207 are held back for P1.2 and P1.5 (P1-5). Findings P1-1…P1-5.

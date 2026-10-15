@@ -10,6 +10,15 @@ C++ core on slang; Python is packaging only.
 - pssparser's rule engine is the reference design (`psstools/pssparser/src/lint`). Code may be
   copied from it; never depend on it. Record every copy in the lineage table, design §3.1.
 
+## Engine
+
+`src/engine/` is the fork of pssparser's engine (P1.1), built as `svcheck_engine`. It must not
+include slang or SV types: the host gives it a schema (`schema/Reflect.h`, `install()`), a
+`run::Context` and a function library (`cel::setHostLib`). Its tests (`tests/engine/`) drive the
+shipped binary through `svcheck --engine-test-hooks` (`tests/engine/hooks.py`). Copied tests
+that still need an SV schema are listed in `tests/engine/needs_schema.txt`. Remove a line from
+that file when its test is re-targeted; never add one to hide a failure.
+
 ## Build and test
 
 ```sh

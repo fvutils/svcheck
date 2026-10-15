@@ -1,0 +1,221 @@
+# Engine tests held back until the SV host gives the engine a schema
+# (svcheck-plan P1.2). They were written against pssparser's PSS schema and
+# PSS sources; P1.2 re-targets them at SV kinds and snippets and deletes the
+# lines here. conftest.py skips each test listed, with its group as reason.
+# One pytest node id per line; a line "## reason" starts a group.
+
+
+## drives a whole LintEngine (P1.5 hooks)
+tests/engine/test_rule_loader.py::test_a_clash_across_files_names_both
+tests/engine/test_rule_loader.py::test_builtin_and_site_files_share_one_claim_table
+tests/engine/test_rule_loader.py::test_engine_builtin_flag
+tests/engine/test_rule_loader.py::test_engine_loads_and_accumulates
+
+## matches PSS node kinds
+tests/engine/test_rule_loader.py::test_a_bad_default_is_reported_once
+tests/engine/test_rule_loader.py::test_a_bad_file_helper_is_reported_once
+tests/engine/test_rule_loader.py::test_builtin_requirements_apply_only_to_builtin_files
+tests/engine/test_rule_loader.py::test_calls_include_helpers_and_messages
+tests/engine/test_rule_loader.py::test_defaults_apply_and_a_rule_value_wins
+tests/engine/test_rule_loader.py::test_examples_are_parsed
+tests/engine/test_rule_loader.py::test_finding_is_typed_by_report
+tests/engine/test_rule_loader.py::test_fixture[builtin-requirements.yaml]
+tests/engine/test_rule_loader.py::test_fixture[defaults-bad.yaml]
+tests/engine/test_rule_loader.py::test_fixture[defaults.yaml]
+tests/engine/test_rule_loader.py::test_fixture[examples.yaml]
+tests/engine/test_rule_loader.py::test_fixture[expr-limit.yaml]
+tests/engine/test_rule_loader.py::test_fixture[expr-syntax.yaml]
+tests/engine/test_rule_loader.py::test_fixture[expr-type.yaml]
+tests/engine/test_rule_loader.py::test_fixture[fields-missing.yaml]
+tests/engine/test_rule_loader.py::test_fixture[fields-types.yaml]
+tests/engine/test_rule_loader.py::test_fixture[good-next-to-bad.yaml]
+tests/engine/test_rule_loader.py::test_fixture[helpers.yaml]
+tests/engine/test_rule_loader.py::test_fixture[ids-builtin.yaml]
+tests/engine/test_rule_loader.py::test_fixture[ids-duplicate.yaml]
+tests/engine/test_rule_loader.py::test_fixture[ids-grammar.yaml]
+tests/engine/test_rule_loader.py::test_fixture[ids-reserved.yaml]
+tests/engine/test_rule_loader.py::test_fixture[keys-beside-root.yaml]
+tests/engine/test_rule_loader.py::test_fixture[keys-unknown.yaml]
+tests/engine/test_rule_loader.py::test_fixture[kinds-unknown.yaml]
+tests/engine/test_rule_loader.py::test_fixture[let.yaml]
+tests/engine/test_rule_loader.py::test_fixture[options.yaml]
+tests/engine/test_rule_loader.py::test_fixture[report.yaml]
+tests/engine/test_rule_loader.py::test_fixture[rules.json]
+tests/engine/test_rule_loader.py::test_fixture[yaml-tag-quoted-ok.yaml]
+tests/engine/test_rule_loader.py::test_good_rules_load_beside_a_bad_one
+tests/engine/test_rule_loader.py::test_json_rule_file
+tests/engine/test_rule_loader.py::test_key_beside_root_is_an_error_but_the_rules_load
+tests/engine/test_rule_loader.py::test_let_in_order
+tests/engine/test_rule_loader.py::test_level_and_scope_of_a_standard_library_rule
+tests/engine/test_rule_loader.py::test_message_literal_dollar_brace
+tests/engine/test_rule_loader.py::test_node_type_is_the_common_base_of_the_kinds
+tests/engine/test_rule_loader.py::test_options_are_typed
+tests/engine/test_rule_loader.py::test_rule_metadata
+tests/engine/test_rule_loader.py::test_shadowing_a_file_helper_is_a_note
+tests/engine/test_rule_loader.py::test_unnamed_examples_are_numbered
+tests/engine/test_rule_loader.py::test_yaml_on_is_a_string
+
+## names PSS schema types
+tests/engine/test_cel_check.py::test_any_node_has_no_fields
+tests/engine/test_cel_check.py::test_declared_variables[ExprBin-ExprBin]
+tests/engine/test_cel_check.py::test_declared_variables[Location-Location]
+tests/engine/test_cel_check.py::test_declared_variables[list(Action)-list(Action)]
+tests/engine/test_cel_check.py::test_derived_field_is_an_error
+tests/engine/test_cel_check.py::test_enum_constants_are_folded
+tests/engine/test_cel_check.py::test_errors[ExprBinOp.Nope-0-enum 'ExprBinOp' has no member 'Nope']
+tests/engine/test_cel_check.py::test_errors[FieldAttr.Rand + 1-0-FieldAttr.Rand is a 'FieldAttr' flag, not a number: test a flag with has_flag(x, FieldAttr.Rand)]
+tests/engine/test_cel_check.py::test_errors[has_flag(4, ExprBinOp.BinOp_Eq)-12-ExprBinOp.BinOp_Eq is a member of enum 'ExprBinOp', which is not a set of flags]
+tests/engine/test_cel_check.py::test_errors[int(FieldAttr.Rand)-4-FieldAttr.Rand is a 'FieldAttr' flag, not a number]
+tests/engine/test_cel_check.py::test_narrowing[Action == type(c) && c.is_abstract-bool]
+tests/engine/test_cel_check.py::test_narrowing[l.filter(c, type(c) == Action && c.is_abstract)-list(Action)]
+tests/engine/test_cel_check.py::test_narrowing[l.filter(c, type(c) == Action)-list(Action)]
+tests/engine/test_cel_check.py::test_narrowing[l.filter(c, type(c) == Action)[0].super_t-TypeIdentifier]
+tests/engine/test_cel_check.py::test_narrowing[type(c) == Action && (true && c.is_abstract)-bool]
+tests/engine/test_cel_check.py::test_narrowing[type(c) == Action && c.name.id == 'A'-bool]
+tests/engine/test_cel_check.py::test_narrowing[type(c) == Action ? c.name : null-ExprId]
+tests/engine/test_cel_check.py::test_narrowing[type(n.lhs) == ExprBin && n.lhs.lhs != null-bool]
+tests/engine/test_cel_check.py::test_no_narrowing[!(type(c) == Action) && c.name.id == '']
+tests/engine/test_cel_check.py::test_no_narrowing[(type(c) == Action) == true && c.name.id == '']
+tests/engine/test_cel_check.py::test_no_narrowing[type(c) == Action && l.exists(c, c.name.id == '')]
+tests/engine/test_cel_check.py::test_no_narrowing[type(c) == Action ? true : c.name.id == '']
+tests/engine/test_cel_check.py::test_no_narrowing[type(c) == Action || c.name.id == '']
+tests/engine/test_cel_check.py::test_node_errors[a == a.location-no matching overload for '==' applied to (Action, Location)]
+tests/engine/test_cel_check.py::test_node_errors[a.location.nope-type 'Location' has no field 'nope']
+tests/engine/test_cel_check.py::test_node_errors[has(node.lhs.op)-type 'Expr' has no field 'op'; ExprBin and ExprUnary have it]
+tests/engine/test_cel_check.py::test_node_errors[has(node.nope)-type 'ExprBin' has no field 'nope']
+tests/engine/test_cel_check.py::test_node_errors[node + 1-no matching overload for '+' applied to (ExprBin, int)]
+tests/engine/test_cel_check.py::test_node_errors[node < node-no matching overload for '<' applied to (ExprBin, ExprBin)]
+tests/engine/test_cel_check.py::test_node_errors[node == 1-no matching overload for '==' applied to (ExprBin, int)]
+tests/engine/test_cel_check.py::test_node_errors[node.?lhs.op-type 'Expr' has no field 'op'; ExprBin and ExprUnary have it]
+tests/engine/test_cel_check.py::test_node_errors[node.?nope-type 'ExprBin' has no field 'nope']
+tests/engine/test_cel_check.py::test_node_errors[node.lhs.?op-type 'Expr' has no field 'op'; ExprBin and ExprUnary have it]
+tests/engine/test_cel_check.py::test_node_errors[node.lhs.op-type 'Expr' has no field 'op'; ExprBin and ExprUnary have it: test the class first, as in type(node.lhs) == ExprBin && node.lhs.op]
+tests/engine/test_cel_check.py::test_node_errors[node.nope-type 'ExprBin' has no field 'nope', nor does any class derived from it]
+tests/engine/test_cel_check.py::test_node_types[[a, a.location]-None]
+tests/engine/test_cel_check.py::test_node_types[[node.lhs, node.rhs]-list(Expr)]
+tests/engine/test_cel_check.py::test_node_types[[node.lhs, node]-list(Expr)]
+tests/engine/test_cel_check.py::test_node_types[[node].map(n, n.lhs)-list(Expr)]
+tests/engine/test_cel_check.py::test_node_types[a.location-Location]
+tests/engine/test_cel_check.py::test_node_types[a.location.lineno-int]
+tests/engine/test_cel_check.py::test_node_types[has(node.lhs)-bool]
+tests/engine/test_cel_check.py::test_node_types[node == node.lhs-bool]
+tests/engine/test_cel_check.py::test_node_types[node in [node.lhs]-bool]
+tests/engine/test_cel_check.py::test_node_types[node-ExprBin]
+tests/engine/test_cel_check.py::test_node_types[node.?lhs-optional(Expr)]
+tests/engine/test_cel_check.py::test_node_types[node.lhs-Expr]
+tests/engine/test_cel_check.py::test_node_types[node.op == ExprBinOp.BinOp_Eq-bool]
+tests/engine/test_cel_check.py::test_node_types[node.op-int]
+tests/engine/test_cel_check.py::test_node_types[true ? node : node.lhs-Expr]
+tests/engine/test_cel_check.py::test_node_types[type(node) == ExprBin-bool]
+tests/engine/test_cel_check.py::test_node_types[type(node.lhs) == ExprBin && node.lhs.op == 0-bool]
+tests/engine/test_cel_check.py::test_null_fits_node_types
+tests/engine/test_cel_check.py::test_required_result_types[report-[1]-report: must be list(node), but this expression is 'list(int)']
+tests/engine/test_cel_check.py::test_required_result_types[report-[a.location]-but this expression is 'list(Location)']
+tests/engine/test_cel_check.py::test_required_result_types[report-node-report: must be list(node), but this expression is 'ExprBin']
+tests/engine/test_cel_check.py::test_required_result_types[where-1-where: must be bool, but this expression is 'int']
+tests/engine/test_cel_check.py::test_required_result_types[where-[true]-where: must be bool, but this expression is 'list(bool)']
+tests/engine/test_cel_check.py::test_required_result_types_met[report-[]]
+tests/engine/test_cel_check.py::test_required_result_types_met[report-[node.lhs, node.rhs]]
+tests/engine/test_cel_check.py::test_required_result_types_met[report-[node].filter(n, n.op == ExprBinOp.BinOp_Eq)]
+tests/engine/test_cel_check.py::test_required_result_types_met[report-[node]]
+tests/engine/test_cel_check.py::test_required_result_types_met[where-[1].exists(x, x > 0)]
+tests/engine/test_cel_check.py::test_required_result_types_met[where-node.lhs != null]
+tests/engine/test_cel_check.py::test_types[ExprBin-type]
+tests/engine/test_cel_check.py::test_types[ExprBinOp.BinOp_Eq + 1-int]
+tests/engine/test_cel_check.py::test_types[ExprBinOp.BinOp_Eq-int]
+tests/engine/test_cel_check.py::test_types[Location-type]
+tests/engine/test_cel_eval.py::test_cel_type_errors[ExprBin.lhs-type 'ExprBin' has no member 'lhs']
+tests/engine/test_cel_eval.py::test_cel_type_errors[ExprBinOp.Nope-type 'ExprBinOp' has no member 'Nope']
+tests/engine/test_cel_eval.py::test_cel_types_and_enum_constants[ExprBin-expected12]
+tests/engine/test_cel_eval.py::test_cel_types_and_enum_constants[ExprBinOp.BinOp_Eq-expected15]
+tests/engine/test_cel_eval.py::test_cel_types_and_enum_constants[ExprBinOp.BinOp_LogOr-expected14]
+tests/engine/test_cel_eval.py::test_cel_types_and_enum_constants[FieldAttr.Action-expected16]
+tests/engine/test_cel_eval.py::test_cel_types_and_enum_constants[FieldAttr.Rand-expected17]
+tests/engine/test_cel_eval.py::test_cel_types_and_enum_constants[Location-expected13]
+
+## parses PSS source (a PSS tree)
+tests/engine/test_cel_check.py::test_narrowed_read_of_another_class_is_safe
+tests/engine/test_cel_check.py::test_node_cases_checked[A != null]
+tests/engine/test_cel_check.py::test_node_cases_checked[A == A]
+tests/engine/test_cel_check.py::test_node_cases_checked[A == B]
+tests/engine/test_cel_check.py::test_node_cases_checked[A in B.children]
+tests/engine/test_cel_check.py::test_node_cases_checked[A in top.children]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.?super_t.hasValue()]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.?super_t.target.hasValue()]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.children.exists(c, type(c) == ConstraintBlock)]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.children.size()]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.is_abstract]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.location == A.location]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.location == B.location]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.location.lineno]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.location.linepos]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.name.id]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.super_t == null]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.super_t.target]
+tests/engine/test_cel_check.py::test_node_cases_checked[A.super_t]
+tests/engine/test_cel_check.py::test_node_cases_checked[ex.op == ExprBinOp.BinOp_Gt]
+tests/engine/test_cel_check.py::test_node_cases_checked[fa.attr == FieldAttr.Rand]
+tests/engine/test_cel_check.py::test_node_cases_checked[fa.name.id]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.annotations)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.children)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.is_abstract)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.location)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.location.lineno)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.name)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.super_t) && A.super_t.target == null]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.super_t)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(A.super_t.target)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(B.super_t)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(ex.op)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(fa.attr)]
+tests/engine/test_cel_check.py::test_node_cases_checked[has(fa.init)]
+tests/engine/test_cel_check.py::test_node_cases_checked[type(A) == Action]
+tests/engine/test_cel_check.py::test_node_cases_checked[type(A.location)]
+tests/engine/test_cel_check.py::test_node_cases_checked[type(B.?super_t.value()) == TypeIdentifier]
+tests/engine/test_cel_check.py::test_node_cases_checked[type(B.super_t) == TypeIdentifier]
+tests/engine/test_cel_check.py::test_node_cases_checked[type(ex) == ExprBin]
+tests/engine/test_cel_check.py::test_node_cases_checked[type(ex.lhs) == ExprRefPathContext && type(ex.rhs) == ExprUnsignedNumber]
+tests/engine/test_cel_check.py::test_node_cases_checked[type(node)]
+tests/engine/test_cel_eval.py::test_cel_node_errors[A + 1-no matching overload for '_+_' applied to (Action, int)]
+tests/engine/test_cel_eval.py::test_cel_node_errors[A < B-no matching overload]
+tests/engine/test_cel_eval.py::test_cel_node_errors[A.?nope-type 'Action' has no field 'nope']
+tests/engine/test_cel_eval.py::test_cel_node_errors[A.location.nope-type 'Location' has no field 'nope']
+tests/engine/test_cel_eval.py::test_cel_node_errors[A.nope-type 'Action' has no field 'nope']
+tests/engine/test_cel_eval.py::test_cel_node_errors[A[0]-no matching overload]
+tests/engine/test_cel_eval.py::test_cel_node_errors[has(A.nope)-type 'Action' has no field 'nope']
+tests/engine/test_cel_eval.py::test_cel_node_has[has(A.annotations)-False]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(A.children)-True]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(A.is_abstract)-False]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(A.location)-True]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(A.location.lineno)-True]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(A.name)-True]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(A.super_t)-False]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(B.super_t)-True]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(ex.op)-True]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(fa.attr)-True]
+tests/engine/test_cel_eval.py::test_cel_node_has[has(fa.init)-False]
+tests/engine/test_cel_eval.py::test_cel_node_linked_root
+tests/engine/test_cel_eval.py::test_cel_node_list_reads_charge_steps
+tests/engine/test_cel_eval.py::test_cel_node_values[A != null-expected20]
+tests/engine/test_cel_eval.py::test_cel_node_values[A == A-expected16]
+tests/engine/test_cel_eval.py::test_cel_node_values[A == B-expected17]
+tests/engine/test_cel_eval.py::test_cel_node_values[A in B.children-expected19]
+tests/engine/test_cel_eval.py::test_cel_node_values[A in top.children-expected18]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.children.exists(c, type(c) == ConstraintBlock)-expected14]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.children.size()-expected13]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.is_abstract-expected15]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.location == A.location-expected6]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.location == B.location-expected7]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.location.lineno-expected3]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.location.linepos-expected4]
+tests/engine/test_cel_eval.py::test_cel_node_values[A.name.id-expected2]
+tests/engine/test_cel_eval.py::test_cel_node_values[ex.op == ExprBinOp.BinOp_Gt-expected11]
+tests/engine/test_cel_eval.py::test_cel_node_values[fa.attr == FieldAttr.Rand-expected9]
+tests/engine/test_cel_eval.py::test_cel_node_values[fa.name.id-expected8]
+tests/engine/test_cel_eval.py::test_cel_node_values[type(A) == Action-expected1]
+tests/engine/test_cel_eval.py::test_cel_node_values[type(A.location)-expected5]
+tests/engine/test_cel_eval.py::test_cel_node_values[type(B.super_t) == TypeIdentifier-expected21]
+tests/engine/test_cel_eval.py::test_cel_node_values[type(ex) == ExprBin-expected10]
+tests/engine/test_cel_eval.py::test_cel_node_values[type(ex.lhs) == ExprRefPathContext && type(ex.rhs) == ExprUnsignedNumber-expected12]
+tests/engine/test_cel_eval.py::test_cel_node_values[type(node)-expected0]
+tests/engine/test_cel_eval.py::test_cel_unset_field_d_c6

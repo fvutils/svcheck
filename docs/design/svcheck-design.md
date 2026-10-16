@@ -335,6 +335,18 @@ of from pyslang. That is a convergence option, not a goal.
 - **Adopt it if** lowering costs under about 20% of slang's compile+bind time and the rules
   come out no longer than against slang directly (Q-SC5).
 
+### 3.7 Contexts (proposed 2026-10-16)
+
+A testbench is made of several contexts: the env, each agent (VIP), the tests, the HDL BFMs, the
+DUT and the library code. A rule that is right in one is wrong in another. `sv-contexts.md`
+proposes:
+- labels on units (packages, interfaces, modules), found from declared tags, content and
+  conventions, with classifiers written as data (`contexts:`);
+- a `Unit` facet that rules can match, including unit dependency edges;
+- selection by context, which generalises the forked engine's per-file groups.
+
+Q-CX1–Q-CX3 are decided (user, 2026-10-16). Q-CX4 (evidence) and Q-CX5 (grouping carriers into units) are open; Q-CX6 is deferred.
+
 ## 4. The rule format: `sv-rules`
 
 It starts identical to `pss-rules` (pss-rules-format §2–§6). The table below is the
@@ -551,6 +563,7 @@ svcheck/
 
 **Companion documents** (this directory; written in pssparser 2026-10-10 to 2026-10-15):
 - `sv-lint-survey.md`: SV linters and custom rules; Verible's rules as data; the SV host
+- `sv-contexts.md`: contexts (agent, env, test, HDL/HVL) and how rules are scoped to them (proposed)
 - `sv-lint-demand.md`: demand; the UVM-pack and agent-guardrail positioning; naming
 - `sv-uvm-rules-assessment.md` and `sv-uvm-rules-research/`: the 173-rule catalogue, tiers,
   conflicts, worked rules, and the raw research with source URLs

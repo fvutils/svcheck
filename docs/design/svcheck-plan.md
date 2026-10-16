@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | 2026-10-15: P0 done except P0.5's Forgejo run, which isn't confirmed yet (GitHub is green). **P1.1 done** (`5aae887`), **P1.2 done** (not committed yet); P1.3 next. R-1…R-5 approved. |
+| **Status** | 2026-10-15: P0 done except P0.5's Forgejo run, which isn't confirmed yet (GitHub is green). **P1.1 done** (`5aae887`), **P1.2 done** (`69dfade`). 2026-10-16: R-6 (contexts) approved; **P1.3 active**. R-1…R-6 approved. |
 | **Implements** | `svcheck-design.md` (the design). This plan refines its §10 into items that can be tracked; it does not change the design's decisions. Where it recommends something new, the item says so and lists it under §2. |
 | **Tracking** | Each item has an ID (`P1.3`), a status and an exit criterion. Update the status column and add a dated line to the log (§7) when an item starts or ends. |
 
@@ -13,7 +13,7 @@ Status values: `todo`, `active`, `done`, `blocked (<why>)`, `dropped (<why>)`.
 | Phase | = design §10 | What | Rough size | Gate at the end |
 |---|---|---|---|---|
 | **P0** Bootstrap | (new) | companion docs moved in; repo skeleton; slang, rapidyaml, pyastbuilder and UVM through ivpm; a native binary that compiles `uvm_pkg`; wheel and CI | ~1 week | builds from clean on CI |
-| **P1** Spike | SC1 | forked engine with a host interface; slang syntax schema; curated model for the spike subset; 10 rules; corpora run and measured | 3–4 weeks | **go/no-go**, Q-SC5 decided |
+| **P1** Spike | SC1 | forked engine with a host interface; slang syntax schema; curated model for the spike subset; 10 rules; a contexts trial (R-6); corpora run and measured | 4.5–6 weeks | **go/no-go**, Q-SC5 decided |
 | **P2** First release | SC2 | the rest of the pipeline wired to SV; `uvm.yaml` + 36-rule consensus pack + presets; level 1 elaboration in C++; config; precision and performance gates | 6–8 weeks | starter pack meets the precision bar; release 0.1 on PyPI |
 | **P3** Level 2 | SC3 | run-0 interpreter, intrinsics, simulator-dump oracle, level-2 rules | 6–10 weeks | facet diff clean on the corpora |
 | **P4** Cross-model | SC4 | vif → RTL, HDL paths, Tier B macro rules, Verible pack if asked | planned at P3's end | as P3 |
@@ -39,7 +39,7 @@ These facts were checked against the repositories and shape the plan:
 
 ## 2. Recommendations that go beyond the design
 
-Each is a deviation from or an addition to the design. **All five approved by the user, 2026-10-15**; R-5 with the prefix `SVCHK` rather than `SVC`.
+Each is a deviation from or an addition to the design. **R-1…R-5 approved by the user, 2026-10-15**; R-5 with the prefix `SVCHK` rather than `SVC`. **R-6 approved by the user, 2026-10-16** (§2.1); its additions are folded into the P1 and P2 items below.
 
 | ID | Recommendation | Why | If rejected |
 |---|---|---|---|
@@ -48,6 +48,33 @@ Each is a deviation from or an addition to the design. **All five approved by th
 | **R-3** | **Q-SC4: port level 1 to C++ in P2**, and use sphinx-systemverilog's JSON as the *oracle* rather than a runtime input. | The wheel should not depend on pyslang. Level 1 must also run in WASM later. The oracle keeps the port honest. | A JSON facet loader ships in P2. The port moves to P3. |
 | **R-4** | **Q-SC3: `.f` files only in P1–P2** (with `+incdir`, `+define`, `-f` nesting). FuseSoC and `flow.yaml` come in P2.9 if a corpus needs them. | `.f` files are universal and every corpus has them or can have one generated. | Add a P2 item per format. |
 | **R-5** | **Q-SC2: settle the namespace in P0** with a provisional prefix (**`SVCHK`**, chosen over `SVC`, which reads as "service"), so rule IDs written in P1 need no renaming. | IDs appear in examples, waivers and docs from the first rule. | P1 rules use placeholder IDs. They are renamed at P2.0. |
+| **R-6** | **Contexts (`sv-contexts.md`) enter the plan as a timeboxed trial in P1**, then grow with selection in P2 and instances in P3. The details are in §2.1. | P1.3 designs the curated model now, and the model needs to know which nodes hold a context. That is cheap to add now and costly to retrofit. The format questions (`contexts:`, `applies-to`) should be tried before the 36 pack rules are written against them. | Contexts wait for P2.0. The P1.3 model still gets its carrier fields, and about ten pack rules are written with role helpers, then reworked. |
+
+### 2.1 R-6 in detail: where contexts land
+
+**Only P1.3 is affected right away.** The rest arrives in item order. Everything is
+experimental until the trials settle it (`sv-contexts.md` §6.1).
+
+| Item | Addition | Size |
+|---|---|---|
+| **P1.3** curated model | Classes, interfaces and modules know their enclosing package. Packages carry their imports. Every node records which package its file was `` `include ``d into. Interfaces and modules are recorded as context carriers. The `Unit` and `UnitDep` kinds are declared in the YAML but left unpopulated. On the accessor-table side, nothing: contexts are tried on the curated model only | +2–3 days |
+| **P1.4** library | The `contexts:` key, loaded and evaluated axis by axis. `context(n)`. The `// svcheck context:` pragma, through `collectPragmas`. The functions that classifiers need: `classes(carrier)`, `calls_in(carrier)`, `is_config_db`. `UnitDep` edges from package imports only | +4–5 days |
+| **P1.5** CLI | Rules gain `applies-to`, resolved against the innermost carrier that has a context (Q-CX3). `svcheck --contexts` prints each unit with its labels and the evidence for them. Config overrides wait for P2.2 | +2 days |
+| **P1.6b** (new) context trial | Three rules beside the 10: one in-context rule (objection in an agent), one unit-structure rule (more than one unit kind on a carrier), one boundary rule (an agent imports an env or test package). There are two classifier sets: content only, and content plus convention. Both run on `uvm-tb-proto/out`, `fw-wb-dma` and one OpenTitan IP | 2–3 days |
+| **P1.7** measurements | Classify time. How often content and convention disagree, which is the data for Q-CX4. How carriers group into units, which is the data for Q-CX5 | in P1.7 |
+| **P1.8** report | A contexts section with what the trial showed and a recommendation on Q-CX4 and Q-CX5. **Contexts do not gate go/no-go** | — |
+| **P2.0** re-plan | Decide Q-CX4 and Q-CX5, or schedule a second trial | — |
+| **P2.2** pipeline | Context overrides in config (`context =` beside `files =`), options per context, waivers scoped to a context, the context on findings (JSON, SARIF) | +3–4 days |
+| **P2.3** `uvm.yaml` | The UVM vocabulary and classifiers: agent, env, test, tb-top, seq-lib, regmodel | in P2.3 |
+| **P2.4** pack | About ten rules use `applies-to`: F14, P12, G5, G6, A8, K13, … Write the families that need contexts (F, P, G, A) after the ones that don't (K, T, S, L) | ~0 |
+| **P2.5** presets | Presets carry convention classifiers: `_agent_pkg`, `uvma_`, `_bfm` | +1–2 days |
+| **P2.6** level 1 | `UnitDep` edges from config_db scopes and factory names | +2 days |
+| **P2.10** release | `contexts:` and `applies-to` ship marked experimental | — |
+| **P3** | Instance contexts on `UvmInstance`: passive or active, the owning env. Partition and target axes for co-emulation, if a corpus needs them | at P2's exit |
+
+**Cost:** P1 grows by about 1.5–2 weeks, to 4.5–6 weeks. The trial is **timeboxed to 2 weeks**.
+If it overruns, P1 keeps the carrier fields, `contexts:` and `--contexts`. The three trial rules
+then move to P2.0.
 
 ## 3. Decision gates
 
@@ -66,6 +93,8 @@ When each open question must be answered, so that work never waits on one by sur
 | Q-UVM4 slang warnings namespace | P2.2 | user | — |
 | Q-EL3 default roots, Q-EL4 partial-in-tests | P3 start | user | — |
 | Q-EL5 whether the dump producer ships | P3.6 | user | — |
+| **R-6** contexts in the plan | P1.3 start | user | **approved 2026-10-16** |
+| Q-CX4 evidence, Q-CX5 units across carriers | P2.0 | user, from the P1.6b trial | — |
 
 ## 4. Phases in detail
 
@@ -80,20 +109,21 @@ When each open question must be answered, so that work never waits on one by sur
 | P0.5 | **Wheel and CI.** Use the same ivpm-build/cython path as pssparser, with the CLI as a console script. CI runs build plus pytest. Set up with the `dvkit-infra` skill: wheels go to PyPI from **GitHub** (release authority `github`, the DVKit default); docs publish from **Forgejo** to dvkit.org (a `docs.yml` once there are docs to build). | green CI on a trivial test | GitHub green (run 38813715993, `dfd92a3`). Forgejo not confirmed: the repo is private, so its Actions setting and runs can't be seen from here (P0-7) |
 | P0.6 | Q-SC2 settled (R-5); recorded in design §2. | decision logged | done: provisional prefix `SVCHK` |
 
-### P1. Spike = SC1 (3–4 weeks)
+### P1. Spike = SC1 (4.5–6 weeks with R-6)
 
-Order: P1.1 and P1.2 in parallel. P1.3 needs P1.2's node handles. P1.4–P1.6 need all three.
+Order: P1.1 and P1.2 in parallel. P1.3 needs P1.2's node handles. P1.4–P1.6 need all three. P1.6b needs P1.4 and P1.5. The R-6 trial (the contexts parts of P1.3–P1.6b) is timeboxed to 2 weeks; if it overruns, P1 keeps the carrier fields, `contexts:` and `--contexts`, and P1.6b moves to P2.0.
 
 | ID | Item | Exit | Status |
 |---|---|---|---|
 | P1.1 | **Fork the engine** (R-1, R-2). Copy `cel/ regex/ yaml/ util/ catalog/ rules/ run/ pipeline/` from pssparser `57c6b14` into `src/engine/`. Add a lineage-table row per directory. Then cut the PSS out: `run/` walks a host `INodeHandle` (C9.1); the function registry is filled by the host (C9.2); waiver *extraction* moves to the host (C9.3); `LintEngine` takes a host for the schema, root key, snippet compile and ID policy (C9.4). The engine is a CMake target with no slang include path (C9.5). Copy the engine's CEL conformance and regex tests along with it. | engine target builds alone; copied CEL/regex/YAML tests pass; root key `sv-rules:` accepted | **done** (P1-1…P1-5): 1033 pass. Of the copied tests, 203 that need a PSS schema or PSS sources are held back for P1.2, and 4 for P1.5 (`tests/engine/needs_schema.txt`) |
 | P1.2 | **Syntax schema and handles.** `scripts/gen_syntax_schema.py` reads slang's `scripts/syntax.txt` and emits the kind table and field accessors; `kindmap` groups become `kind: [...]` lists. Node handles over `SyntaxNode` carry kind, fields, children, parent, identity and a macro-aware location (S-3). | a CEL rule matching `ClassDeclaration` fires on a snippet; `tests/engine/needs_schema.txt` empty (its tests re-targeted at SV kinds and snippets) | **done** (P1-6…P1-10): the rule fires (`tests/host/`). All but 7 tests run: 4 wait for P1.5 as before, and 3 for a flags enum, which the SV syntax schema doesn't have (P1-9) |
-| P1.3 | **Curated semantic model, spike subset** (design §3.6). In pyastbuilder YAML: package, class (base, params, specialisation, `isAbstract`), subroutine (virtual, override), call, assignment, case, `Opaque`. Write the lowering pass from slang's semantic model: user code in full, library code as declarations only, each node with a back-handle to its slang symbol. **For Q-SC5**, also write a thin accessor table over slang's `ClassType`/`SubroutineSymbol` that is just enough for the 4 UVM rules, so both sides can be compared on the same rules. | both paths answer the 4 UVM rules' examples | todo |
-| P1.4 | **Function library, spike subset:** navigation; `derives_from`, `member`, `members`, `overrides`, `is_super_call`, `in_library`, `resolves_to`, `type_of`, `const_value`, `macro_of` (decides Q-UVM2); `uses:` and file-level options (divergence-log rows). Snippet compilation for `examples:` against a cached `uvm_pkg`. | the 10 rules' examples run through the copied examples-as-tests harness | todo |
-| P1.5 | **CLI and compilation context:** `.f` reader (R-4), `--rules`, `--format text|json|sarif` (already in the fork), scope computation, and **not run** reporting (design §3.3). | `svcheck -f tb.f --rules r.yaml` on fw-wb-dma | todo |
+| P1.3 | **Curated semantic model, spike subset** (design §3.6). In pyastbuilder YAML: package, class (base, params, specialisation, `isAbstract`), subroutine (virtual, override), call, assignment, case, `Opaque`. Write the lowering pass from slang's semantic model: user code in full, library code as declarations only, each node with a back-handle to its slang symbol. **For contexts (R-6):** classes, interfaces and modules know their package; packages carry their imports; each node records the package its file was included into; interfaces and modules are carriers; `Unit` and `UnitDep` are declared, not populated. **For Q-SC5**, also write a thin accessor table over slang's `ClassType`/`SubroutineSymbol` that is just enough for the 4 UVM rules, so both sides can be compared on the same rules. | both paths answer the 4 UVM rules' examples; the carrier fields are populated on a snippet with an included file | active |
+| P1.4 | **Function library, spike subset:** navigation; `derives_from`, `member`, `members`, `overrides`, `is_super_call`, `in_library`, `resolves_to`, `type_of`, `const_value`, `macro_of` (decides Q-UVM2); `uses:` and file-level options (divergence-log rows). Snippet compilation for `examples:` against a cached `uvm_pkg`. **R-6:** the `contexts:` key, evaluated axis by axis; `context(n)`; the `// svcheck context:` pragma; `classes(carrier)`, `calls_in(carrier)`, `is_config_db`; `UnitDep` edges from imports. | the 10 rules' examples run through the copied examples-as-tests harness | todo |
+| P1.5 | **CLI and compilation context:** `.f` reader (R-4), `--rules`, `--format text|json|sarif` (already in the fork), scope computation, and **not run** reporting (design §3.3). **R-6:** `applies-to` on rules, resolved by the innermost labelled carrier; `svcheck --contexts` (units, labels, evidence). | `svcheck -f tb.f --rules r.yaml` on fw-wb-dma | todo |
 | P1.6 | **The 10 rules.** 3 Verible-equivalent (sv-lint-survey §3), UVM001/010/020/030 (assessment §4), and 3 of FWH001–005 (sv-lint-survey). Plus `scripts/verible_equiv.py`, which runs Verible and svcheck on the same files and diffs the findings. | every predicate ≤ 15 lines; Verible diff empty or explained | todo |
-| P1.7 | **Corpora and measurements:** uvm-tb-proto, fw-wb-dma, one OpenTitan IP `dv/`. Measure compile, lowering (time and memory against compile+bind), and rule time. Document how S-1 and S-2 behave, on `fwvip-*` with no test, including P0-1 (slang's per-specialisation diagnostics vary between runs). Add UVM 1.2 as a second configuration. Note the WASM size, without a gate. | numbers in §6 of this plan | todo |
-| P1.8 | **Spike report and go/no-go:** `docs/design/svcheck-spike-report.md`, with the measurements, Q-SC5's answer against the 20% / rule-length criterion, Q-UVM2's answer, S-1/S-2 findings, and the next steps. If the accessor table wins, delete the losing path's code. | user says go | todo |
+| P1.6b | **Contexts trial** (R-6, `sv-contexts.md`). Three rules beside the 10: objection in an agent (in-context), more than one unit kind on a carrier (unit structure), an agent importing an env or test package (boundary). Two classifier sets, content only and content plus convention, on `uvm-tb-proto/out`, `fw-wb-dma` and one OpenTitan IP | findings recorded with what each classifier set decided; data for Q-CX4 and Q-CX5 | todo |
+| P1.7 | **Corpora and measurements:** uvm-tb-proto, fw-wb-dma, one OpenTitan IP `dv/`. Measure compile, lowering (time and memory against compile+bind), and rule time. Document how S-1 and S-2 behave, on `fwvip-*` with no test, including P0-1 (slang's per-specialisation diagnostics vary between runs). Add UVM 1.2 as a second configuration. Note the WASM size, without a gate. **R-6:** classify time; how often content and convention disagree; how carriers group into units. | numbers in §6 of this plan | todo |
+| P1.8 | **Spike report and go/no-go:** `docs/design/svcheck-spike-report.md`, with the measurements, Q-SC5's answer against the 20% / rule-length criterion, Q-UVM2's answer, S-1/S-2 findings, a contexts section with a recommendation on Q-CX4 and Q-CX5 (contexts do not gate go/no-go), and the next steps. If the accessor table wins, delete the losing path's code. | user says go | todo |
 
 ### P2. First release = SC2 (6–8 weeks)
 
@@ -101,17 +131,17 @@ Planned at the level below. Items are refined at P1's exit with what the spike l
 
 | ID | Item | Exit | Status |
 |---|---|---|---|
-| P2.0 | Re-plan from the spike report; final namespace; rename any placeholder IDs | this table updated | todo |
+| P2.0 | Re-plan from the spike report; final namespace; rename any placeholder IDs; decide Q-CX4 and Q-CX5 or plan a second trial | this table updated | todo |
 | P2.1 | Semantic model (or accessor table) extended to everything the 36 rules need, per family; generated Sphinx node reference for rule authors | node reference builds | todo |
-| P2.2 | Pipeline on SV: profiles, per-path overrides, **SV-comment waivers**, `--explain`, `--check-rules`, catalogue; slang's own warnings mapped under their own namespace (Q-UVM4) | CLI option parity with pssparser's table | todo |
-| P2.3 | `rules/uvm.yaml` vocabulary: roles, phase names, `factory_create`, config_db helpers | used by every pack rule | todo |
-| P2.4 | **Consensus pack, 36 rules**, in family batches: F, K, T, S, P, G, A, L. Each rule has a firing example and a near-miss | examples harness green per batch | todo |
-| P2.5 | Presets: `uvm-consensus`, `easier-uvm`, `lowrisc-dv`, `core-v`, as options on rules (assessment §5.2) | each preset runs on its corpus | todo |
-| P2.6 | **Level 1 elaboration in C++** (R-3): creation sites, `connect`, config_db, overrides, vif bindings as facets; facet inference in the loader. Oracle: sphinx-systemverilog's fixtures diffed as JSON | oracle diff clean on its fixtures | todo |
+| P2.2 | Pipeline on SV: profiles, per-path overrides, **SV-comment waivers**, `--explain`, `--check-rules`, catalogue; slang's own warnings mapped under their own namespace (Q-UVM4); **R-6:** context overrides in config, options and waivers per context, the context on findings (JSON, SARIF) | CLI option parity with pssparser's table | todo |
+| P2.3 | `rules/uvm.yaml` vocabulary: roles, phase names, `factory_create`, config_db helpers; context classifiers (agent, env, test, tb-top, seq-lib, regmodel) | used by every pack rule | todo |
+| P2.4 | **Consensus pack, 36 rules**, in family batches: K, T, S, L first, then F, P, G, A, whose rules use `applies-to`. Each rule has a firing example and a near-miss | examples harness green per batch | todo |
+| P2.5 | Presets: `uvm-consensus`, `easier-uvm`, `lowrisc-dv`, `core-v`, as options on rules (assessment §5.2), plus convention classifiers (`_agent_pkg`, `uvma_`, `_bfm`) | each preset runs on its corpus | todo |
+| P2.6 | **Level 1 elaboration in C++** (R-3): creation sites, `connect`, config_db, overrides, vif bindings as facets; facet inference in the loader; `UnitDep` edges from config_db scopes and factory names. Oracle: sphinx-systemverilog's fixtures diffed as JSON | oracle diff clean on its fixtures | todo |
 | P2.7 | Level-1 facet rules: orphan set/get, broken override, unread or undriven vif, non-`this` parent | examples + corpora | todo |
 | P2.8 | `svcheck.toml` / `[svcheck]` config | documented | todo |
 | P2.9 | Full corpora via ivpm (OpenTitan `hw/ip/*/dv`, CORE-V-VERIF); precision harness (lint-criteria); performance gate (as C8) | gates in CI | todo |
-| P2.10 | **Release 0.1:** register the `svcheck` PyPI name with a real release; docs site; CHANGELOG | wheel installs and runs on a clean machine | todo |
+| P2.10 | **Release 0.1:** register the `svcheck` PyPI name with a real release; docs site; CHANGELOG; `contexts:` and `applies-to` marked experimental | wheel installs and runs on a clean machine | todo |
 
 ### P3. Level 2 interpreter = SC3 (6–10 weeks)
 
@@ -209,3 +239,12 @@ Filled in by P0.4 and P1.7.
   snippets; a `ClassDeclaration` rule fires on one. 199 of the 203 held tests run on SV; 1 was
   dropped, 3 are held for a flags enum. 1,258 tests pass, 7 are held, locally and in a
   manylinux_2_28 trial of `build-wheel.sh` (wheel 4.3 MB). Findings P1-6…P1-10.
+- **2026-10-16** P1.2 committed (`69dfade`, not pushed). P1.3 waits for a discussion with the user.
+- **2026-10-16** Contexts discussed with the user before P1.3. Proposal in `sv-contexts.md`, research in
+  `sv-uvm-rules-research/d-contexts.md`. Its §6 suggests additions to P1.3, P1.4, P1.6, P2.2,
+  P2.5, P2.6 and P3, not adopted yet.
+- **2026-10-16** Contexts: user decided Q-CX1 (pragma + attribute), Q-CX2 (packs declare the vocabulary)
+  and Q-CX3 (a carrier's context is the sum of its contents'). Q-CX4 and Q-CX5 open; Q-CX6
+  deferred until the SV details are worked out.
+- **2026-10-16** R-6 proposed: contexts as a timeboxed P1 trial (§2.1), touching P1.3–P1.8, P2.0–P2.10 and P3.
+- **2026-10-16** **R-6 approved** and folded into P1.3–P1.8 (new item P1.6b) and P2.0–P2.10. **P1.3 started.**

@@ -1,5 +1,5 @@
 {"sv-rules": {"rules": [
   {"id": "ACME001", "name": "from-json", "tier": "style", "summary": "s",
-   "message": "m", "match": {"kind": "ExprBin"},
-   "where": "node.op == ExprBinOp.BinOp_Eq && node.lhs =="}
+   "message": "m", "match": {"kind": "BinaryExpressionSyntax"},
+   "where": "node.operatorToken.kind == TokenKind.DoubleEquals && node.left =="}
 ]}}

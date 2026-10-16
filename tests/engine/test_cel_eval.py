@@ -210,17 +210,19 @@ def test_cel_bindings(hooks):
     ("type({}) == map", ("bool", True)), ("type(int) == type", ("bool", True)),
     ("type(type)", ("type", "type")), ("type(optional.none()) == optional_type", ("bool", True)),
     ("type(1) == double", ("bool", False)), ("int == int", ("bool", True)),
-    ("ExprBin", ("type", "ExprBin")), ("Location", ("type", "Location")),
-    ("ExprBinOp.BinOp_LogOr", ("int", 0)), ("ExprBinOp.BinOp_Eq", ("int", 17)),
-    ("FieldAttr.Action", ("int", 1)), ("FieldAttr.Rand", ("int", 4)),
+    ("BinaryExpressionSyntax", ("type", "BinaryExpressionSyntax")),
+    ("AddExpression", ("type", "AddExpression")), ("Token", ("type", "Token")),
+    # The first of slang's TokenKinds, whose values have stayed put.
+    ("TokenKind.Unknown", ("int", 0)), ("TokenKind.EndOfFile", ("int", 1)),
+    ("TokenKind.Identifier", ("int", 2)), ("TokenKind.SystemIdentifier", ("int", 3)),
 ])
 def test_cel_types_and_enum_constants(hooks, text, expected):
     assert _val(hooks, text) == expected
 
 
 @pytest.mark.parametrize("text,msg", [
-    ("ExprBinOp.Nope", "type 'ExprBinOp' has no member 'Nope'"),
-    ("ExprBin.lhs", "type 'ExprBin' has no member 'lhs'"),
+    ("TokenKind.Nope", "type 'TokenKind' has no member 'Nope'"),
+    ("BinaryExpressionSyntax.left", "type 'BinaryExpressionSyntax' has no member 'left'"),
     ("NoSuchClass", "undeclared reference to 'NoSuchClass'"),
     ("int < int", "no matching overload"),
 ])
@@ -304,79 +306,81 @@ def test_cel_optional_namespace_can_be_shadowed(hooks):
 
 # ----------------------------------------------------------- nodes --------
 
+# Parsed alone (snippet.sv), so `node` is its CompilationUnit.
 _MODEL = (
-    "component pss_top {\n"
-    "  action A {\n"
+    "package top;\n"
+    "  class A;\n"
     "    rand int a;\n"
     "    constraint c { a > 0; }\n"
-    "  }\n"
-    "  action B : A { }\n"
-    "}\n")
+    "  endclass\n"
+    "  class B extends A; endclass\n"
+    "endpackage\n")
 
 # Bound with cel.bind so the expressions below stay readable.
 _PRELUDE = (
-    "cel.bind(top, node.children.filter(c, type(c) == Component)[0],"
-    " cel.bind(A, top.children.filter(c, type(c) == Action && c.name.id == 'A')[0],"
-    " cel.bind(B, top.children.filter(c, type(c) == Action && c.name.id == 'B')[0],"
-    " cel.bind(fa, A.children.filter(c, type(c) == Field)[0],"
-    " cel.bind(ex, A.children.filter(c, type(c) == ConstraintBlock)[0].constraints"
-    ".filter(s, type(s) == ConstraintStmtExpr).map(s, s.expr)"
-    ".filter(e, type(e) == ExprBin)[0],"
+    "cel.bind(top, node.members.filter(c, type(c) == PackageDeclaration)[0],"
+    " cel.bind(A, top.members.filter(c, type(c) == ClassDeclaration && c.name.text == 'A')[0],"
+    " cel.bind(B, top.members.filter(c, type(c) == ClassDeclaration && c.name.text == 'B')[0],"
+    " cel.bind(fa, A.items.filter(c, type(c) == ClassPropertyDeclaration)[0],"
+    " cel.bind(ex, A.items.filter(c, type(c) == ConstraintDeclaration)[0].block.items"
+    ".filter(s, type(s) == ExpressionConstraint).map(s, s.expr)"
+    ".filter(e, type(e) == GreaterThanExpression)[0],"
     " %s)))))")
 
 
 @pytest.fixture(scope="module")
 def unit():
-    from pssparser.parser import Parser
-    p = Parser()
-    p.parses([("top.pss", _MODEL)])
-    # The user's unit is the last; the standard library's come first.
-    return p, p._files[-1]
+    return _MODEL
 
 
 def _node(hooks, unit, text, max_steps=0):
-    r = hooks.cel_eval_node(_PRELUDE % text, unit[1], max_steps)
+    r = hooks.cel_eval_node(_PRELUDE % text, unit, max_steps)
     assert r["ok"], r
     return r["result"]["type"], r["result"]["value"]
 
 
 @pytest.mark.parametrize("text,expected", [
-    ("type(node)", ("type", "GlobalScope")),
-    ("type(A) == Action", ("bool", True)),
-    ("A.name.id", ("string", "A")),
-    ("A.location.lineno", ("int", 2)),                  # inherited (ScopeChild)
-    ("A.location.linepos", ("int", 3)),
-    ("type(A.location)", ("type", "Location")),
-    ("A.location == A.location", ("bool", True)),
-    ("A.location == B.location", ("bool", False)),
-    ("fa.name.id", ("string", "a")),
-    ("fa.attr == FieldAttr.Rand", ("bool", True)),
-    ("type(ex) == ExprBin", ("bool", True)),
-    ("ex.op == ExprBinOp.BinOp_Gt", ("bool", True)),
-    ("type(ex.lhs) == ExprRefPathContext && type(ex.rhs) == ExprUnsignedNumber",
+    ("type(node)", ("type", "CompilationUnit")),
+    ("type(A) == ClassDeclaration", ("bool", True)),
+    ("A.name.text", ("string", "A")),
+    ("A.classKeyword.line", ("int", 2)),
+    ("A.classKeyword.col", ("int", 3)),
+    ("type(A.name)", ("type", "Token")),
+    ("A.name == A.name", ("bool", True)),
+    ("A.name == B.name", ("bool", False)),
+    ("A.attributes.size()", ("int", 0)),                # inherited (MemberSyntax)
+    ("[fa.declaration].filter(d, type(d) == DataDeclaration)[0].declarators[0].name.text",
+     ("string", "a")),
+    ("fa.qualifiers[0].kind == TokenKind.RandKeyword", ("bool", True)),
+    ("type(ex) == GreaterThanExpression", ("bool", True)),
+    ("ex.operatorToken.kind == TokenKind.GreaterThan", ("bool", True)),
+    ("type(ex.left) == IdentifierName && type(ex.right) == IntegerLiteralExpression",
      ("bool", True)),
-    ("A.children.size()", ("int", 2)),     # not the implicit `comp`
-    ("A.children.exists(c, type(c) == ConstraintBlock)", ("bool", True)),
-    ("A.is_abstract", ("bool", False)),
+    ("A.items.size()", ("int", 2)),
+    ("A.items.exists(c, type(c) == ConstraintDeclaration)", ("bool", True)),
+    ("fa.qualifiers.size()", ("int", 1)),
     ("A == A", ("bool", True)),                         # identity
     ("A == B", ("bool", False)),
-    ("A in top.children", ("bool", True)),
-    ("A in B.children", ("bool", False)),
+    ("A in top.members", ("bool", True)),
+    ("A in B.items", ("bool", False)),
     ("A != null", ("bool", True)),
-    ("type(B.super_t) == TypeIdentifier", ("bool", True)),
+    ("type(B.extendsClause) == ExtendsClause", ("bool", True)),
 ])
 def test_cel_node_values(hooks, unit, text, expected):
     assert _node(hooks, unit, text) == expected, text
 
 
 @pytest.mark.parametrize("text,expected", [
-    # proto3 presence: set node, non-empty list, non-zero scalar.
-    ("has(B.super_t)", True), ("has(A.super_t)", False),
-    ("has(A.children)", True), ("has(A.annotations)", False), ("has(fa.init)", False),
-    ("has(A.name)", True), ("has(A.is_abstract)", False),
-    ("has(fa.attr)", True), ("has(A.location)", True),
-    ("has(A.location.lineno)", True),
-    ("has(ex.op)", True),                                # BinOp_Gt != 0
+    # proto3 presence: set node, non-empty list, non-zero scalar; a token
+    # the source has.
+    ("has(B.extendsClause)", True), ("has(A.extendsClause)", False),
+    ("has(A.items)", True), ("has(A.attributes)", False),
+    ("has([fa.declaration].filter(d, type(d) == DataDeclaration)[0].declarators[0]"
+     ".initializer)", False),
+    ("has(A.name)", True), ("has(A.virtualOrInterface)", False),
+    ("has(fa.qualifiers)", True), ("has(A.classKeyword)", True),
+    ("has(A.classKeyword.line)", True),
+    ("has(ex.operatorToken.kind)", True),               # GreaterThan != 0
 ])
 def test_cel_node_has(hooks, unit, text, expected):
     assert _node(hooks, unit, text) == ("bool", expected), text
@@ -384,30 +388,33 @@ def test_cel_node_has(hooks, unit, text, expected):
 
 def test_cel_unset_field_d_c6(hooks, unit):
     # An unset node field reads as null ...
-    assert _node(hooks, unit, "A.super_t") == ("null_type", None)
-    assert _node(hooks, unit, "A.super_t == null") == ("bool", True)
+    assert _node(hooks, unit, "A.extendsClause") == ("null_type", None)
+    assert _node(hooks, unit, "A.extendsClause == null") == ("bool", True)
     # ... and navigating through it is an error value naming both fields.
-    t, v = _node(hooks, unit, "A.super_t.target")
-    assert (t, v) == ("error", "field 'target' of unset 'super_t'")
-    t, v = _node(hooks, unit, "has(A.super_t.target)")
-    assert (t, v) == ("error", "field 'target' of unset 'super_t'")
+    t, v = _node(hooks, unit, "A.extendsClause.baseName")
+    assert (t, v) == ("error", "field 'baseName' of unset 'extendsClause'")
+    t, v = _node(hooks, unit, "has(A.extendsClause.baseName)")
+    assert (t, v) == ("error", "field 'baseName' of unset 'extendsClause'")
     # && and || absorb it, as CEL absorbs any error ...
-    assert _node(hooks, unit, "has(A.super_t) && A.super_t.target == null") == ("bool", False)
-    assert _node(hooks, unit, "A.super_t.target == null && false") == ("bool", False)
-    assert _node(hooks, unit, "!has(A.super_t) || A.super_t.target == null") == ("bool", True)
+    assert _node(hooks, unit, "has(A.extendsClause) && A.extendsClause.baseName == null") == \
+        ("bool", False)
+    assert _node(hooks, unit, "A.extendsClause.baseName == null && false") == ("bool", False)
+    assert _node(hooks, unit, "!has(A.extendsClause) || A.extendsClause.baseName == null") == \
+        ("bool", True)
     # ... and `.?` turns it into none.
-    assert _node(hooks, unit, "A.?super_t.hasValue()") == ("bool", False)
-    assert _node(hooks, unit, "A.?super_t.target.hasValue()") == ("bool", False)
-    assert _node(hooks, unit, "B.?super_t.hasValue()") == ("bool", True)
-    assert _node(hooks, unit, "type(B.?super_t.value()) == TypeIdentifier") == ("bool", True)
+    assert _node(hooks, unit, "A.?extendsClause.hasValue()") == ("bool", False)
+    assert _node(hooks, unit, "A.?extendsClause.baseName.hasValue()") == ("bool", False)
+    assert _node(hooks, unit, "B.?extendsClause.hasValue()") == ("bool", True)
+    assert _node(hooks, unit, "type(B.?extendsClause.value()) == ExtendsClause") == \
+        ("bool", True)
 
 
 @pytest.mark.parametrize("text,msg", [
-    ("A.nope", "type 'Action' has no field 'nope'"),
-    ("has(A.nope)", "type 'Action' has no field 'nope'"),
-    ("A.?nope", "type 'Action' has no field 'nope'"),
-    ("A.location.nope", "type 'Location' has no field 'nope'"),
-    ("A + 1", "no matching overload for '_+_' applied to (Action, int)"),
+    ("A.nope", "type 'ClassDeclaration' has no field 'nope'"),
+    ("has(A.nope)", "type 'ClassDeclaration' has no field 'nope'"),
+    ("A.?nope", "type 'ClassDeclaration' has no field 'nope'"),
+    ("A.name.nope", "type 'Token' has no field 'nope'"),
+    ("A + 1", "no matching overload for '_+_' applied to (ClassDeclaration, int)"),
     ("A < B", "no matching overload"),
     ("A[0]", "no matching overload"),
 ])
@@ -420,19 +427,27 @@ def test_cel_node_list_reads_charge_steps(hooks, unit):
     # Reading a list field costs a step per element, so a rule cannot walk a
     # big list for free.
     base = _node_steps(hooks, unit, "A")
-    one = _node_steps(hooks, unit, "A.children.size()")
-    two = _node_steps(hooks, unit, "A.children.size() + A.children.size()")
+    one = _node_steps(hooks, unit, "A.items.size()")
+    two = _node_steps(hooks, unit, "A.items.size() + A.items.size()")
     assert two - one >= 3 + 2 and one - base >= 3
 
 
 def _node_steps(hooks, unit, text):
-    return hooks.cel_eval_node(_PRELUDE % text, unit[1])["steps"]
+    return hooks.cel_eval_node(_PRELUDE % text, unit)["steps"]
 
 
-def test_cel_node_linked_root(hooks, unit):
-    p, _ = unit
-    root = p.link()
-    # Its `children` are the linker's borrowed view of the files, which
-    # reads as empty (CelNode.h); `units` are its own.
-    r = hooks.cel_eval_node("node.units.size() > 0 && type(node) == RootSymbolScope", root)
-    assert r["result"] == {"type": "bool", "value": True}
+def test_cel_node_locations_are_where_the_macro_is_used(hooks):
+    """A node a macro makes is where the macro is used, not in the macro's
+    body (S-3)."""
+    src = "`define C(n) class n; endclass\n\n  `C(foo)\n"
+    r = hooks.cel_eval_node(
+        "node.members.map(m, [m.name.text, m.name.line, m.name.col])", src)
+    assert r["result"]["value"] == [{"type": "list", "value": [
+        {"type": "string", "value": "foo"}, {"type": "int", "value": 3},
+        {"type": "int", "value": 3}]}]
+
+
+def test_cel_node_bad_source_still_parses(hooks):
+    """slang recovers from errors; the tree it makes is still a tree."""
+    r = hooks.cel_eval_node("type(node.members[0])", "class A; int endclass\n")
+    assert r["ok"] and r["result"] == {"type": "type", "value": "ClassDeclaration"}

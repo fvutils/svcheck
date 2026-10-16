@@ -6,43 +6,43 @@ sv-rules:
       name: where-syntax
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       where: >-
-        node.op == ExprBinOp.BinOp_Eq &&
-        node.lhs ==
+        node.operatorToken.kind == TokenKind.DoubleEquals &&
+        node.left ==
     - id: ACME002
       name: message-unterminated
       summary: s
-      message: "the value ${node.op is wrong"
-      match: { kind: ExprBin }
+      message: "the value ${node.operatorToken.kind is wrong"
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME003
       name: message-syntax
       summary: s
-      message: "the value ${node.op +} is wrong"
-      match: { kind: ExprBin }
+      message: "the value ${node.operatorToken.kind +} is wrong"
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME004
       name: outside-profile
       summary: s
       message: m
-      match: { kind: ExprBin }
-      where: node.op == uint(1)
+      match: { kind: BinaryExpressionSyntax }
+      where: node.operatorToken.kind == uint(1)
     - id: ACME005
       name: let-syntax
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       let:
         a: "[1, 2"
     - id: ACME006
       name: message-empty
       summary: s
       message: "nothing ${ } here"
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 
-# expect: SVCHK214 error @ 12:20 expected an expression, found the end of the input
+# expect: SVCHK214 error @ 12:21 expected an expression, found the end of the input
 # expect: SVCHK214 error @ 16:27 unterminated '${' in the message (write '$${' for a literal '${')
-# expect: SVCHK214 error @ 21:38 expected an expression, found the end of the input
-# expect: SVCHK215 error @ 28:25 undeclared reference to function 'uint'
+# expect: SVCHK214 error @ 21:54 expected an expression, found the end of the input
+# expect: SVCHK215 error @ 28:41 undeclared reference to function 'uint'
 # expect: SVCHK214 error @ 35:18 expected ',' or ']' in a list, found end of expression
 # expect: SVCHK214 error @ 39:25 empty '${}' in the message
 # loads: none

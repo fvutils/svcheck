@@ -5,7 +5,7 @@ sv-rules:
       tier: style
       summary: The rules still load
       message: "m"
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 defaults:
   tier: style
 

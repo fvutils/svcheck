@@ -6,40 +6,40 @@ sv-rules:
       name: example-forms
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       examples:
         - name: line comment, block comment, positions
           code: |
-            component pss_top {
+            module top;
               // expect: ACME001 @ 3:5, ACME001
               /* expect: ACME001 */ int x;
-            }
+            endmodule
         - name: two files
           files:
-            a.pss: |
+            a.sv: |
               import b::*;   // expect: ACME001
-            b.pss: |
-              package b { }
+            b.sv: |
+              package b; endpackage
         - name: none
-          code: "component pss_top { } // expect: none"
+          code: "module top; endmodule // expect: none"
     - id: ACME002
       name: example-errors
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       examples:
         - name: malformed
           code: |
-            component pss_top { }  // expect: ACME002 @ x:1
+            module top; endmodule  // expect: ACME002 @ x:1
         - name: other rule
           code: |
-            component pss_top { }  // expect: ACME001
+            module top; endmodule  // expect: ACME001
         - name: both
           code: "x"
-          files: { a.pss: "x" }
+          files: { a.sv: "x" }
         - name: neither
         - name: none and a finding
-          code: "component pss_top { } // expect: none, ACME002"
+          code: "module top; endmodule // expect: none, ACME002"
 
 # expect: SVCHK212 error @ 33:47 malformed expectation 'ACME002 @ x:1' in example 'malformed'; write '// expect: ACME002', optionally with '@ line:col'
 # expect: SVCHK212 error @ 36:47 example 'other rule' expects ACME001, but an example runs only its own rule, ACME002

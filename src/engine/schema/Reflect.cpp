@@ -29,6 +29,7 @@ namespace {
 
 const ClassInfo NoClasses[1] = { {"", 0, 0, 0} };
 bool s_installed = false;
+Schema s_schema;
 
 }
 
@@ -50,11 +51,16 @@ void install(const Schema &s) {
     numEnums = s.numEnums;
     structs = s.structs;
     numStructs = s.numStructs;
+    s_schema = s;
     s_installed = true;
 }
 
 bool installed() {
     return s_installed;
+}
+
+const Schema &schema() {
+    return s_schema;
 }
 
 namespace {
@@ -113,7 +119,7 @@ Value listAt(const Value &l, uint32_t i) {
     case FieldType::F64: return elem<double>(l, i, [](double v) { return mkFloat(v); });
     case FieldType::String: {
         const std::vector<std::string> &v = vec<std::string>(l);
-        return (i < v.size()) ? Value::ofString(&v[i]) : Value();
+        return (i < v.size()) ? Value::ofString(std::string_view(v[i])) : Value();
     }
     default: return Value();
     }

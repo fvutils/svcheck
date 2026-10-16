@@ -5,9 +5,9 @@ sv-rules:
       tier: style
       summary: s
       message: m
-      match: { kind: Action }
+      match: { kind: ClassDeclaration }
       let:
-        bad: !node.name.id.startsWith("x")
+        bad: !node.name.text.startsWith("x")
 
 # expect: SVCHK218 error @ 10:14 YAML reads a leading '!' as a tag, which rule files do not use; if this is a CEL expression, quote it, or use a block scalar (>-)
 # refused

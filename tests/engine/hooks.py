@@ -5,8 +5,9 @@ one JSON request per stdin line, one JSON reply per stdout line. EngineHooks
 keeps one server process and has the method names and arguments of
 pssparser's Cython LintTestHooks (python/core.pyx at 57c6b14), so the tests
 copied from pssparser's tests/python/lintcore run against svcheck's fork
-unchanged. Hooks that take a PSS tree (cel_eval_node, lint_run, ...) are
-not here: they come back with the SV host (svcheck-plan P1.2).
+unchanged. The hooks that take a tree (cel_eval_node, lint_run, ...) take
+SV source text in its place, which the SV host parses alone with slang, as
+`snippet.sv` (svcheck-plan P1.2); `node` is its CompilationUnit.
 """
 import json
 import subprocess
@@ -75,3 +76,16 @@ class EngineHooks:
 
     def reflect_schema(self):
         return self._call("reflectSchema")
+
+    def cel_eval_node(self, text, source, max_steps=0, bindings=None):
+        return self._call("celEvalNode", source, text, self._bindings(bindings), max_steps)
+
+    def cel_check_node(self, doc, source, name="check.yaml"):
+        return self._call("celCheckNode", source, name, self._doc(doc))
+
+    def lint_walk(self, name, text, source):
+        return self._call("lintWalk", source, name, text)
+
+    def lint_run(self, name, text, source, enabled=None, max_steps=0, gate_errors=0):
+        return self._call("lintRun", source, name, text, enabled is None,
+                          list(enabled or []), max_steps, gate_errors)

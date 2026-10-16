@@ -36,8 +36,8 @@
  * kept, with `?` for the failed part. An erroring `let:` fails only through
  * what uses it.
  *
- * A finding's location is the name's, for a named declaration (a node
- * whose `name` is an ExprId); else the reported node's own; most
+ * A finding's location is the name's, for a named declaration (the host's
+ * Schema::nameLocation); else the reported node's own; most
  * expressions have none, so then the first located node under it
  * (pre-order: where the expression starts), else its nearest located
  * ancestor.

@@ -4,17 +4,17 @@ sv-rules:
       tier: style
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME002
       tier: style
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME003
       name: nursery-without-since
       tier: nursery
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME004
       name: no-match
       tier: style
@@ -25,7 +25,7 @@ sv-rules:
       tier: style
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - just a string
 
 # expect: SVCHK212 error @ 3:7 rule 1 has no 'id'

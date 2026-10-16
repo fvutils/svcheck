@@ -6,16 +6,16 @@ sv-rules:
       name: let-in-order
       summary: s
       message: "${a} and ${b}"
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       let:
-        a: node.op
+        a: node.operatorToken.kind
         b: a + 1
       where: b > a
     - id: ACME002
       name: let-out-of-order
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       let:
         a: b + 1
         b: "1"
@@ -23,7 +23,7 @@ sv-rules:
       name: let-reserved
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       let:
         node: "1"
         finding: "2"
@@ -31,7 +31,7 @@ sv-rules:
       name: let-bad-type-later-use
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       let:
         a: node.nothere
         b: a + 1
@@ -39,5 +39,5 @@ sv-rules:
 # expect: SVCHK215 error @ 20:12 undeclared reference to 'b'
 # expect: SVCHK212 error @ 28:9 'let' cannot define 'node', which every rule already has
 # expect: SVCHK212 error @ 29:9 'let' cannot define 'finding', which every rule already has
-# expect: SVCHK215 error @ 36:17 type 'ExprBin' has no field 'nothere', nor does any class derived from it
+# expect: SVCHK215 error @ 36:17 type 'BinaryExpressionSyntax' has no field 'nothere', nor does any class derived from it
 # loads: ACME001

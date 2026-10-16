@@ -6,19 +6,19 @@ sv-rules:
       name: unknown-match-kind
       summary: s
       message: m
-      match: { kind: [ExprBin, ExprBinn] }
+      match: { kind: [BinaryExpressionSyntax, BinaryExpressionSyntaxx] }
     - id: ACME002
       name: unknown-inside-kind
       summary: s
       message: m
       match:
-        kind: ExprBin
-        inside: { kind: Actoin, stop: Componentt }
+        kind: BinaryExpressionSyntax
+        inside: { kind: ClassDeclaratoin, stop: ModuleDeclaratoin }
     - id: ACME003
       name: no-inside-kind
       summary: s
       message: m
-      match: { kind: ExprBin, not_inside: { stop: Component } }
+      match: { kind: BinaryExpressionSyntax, not_inside: { stop: ModuleDeclaration } }
     - id: ACME004
       name: empty-kind-list
       summary: s
@@ -28,11 +28,11 @@ sv-rules:
       name: two-kinds
       summary: The node type is their nearest common base
       message: m
-      match: { kind: [ExprBin, ExprUnary], not_inside: { kind: Struct } }
+      match: { kind: [BinaryExpressionSyntax, PrefixUnaryExpressionSyntax], not_inside: { kind: ClassDeclaration } }
 
-# expect: SVCHK213 error @ 9:32 unknown node kind 'ExprBinn' in 'match.kind'; did you mean 'ExprBin'?
-# expect: SVCHK213 error @ 16:25 unknown node kind 'Actoin' in 'inside.kind'; did you mean 'Action'?
-# expect: SVCHK213 error @ 16:39 unknown node kind 'Componentt' in 'inside.stop'; did you mean 'Component'?
-# expect: SVCHK212 error @ 21:43 'not_inside' has no 'kind'
+# expect: SVCHK213 error @ 9:47 unknown node kind 'BinaryExpressionSyntaxx' in 'match.kind'; did you mean 'BinaryExpressionSyntax'?
+# expect: SVCHK213 error @ 16:25 unknown node kind 'ClassDeclaratoin' in 'inside.kind'; did you mean 'ClassDeclaration'?
+# expect: SVCHK213 error @ 16:49 unknown node kind 'ModuleDeclaratoin' in 'inside.stop'; did you mean 'ModuleDeclaration'?
+# expect: SVCHK212 error @ 21:58 'not_inside' has no 'kind'
 # expect: SVCHK212 error @ 26:22 'match.kind' must be a node kind or a non-empty list of them, not an empty list
 # loads: ACME005

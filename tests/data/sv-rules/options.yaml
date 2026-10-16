@@ -12,7 +12,7 @@ sv-rules:
         strict: { type: bool, default: false }
         names: { type: string-list, default: [a, b] }
         mode: { type: string, default: fast, choices: [fast, slow] }
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       where: >-
         options.limit > 0 && !options.strict && options.names.size() == 2 &&
         options.mode == "fast" && "abc".matches(options.pattern)
@@ -27,7 +27,7 @@ sv-rules:
         wrongdefault: { type: int, default: "3" }
         notinchoices: { default: c, choices: [a, b] }
         notamap: 3
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 
 # expect: SVCHK212 error @ 24:9 option name 'bad-name' must be an identifier (letters, digits and '_'), since expressions read it as options.bad-name
 # expect: SVCHK212 error @ 25:26 option type must be one of string, int, bool, string-list, not 'float'

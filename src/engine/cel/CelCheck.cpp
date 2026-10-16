@@ -1161,7 +1161,7 @@ private:
         }
     }
 
-    // type_named() and derives_from() with a literal path: it must be a PSS
+    // type_named() and derives_from() with a literal path: it must be a
     // type name, `p::S` or `::S`, with no template arguments.
     void literalTypePath(const Expr *path, Type &t) {
         if (path->kind != ExprKind::Const || path->cval.kind != Const::Kind::String) {
@@ -1169,7 +1169,7 @@ private:
         }
         std::string why;
         if (!typePathValid(path->cval.s, why)) {
-            error(path->begin, "'" + path->cval.s + "' is not a PSS type name: " + why);
+            error(path->begin, "'" + path->cval.s + "' is not a type name: " + why);
             t = Type(Type::Kind::Error);
         }
     }

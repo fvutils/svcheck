@@ -5,61 +5,61 @@ sv-rules:
       tier: style
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME002
       name: lrm-not-a-list
       tier: style
       summary: s
       message: m
       lrm: "11.3"
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME003
       name: yes-is-a-string
       tier: style
       summary: s
       message: m
       default_enabled: yes      # YAML 1.2: a string, not a bool
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME004
       name: since-unquoted
       tier: nursery
       since: 2026.10
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME005
       name: summary-interpolated
       tier: style
       summary: "names ${node}"
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME006
       name: bad-status
       tier: style
       status: retierd
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME007
       name: since-malformed
       tier: nursery
       since: "26.1"
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME008
       name: where-not-a-string
       tier: style
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       where: true
     - id: ACME009
       name: fix-is-reserved
       tier: style
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       fix: { replace: "x" }
 
 # expect: SVCHK212 error @ 4:13 'name' must be a kebab-case name (lower-case words joined by '-', as 'init-list-duplicate-target'), not 'Not_Kebab'

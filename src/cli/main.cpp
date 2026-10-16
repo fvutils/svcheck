@@ -16,7 +16,9 @@
 #include <optional>
 #include <string>
 
+#include "HookParser.h"
 #include "LintTestHooks.h"
+#include "Syntax.h"
 
 #include "slang/ast/Compilation.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
@@ -31,7 +33,10 @@ static double seconds(Clock::time_point a, Clock::time_point b) {
 }
 
 static int serveTestHooks() {
+    // Before any hook: the engine indexes the schema on first use.
+    svcheck::host::installSyntaxSchema();
     svcheck::lint::LintTestHooks hooks;
+    hooks.setParser(svcheck::host::syntaxHookParser());
     std::string line;
     while (std::getline(std::cin, line)) {
         std::cout << hooks.dispatch(line) << '\n' << std::flush;

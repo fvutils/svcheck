@@ -7,31 +7,31 @@ sv-rules:
       name: missing-builtin-fields
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: SVCHK902
       name: only-firing-examples
       family: process
       summary: s
       message: m
       doc: d
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       examples:
         - code: |
-            component pss_top { }   // expect: SVCHK902
+            component top { }   // expect: SVCHK902
     - id: SVCHK903
       name: complete-builtin
       family: process
       summary: s
       message: m
       doc: d
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       examples:
         - name: fires
           code: |
-            component pss_top { }   // expect: SVCHK903
+            component top { }   // expect: SVCHK903
         - name: near miss
           code: |
-            component pss_top { }
+            component top { }
 
 # expect: SVCHK212 error @ 6:7 rule 'SVCHK901' has no 'family', which a built-in rule must have
 # expect: SVCHK212 error @ 6:7 rule 'SVCHK901' has no 'doc', which a built-in rule must have

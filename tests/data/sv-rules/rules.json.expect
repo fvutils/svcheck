@@ -1,2 +1,2 @@
-# expect: SVCHK214 error @ 4:58 expected an expression, found the end of the input
+# expect: SVCHK214 error @ 4:79 expected an expression, found the end of the input
 # loads: none

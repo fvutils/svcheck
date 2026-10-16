@@ -148,8 +148,9 @@ public:
         std::vector<rf::Node> &elems, int32_t &index);
 
     /**
-     * The node's `location` (1-based line and column), or false when its
-     * class has none or it is unset (line -1).
+     * The node's location (1-based line and column): the host's
+     * (Schema::location), else its `location` struct field; false when it
+     * has none or it is unset (line -1).
      */
     static bool location(const rf::Node &n, int32_t &fileid, int32_t &line, int32_t &col);
 
@@ -157,9 +158,8 @@ public:
     static bool location(const rf::Node &n, ast::Location &loc);
 
     /**
-     * For a named declaration -- a class whose `name` field is an ExprId,
-     * declared or inherited -- the name's location; false for any other
-     * node, or a name with none.
+     * For a named declaration, the name's location (Schema::nameLocation);
+     * false for any other node, a name with none, or a host with no hook.
      */
     static bool nameLocation(const rf::Node &n, ast::Location &loc);
 

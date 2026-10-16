@@ -1055,7 +1055,7 @@ private:
                     diag(code::FieldInvalid, text->mark, "an example's 'code' must be a string, "
                         "not " + what(text));
                 } else {
-                    x.files.push_back({"example.pss", text->s, {}});
+                    x.files.push_back({"example.sv", text->s, {}});
                     parseExpectations(text, r, x.name, x.files.back());
                 }
             } else if (files->kind != NK::Map || files->members.empty()) {

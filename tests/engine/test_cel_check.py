@@ -17,6 +17,8 @@ unchecked one does (the standard library's cases and the node cases of
 test_cel_eval.py; the CEL conformance files are test_cel_conformance.py's).
 """
 
+import re
+
 import pytest
 
 import test_cel_eval
@@ -81,8 +83,8 @@ def _value(hooks, text, **doc):
     ("optional.of(1).optMap(x, x + 1)", "optional(int)"),
     ("optional.of(1).optFlatMap(x, optional.of('s'))", "optional(string)"),
     ("has({'a': 1}.a)", "bool"),
-    ("ExprBinOp.BinOp_Eq", "int"), ("ExprBinOp.BinOp_Eq + 1", "int"),
-    ("ExprBin", "type"), ("Location", "type"),
+    ("TokenKind.DoubleEquals", "int"), ("TokenKind.DoubleEquals + 1", "int"),
+    ("BinaryExpressionSyntax", "type"), ("AddExpression", "type"), ("Token", "type"),
 ])
 def test_types(hooks, text, typ):
     assert _type(hooks, text) == typ
@@ -90,8 +92,8 @@ def test_types(hooks, text, typ):
 
 @pytest.mark.parametrize("decl,typ", [
     ("int", "int"), ("list(string)", "list(string)"), ("map(string, list(int))",
-     "map(string, list(int))"), ("ExprBin", "ExprBin"), ("list(Action)", "list(Action)"),
-    ("Location", "Location"), ("node", "node"), ("optional(double)", "optional(double)"),
+     "map(string, list(int))"), ("BinaryExpressionSyntax", "BinaryExpressionSyntax"),
+    ("list(ClassDeclaration)", "list(ClassDeclaration)"), ("Token", "Token"), ("node", "node"), ("optional(double)", "optional(double)"),
 ])
 def test_declared_variables(hooks, decl, typ):
     assert _type(hooks, "x", vars={"x": decl}) == typ
@@ -117,13 +119,13 @@ def test_binding_types_come_from_values(hooks):
     ("1 + f(2)", 4, "undeclared reference to function 'f'"),
     ("timestamp(0)", 0, "undeclared reference to function 'timestamp'"),
     ("'a'.nope()", 0, "undeclared reference to function 'nope'"),
-    ("ExprBinOp.Nope", 0, "enum 'ExprBinOp' has no member 'Nope'"),
+    ("TokenKind.Nope", 0, "enum 'TokenKind' has no member 'Nope'"),
     # A flags value is not a number (C6.8, E4).
     ("FieldAttr.Rand + 1", 0, "FieldAttr.Rand is a 'FieldAttr' flag, not a number: test a "
      "flag with has_flag(x, FieldAttr.Rand)"),
     ("int(FieldAttr.Rand)", 4, "FieldAttr.Rand is a 'FieldAttr' flag, not a number"),
-    ("has_flag(4, ExprBinOp.BinOp_Eq)", 12, "ExprBinOp.BinOp_Eq is a member of enum "
-     "'ExprBinOp', which is not a set of flags"),
+    ("has_flag(4, TokenKind.DoubleEquals)", 12, "TokenKind.DoubleEquals is a member of enum "
+     "'TokenKind', which is not a set of flags"),
     ("int.x", 0, "type 'int' has no member 'x'"),
     ("1 + 'a'", 0, "no matching overload for '+' applied to (int, string); it takes "
      "int + int -> int, double + double -> double, string + string -> string or "
@@ -261,37 +263,38 @@ def test_no_other_mixing(hooks, text):
 
 
 def test_null_fits_node_types(hooks):
-    doc = {"vars": {"n": "ExprBin"}, "run": False}
-    assert _type(hooks, "n.lhs == null", **doc) == "bool"
-    assert _type(hooks, "[null, n.lhs]", **doc) == "list(Expr)"
-    assert _type(hooks, "true ? null : n", **doc) == "ExprBin"
+    doc = {"vars": {"n": "BinaryExpressionSyntax"}, "run": False}
+    assert _type(hooks, "n.left == null", **doc) == "bool"
+    assert _type(hooks, "[null, n.left]", **doc) == "list(ExpressionSyntax)"
+    assert _type(hooks, "true ? null : n", **doc) == "BinaryExpressionSyntax"
     _, m = _error(hooks, "1 == null")
     assert m.startswith("no matching overload for '==' applied to (int, null_type)")
 
 
 # ---------------------------------------------------------- nodes ------
 
-NODE = {"vars": {"node": "ExprBin", "a": "Action"}, "run": False}
+NODE = {"vars": {"node": "BinaryExpressionSyntax", "a": "ClassDeclaration"}, "run": False}
 
 
 @pytest.mark.parametrize("text,typ", [
-    ("node", "ExprBin"),
-    ("node.lhs", "Expr"),
-    ("node.op", "int"),
-    ("a.location", "Location"),                     # inherited, a struct
-    ("a.location.lineno", "int"),
-    ("node.op == ExprBinOp.BinOp_Eq", "bool"),
-    ("[node.lhs, node.rhs]", "list(Expr)"),
-    ("[node.lhs, node]", "list(Expr)"),             # the common base class
-    ("[a, a.location]", None),
-    ("true ? node : node.lhs", "Expr"),
-    ("node == node.lhs", "bool"),
-    ("node in [node.lhs]", "bool"),
-    ("has(node.lhs)", "bool"),
-    ("node.?lhs", "optional(Expr)"),
-    ("type(node.lhs) == ExprBin && node.lhs.op == 0", "bool"),
-    ("type(node) == ExprBin", "bool"),
-    ("[node].map(n, n.lhs)", "list(Expr)"),
+    ("node", "BinaryExpressionSyntax"),
+    ("node.left", "ExpressionSyntax"),
+    ("node.operatorToken.kind", "int"),
+    ("a.name", "Token"),                            # a struct
+    ("a.attributes", "list(AttributeInstanceSyntax)"),  # inherited (MemberSyntax)
+    ("a.name.line", "int"),
+    ("node.operatorToken.kind == TokenKind.DoubleEquals", "bool"),
+    ("[node.left, node.right]", "list(ExpressionSyntax)"),
+    ("[node.left, node]", "list(ExpressionSyntax)"),  # the common base class
+    ("[a, a.name]", None),
+    ("true ? node : node.left", "ExpressionSyntax"),
+    ("node == node.left", "bool"),
+    ("node in [node.left]", "bool"),
+    ("has(node.left)", "bool"),
+    ("node.?left", "optional(ExpressionSyntax)"),
+    ("type(node.left) == AddExpression && node.left.operatorToken.kind == 0", "bool"),
+    ("type(node) == AddExpression", "bool"),
+    ("[node].map(n, n.left)", "list(ExpressionSyntax)"),
 ])
 def test_node_types(hooks, text, typ):
     if typ is None:
@@ -301,21 +304,28 @@ def test_node_types(hooks, text, typ):
         assert _type(hooks, text, **NODE) == typ
 
 
+_OP = ("type 'ExpressionSyntax' has no field 'operatorToken'; PrefixUnaryExpressionSyntax, "
+       "PostfixUnaryExpressionSyntax, BinaryExpressionSyntax and "
+       "StreamingConcatenationExpressionSyntax have it")
+
+
 @pytest.mark.parametrize("text,msg", [
-    ("node.nope", "type 'ExprBin' has no field 'nope', nor does any class derived from it"),
+    ("node.nope", "type 'BinaryExpressionSyntax' has no field 'nope', nor does any class "
+                  "derived from it"),
     # A derived class's field needs the class tested first.
-    ("node.lhs.op", "type 'Expr' has no field 'op'; ExprBin and ExprUnary have it: test the "
-                    "class first, as in type(node.lhs) == ExprBin && node.lhs.op"),
-    ("node.?lhs.op", "type 'Expr' has no field 'op'; ExprBin and ExprUnary have it"),
-    ("has(node.lhs.op)", "type 'Expr' has no field 'op'; ExprBin and ExprUnary have it"),
-    ("node.lhs.?op", "type 'Expr' has no field 'op'; ExprBin and ExprUnary have it"),
-    ("a.location.nope", "type 'Location' has no field 'nope'"),
-    ("has(node.nope)", "type 'ExprBin' has no field 'nope'"),
-    ("node.?nope", "type 'ExprBin' has no field 'nope'"),
-    ("node + 1", "no matching overload for '+' applied to (ExprBin, int)"),
-    ("node < node", "no matching overload for '<' applied to (ExprBin, ExprBin)"),
-    ("node == 1", "no matching overload for '==' applied to (ExprBin, int)"),
-    ("a == a.location", "no matching overload for '==' applied to (Action, Location)"),
+    ("node.left.operatorToken", _OP + ": test the class first, as in type(node.left) == "
+                                "PrefixUnaryExpressionSyntax && node.left.operatorToken"),
+    ("node.?left.operatorToken", _OP),
+    ("has(node.left.operatorToken)", _OP),
+    ("node.left.?operatorToken", _OP),
+    ("a.name.nope", "type 'Token' has no field 'nope'"),
+    ("has(node.nope)", "type 'BinaryExpressionSyntax' has no field 'nope'"),
+    ("node.?nope", "type 'BinaryExpressionSyntax' has no field 'nope'"),
+    ("node + 1", "no matching overload for '+' applied to (BinaryExpressionSyntax, int)"),
+    ("node < node", "no matching overload for '<' applied to (BinaryExpressionSyntax, "
+                    "BinaryExpressionSyntax)"),
+    ("node == 1", "no matching overload for '==' applied to (BinaryExpressionSyntax, int)"),
+    ("a == a.name", "no matching overload for '==' applied to (ClassDeclaration, Token)"),
 ])
 def test_node_errors(hooks, text, msg):
     _, m = _error(hooks, text, **NODE)
@@ -324,11 +334,11 @@ def test_node_errors(hooks, text, msg):
 
 def test_any_node_has_no_fields(hooks):
     doc = {"vars": {"n": "node"}, "run": False}
-    _, m = _error(hooks, "n.lhs", **doc)
-    assert m.startswith("type 'node' has no field 'lhs'; ExprAggrMapElem, ExprBin, ")
-    assert " and 6 more have it: test the class first, as in type(n) == ExprAggrMapElem && " \
-           "n.lhs" in m
-    assert _type(hooks, "type(n) == ExprBin && n.lhs == null", **doc) == "bool"
+    _, m = _error(hooks, "n.left", **doc)
+    assert m.startswith("type 'node' has no field 'left'; ")
+    assert " more have it: test the class first, as in type(n) == " in m and m.endswith(
+        " && n.left")
+    assert _type(hooks, "type(n) == AddExpression && n.left == null", **doc) == "bool"
     _, m = _error(hooks, "n.nope", **doc)
     assert m == "type 'node' has no field 'nope', nor does any node class"
 
@@ -338,57 +348,58 @@ def test_derived_field_is_an_error(hooks):
     # others at run time; the checker asks for the class test instead, and
     # names the classes that have it (topmost only: not each class that
     # inherits it). lint-core-plan.md C3.3, decision (a), revised.
-    _, m = _error(hooks, "c.name", vars={"c": "ScopeChild"})
-    assert m.startswith("type 'ScopeChild' has no field 'name'; ")
-    assert "NamedScopeChild" in m and "Action" not in m
-    assert m.endswith(" have it: test the class first, as in type(c) == %s && c.name"
+    _, m = _error(hooks, "c.header", vars={"c": "MemberSyntax"})
+    assert m.startswith("type 'MemberSyntax' has no field 'header'; ")
+    assert "ModuleDeclarationSyntax" in m
+    # Not its kinds, which inherit it.
+    assert not re.search(r"\b(ModuleDeclaration|PackageDeclaration)\b", m)
+    assert m.endswith(" have it: test the class first, as in type(c) == %s && c.header"
                       % m.split("; ")[1].split(",")[0])
-    _, m = _error(hooks, "c.children[0].name", vars={"c": "Action"})
+    _, m = _error(hooks, "c.items[0].name", vars={"c": "ClassDeclaration"})
     assert "as in type(x) == " in m and m.endswith(" && x.name")
 
 
 @pytest.mark.parametrize("text,typ", [
     # On the right of `&&`, and in the first result of `?:`, a variable (or a
     # field path from one) that the left tested is of the tested class.
-    ("type(c) == Action && c.name.id == 'A'", "bool"),
-    ("Action == type(c) && c.is_abstract", "bool"),
-    ("type(c) == Action ? c.name : null", "ExprId"),
-    ("type(c) == Action && (true && c.is_abstract)", "bool"),
-    ("type(n.lhs) == ExprBin && n.lhs.lhs != null", "bool"),
-    ("l.filter(c, type(c) == Action)", "list(Action)"),
-    ("l.filter(c, type(c) == Action && c.is_abstract)", "list(Action)"),
-    ("l.filter(c, type(c) == Action)[0].super_t", "TypeIdentifier"),
+    ("type(c) == ClassDeclaration && c.name.text == 'A'", "bool"),
+    ("ClassDeclaration == type(c) && has(c.virtualOrInterface)", "bool"),
+    ("type(c) == ClassDeclaration ? c.extendsClause : null", "ExtendsClauseSyntax"),
+    ("type(c) == ClassDeclaration && (true && has(c.virtualOrInterface))", "bool"),
+    ("type(n.left) == AddExpression && n.left.left != null", "bool"),
+    ("l.filter(c, type(c) == ClassDeclaration)", "list(ClassDeclaration)"),
+    ("l.filter(c, type(c) == ClassDeclaration && has(c.virtualOrInterface))",
+     "list(ClassDeclaration)"),
+    ("l.filter(c, type(c) == ClassDeclaration)[0].extendsClause", "ExtendsClauseSyntax"),
 ])
 def test_narrowing(hooks, text, typ):
-    doc = {"vars": {"c": "ScopeChild", "n": "ExprBin", "l": "list(ScopeChild)"}, "run": False}
+    doc = {"vars": {"c": "MemberSyntax", "n": "BinaryExpressionSyntax",
+                    "l": "list(MemberSyntax)"}, "run": False}
     assert _type(hooks, text, **doc) == typ
 
 
 @pytest.mark.parametrize("text", [
-    # `name` differs between ScopeChild classes, so it needs the narrowing.
-    "type(c) == Action || c.name.id == ''",                     # not after ||
-    "(type(c) == Action) == true && c.name.id == ''",           # not a type test
-    "type(c) == Action && l.exists(c, c.name.id == '')",        # a different c
-    "!(type(c) == Action) && c.name.id == ''",
-    "type(c) == Action ? true : c.name.id == ''",               # not the second result
+    # `name` is in some MemberSyntax classes only, so it needs the narrowing.
+    "type(c) == ClassDeclaration || c.name.text == ''",                 # not after ||
+    "(type(c) == ClassDeclaration) == true && c.name.text == ''",       # not a type test
+    "type(c) == ClassDeclaration && l.exists(c, c.name.text == '')",    # a different c
+    "!(type(c) == ClassDeclaration) && c.name.text == ''",
+    "type(c) == ClassDeclaration ? true : c.name.text == ''",           # not the second result
 ])
 def test_no_narrowing(hooks, text):
-    doc = {"vars": {"c": "ScopeChild", "l": "list(ScopeChild)"}, "run": False}
+    doc = {"vars": {"c": "MemberSyntax", "l": "list(MemberSyntax)"}, "run": False}
     r = _check(hooks, dict(doc, expr=text))
     assert [e["message"].split(";")[0] for e in r["errors"]] == [
-        "type 'ScopeChild' has no field 'name'"], text
+        "type 'MemberSyntax' has no field 'name'"], text
 
 
 def test_narrowed_read_of_another_class_is_safe(hooks, factory):
     # A narrowed field is resolved on the narrowed class; reading it from a
     # node of another class is the by-name read's error value, never a read
     # through the wrong class.
-    from pssparser.parser import Parser
-    p = Parser()
-    p.parses([("top.pss", test_cel_eval._MODEL)])
     doc = {"expr": test_cel_eval._PRELUDE % (
-        "[A, fa].map(c, type(c) == Action ? c.is_abstract : false)")}
-    r = factory._lintTestHooks().cel_check_node(doc, p._files[-1])
+        "[A, fa].map(c, type(c) == ClassDeclaration ? has(c.virtualOrInterface) : false)")}
+    r = factory._lintTestHooks().cel_check_node(doc, test_cel_eval._MODEL)
     assert r["errors"] == [], r
     assert r["values"]["expr"]["value"] == [
         {"type": "bool", "value": False}, {"type": "bool", "value": False}]
@@ -578,7 +589,8 @@ def test_later_helper_of_a_name_wins(hooks):
     ({"bindings": {"x": "s"}, "expr": "[1].map(x, x + 1)[0]"}, "int", 2),
     # A variable shadows a type name ...
     ({"bindings": {"int": 5}, "expr": "int + 1"}, "int", 6),
-    ({"bindings": {"ExprBin": "v"}, "expr": "ExprBin + '!'"}, "string", "v!"),
+    ({"bindings": {"BinaryExpressionSyntax": "v"}, "expr": "BinaryExpressionSyntax + '!'"},
+     "string", "v!"),
     # ... and a namespace.
     ({"bindings": {"optional": {"of": 5}}, "expr": "optional.of"}, "int", 5),
     # A later let shadows an earlier one, and a variable.
@@ -607,22 +619,24 @@ def test_lets_in_order(hooks):
 @pytest.mark.parametrize("key,text,msg", [
     ("where", "1", "where: must be bool, but this expression is 'int'"),
     ("where", "[true]", "where: must be bool, but this expression is 'list(bool)'"),
-    ("report", "node", "report: must be list(node), but this expression is 'ExprBin'"),
+    ("report", "node", "report: must be list(node), but this expression is "
+     "'BinaryExpressionSyntax'"),
     ("report", "[1]", "report: must be list(node), but this expression is 'list(int)'"),
-    ("report", "[a.location]", "but this expression is 'list(Location)'"),
+    ("report", "[a.name]", "but this expression is 'list(Token)'"),
 ])
 def test_required_result_types(hooks, key, text, msg):
-    r = _check(hooks, {"vars": {"node": "ExprBin", "a": "Action"}, key: text})
+    r = _check(hooks, {"vars": {"node": "BinaryExpressionSyntax", "a": "ClassDeclaration"},
+                       key: text})
     assert len(r["errors"]) == 1 and msg in r["errors"][0]["message"]
 
 
 @pytest.mark.parametrize("key,text", [
-    ("where", "node.lhs != null"), ("where", "[1].exists(x, x > 0)"),
-    ("report", "[node]"), ("report", "[node.lhs, node.rhs]"), ("report", "[]"),
-    ("report", "[node].filter(n, n.op == ExprBinOp.BinOp_Eq)"),
+    ("where", "node.left != null"), ("where", "[1].exists(x, x > 0)"),
+    ("report", "[node]"), ("report", "[node.left, node.right]"), ("report", "[]"),
+    ("report", "[node].filter(n, n.operatorToken.kind == TokenKind.DoubleEquals)"),
 ])
 def test_required_result_types_met(hooks, key, text):
-    r = _check(hooks, {"vars": {"node": "ExprBin"}, key: text, "run": False})
+    r = _check(hooks, {"vars": {"node": "BinaryExpressionSyntax"}, key: text, "run": False})
     assert r["errors"] == [], r
 
 
@@ -688,9 +702,9 @@ def test_overloads_left_to_run_time(hooks):
 
 def test_enum_constants_are_folded(hooks):
     # Resolved when checked: one step, no lookup.
-    r = _check(hooks, {"expr": "ExprBinOp.BinOp_Eq"})
+    r = _check(hooks, {"expr": "TokenKind.DoubleEquals"})
     assert r["steps"]["expr"] == 1
-    assert hooks.cel_eval("ExprBinOp.BinOp_Eq")["steps"] == 2
+    assert hooks.cel_eval("TokenKind.DoubleEquals")["steps"] == 2
 
 
 # ------------------------------- checked and unchecked evaluate the same ---
@@ -730,21 +744,19 @@ def _node_cases():
 
 @pytest.fixture(scope="module")
 def unit():
-    from pssparser.parser import Parser
-    p = Parser()
-    p.parses([("top.pss", test_cel_eval._MODEL)])
-    return p, p._files[-1]
+    return test_cel_eval._MODEL
 
 
 @pytest.mark.parametrize("text", _node_cases() + [
-    "A.super_t", "A.super_t == null", "A.super_t.target", "has(A.super_t.target)",
-    "has(A.super_t) && A.super_t.target == null", "A.?super_t.hasValue()",
-    "A.?super_t.target.hasValue()", "type(B.?super_t.value()) == TypeIdentifier"])
+    "A.extendsClause", "A.extendsClause == null", "A.extendsClause.baseName",
+    "has(A.extendsClause.baseName)", "has(A.extendsClause) && A.extendsClause.baseName == null",
+    "A.?extendsClause.hasValue()", "A.?extendsClause.baseName.hasValue()",
+    "type(B.?extendsClause.value()) == ExtendsClause"])
 def test_node_cases_checked(hooks, unit, text):
     # Node fields are read by index once checked; the values are the same.
     full = test_cel_eval._PRELUDE % text
-    unchecked = hooks.cel_eval_node(full, unit[1])
-    r = hooks.cel_check_node({"expr": full}, unit[1])
+    unchecked = hooks.cel_eval_node(full, unit)
+    r = hooks.cel_check_node({"expr": full}, unit)
     assert r["errors"] == [], r
     assert r["values"]["expr"] == unchecked["result"]
     assert r["steps"]["expr"] <= unchecked["steps"]

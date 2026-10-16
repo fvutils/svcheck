@@ -171,7 +171,7 @@ Value convert(const rf::Value &v, const char *field, uint64_t &elems) {
             }
             return Value::integer(static_cast<int64_t>(v.u));
         case K::Float: return Value::dbl(v.d);
-        case K::String: return Value::string(v.s ? *v.s : std::string());
+        case K::String: return Value::string(std::string(v.str()));
         case K::Struct: return Value::mkStruct(v.st, v.type);
         case K::Node:
             return v.n ? Value::mkNode(toRef(v.n)) : Value::unset(field);
@@ -195,9 +195,8 @@ Value readList(const rf::FieldInfo &f, const rf::Node &n, uint64_t &elems) {
     out.reserve(sz);
     for (uint32_t i=0; i<sz; i++) {
         rf::Value v = f.at(n.ptr, n.kind, i);
-        if (v.kind == rf::Value::Kind::Node && (v.borrowed || run::Walker::implicit(v.n))) {
-            // Listed here, owned elsewhere, or not in the source: as for
-            // children() (Walker.h).
+        if (v.kind == rf::Value::Kind::Node && v.borrowed) {
+            // Listed here, owned elsewhere: as for children() (Walker.h).
             continue;
         } else if (v.kind == rf::Value::Kind::Node && !v.n) {
             out.push_back(Value::null());
@@ -217,7 +216,7 @@ bool present(const rf::Value &v) {
         case K::Int: case K::Enum: case K::Flags: return v.i != 0;
         case K::Uint: return v.u != 0;
         case K::Float: return v.d != 0.0;
-        case K::String: return v.s && !v.s->empty();
+        case K::String: return v.s.size != 0;
         case K::Struct: return true;
         case K::Node: return static_cast<bool>(v.n);
         case K::List: return rf::listSize(v) != 0;
@@ -592,6 +591,7 @@ bool structEquals(const Value &a, const Value &b) {
             return false;
         }
         if (x.kind == rf::Value::Kind::Uint ? (x.u != y.u)
+                : x.kind == rf::Value::Kind::String ? (x.str() != y.str())
                 : x.kind == rf::Value::Kind::Float ? (x.d != y.d)
                 : x.kind == rf::Value::Kind::Bool ? (x.b != y.b)
                 : (x.i != y.i)) {

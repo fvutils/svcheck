@@ -16,7 +16,7 @@ import pytest
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 FIXTURES = os.path.join(ROOT, "tests", "data", "sv-rules")
-BLESS = os.environ.get("PSS_RULES_BLESS") == "1"
+BLESS = os.environ.get("SV_RULES_BLESS") == "1"
 
 
 @pytest.fixture(scope="module")
@@ -113,7 +113,7 @@ def test_good_rules_load_beside_a_bad_one(hooks):
 
 def test_json_rule_file(hooks):
     text = '{"sv-rules": {"rules": [{"id": "ACME001", "name": "j", "tier": "style", ' \
-           '"summary": "s", "message": "m", "match": {"kind": "ExprBin"}}]}}'
+           '"summary": "s", "message": "m", "match": {"kind": "BinaryExpressionSyntax"}}]}}'
     r = hooks.rule_load("r.json", text)
     assert r["diagnostics"] == [] and [x["id"] for x in r["rules"]] == ["ACME001"]
 
@@ -153,17 +153,17 @@ def test_rule_metadata(hooks):
 
 def test_node_type_is_the_common_base_of_the_kinds(hooks):
     r = _rule(hooks, "kinds-unknown.yaml", "ACME005")
-    assert r["node_type"] == "Expr"
-    assert r["match"] == {"kind": ["ExprBin", "ExprUnary"], "inside": None,
-                          "not_inside": {"kind": ["Struct"], "stop": []}}
+    assert r["node_type"] == "ExpressionSyntax"
+    assert r["match"] == {"kind": ["BinaryExpressionSyntax", "PrefixUnaryExpressionSyntax"], "inside": None,
+                          "not_inside": {"kind": ["ClassDeclaration"], "stop": []}}
 
 
 def test_finding_is_typed_by_report(hooks):
     r = _rule(hooks, "report.yaml", "ACME001")
-    assert (r["node_type"], r["finding_type"], r["report"]) == ("ExprBin", "Expr", True)
+    assert (r["node_type"], r["finding_type"], r["report"]) == ("BinaryExpressionSyntax", "ExpressionSyntax", True)
     assert r["message_parts"] == [
-        {"text": "operand "}, {"expr": "finding", "type": "Expr"},
-        {"text": " of "}, {"expr": "node", "type": "ExprBin"}]
+        {"text": "operand "}, {"expr": "finding", "type": "ExpressionSyntax"},
+        {"text": " of "}, {"expr": "node", "type": "BinaryExpressionSyntax"}]
 
 
 def test_let_in_order(hooks):
@@ -190,7 +190,7 @@ def test_message_literal_dollar_brace(hooks):
       tier: style
       summary: s
       message: "write $${x} for ${'a' + \\"}\\"}"
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 """
     r = hooks.rule_load("m.yaml", text)
     assert r["diagnostics"] == []
@@ -202,12 +202,12 @@ def test_examples_are_parsed(hooks):
     r = _rule(hooks, "examples.yaml", "ACME001")
     first, two, none = r["examples"]
     assert first["name"] == "line comment, block comment, positions"
-    assert first["files"][0]["name"] == "example.pss"
+    assert first["files"][0]["name"] == "example.sv"
     assert first["files"][0]["expect"] == [
         {"id": "ACME001", "line": 3, "col": 5},
         {"id": "ACME001", "line": 2, "col": 0},
         {"id": "ACME001", "line": 3, "col": 0}]
-    assert [(f["name"], len(f["expect"])) for f in two["files"]] == [("a.pss", 1), ("b.pss", 0)]
+    assert [(f["name"], len(f["expect"])) for f in two["files"]] == [("a.sv", 1), ("b.sv", 0)]
     assert none["files"][0]["expect"] == []
 
 
@@ -263,7 +263,7 @@ def test_calls_include_helpers_and_messages(hooks):
       tier: style
       summary: s
       message: "${string(sz([1]))}"
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 """
     r = hooks.rule_load("c.yaml", text)
     assert r["diagnostics"] == []
@@ -305,7 +305,7 @@ _ONE = """sv-rules:
       tier: style
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 """
 
 

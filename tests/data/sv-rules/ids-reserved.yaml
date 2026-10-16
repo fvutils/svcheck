@@ -9,43 +9,43 @@ sv-rules:
       name: tool-namespace-low
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: SVCHK201
       name: tool-namespace-mid
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: SVCHK300
       name: tool-namespace
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: SVCHK999
       name: tool-namespace-high
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: SVCHK-ACME001
       name: qualified-tool-namespace
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: SVCHK-NET001
       name: qualified-tool-namespace-2
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME001
       name: reserved-alias
       aliases: [SVCHK104]
       summary: s
       message: m
-      match: { kind: ExprBin }
-    - id: SVCHKAC001
+      match: { kind: BinaryExpressionSyntax }
+    - id: SVCH001
       name: reserved-prefix-only
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 
 # expect: SVCHK217 error @ 8:11 'SVCHK001' is in the reserved namespace 'SVCHK': SVCHK belongs to svcheck, with or without a team qualifier; choose a namespace of your own, as ACME001
 # expect: SVCHK217 error @ 13:11 'SVCHK201' is in the reserved namespace 'SVCHK': SVCHK belongs to svcheck, with or without a team qualifier; choose a namespace of your own, as ACME001
@@ -54,4 +54,4 @@ sv-rules:
 # expect: SVCHK217 error @ 28:11 'SVCHK-ACME001' is in the reserved namespace 'SVCHK-ACME': SVCHK belongs to svcheck, with or without a team qualifier; choose a namespace of your own, as ACME001
 # expect: SVCHK217 error @ 33:11 'SVCHK-NET001' is in the reserved namespace 'SVCHK-NET': SVCHK belongs to svcheck, with or without a team qualifier; choose a namespace of your own, as ACME001
 # expect: SVCHK217 error @ 40:17 'SVCHK104' is in the reserved namespace 'SVCHK': SVCHK belongs to svcheck, with or without a team qualifier; choose a namespace of your own, as ACME001
-# loads: SVCHKAC001
+# loads: SVCH001

@@ -15,9 +15,14 @@ C++ core on slang; Python is packaging only.
 `src/engine/` is the fork of pssparser's engine (P1.1), built as `svcheck_engine`. It must not
 include slang or SV types: the host gives it a schema (`schema/Reflect.h`, `install()`), a
 `run::Context` and a function library (`cel::setHostLib`). Its tests (`tests/engine/`) drive the
-shipped binary through `svcheck --engine-test-hooks` (`tests/engine/hooks.py`). Copied tests
-that still need an SV schema are listed in `tests/engine/needs_schema.txt`. Remove a line from
-that file when its test is re-targeted; never add one to hide a failure.
+shipped binary through `svcheck --engine-test-hooks` (`tests/engine/hooks.py`); the node hooks
+take SV source text, which the host parses alone as `snippet.sv`. Copied tests the host cannot
+serve yet are listed, with the reason, in `tests/engine/needs_schema.txt`. Remove a line from
+that file when its test runs; never add one to hide a failure.
+
+`src/host/` is the SV host (`svcheck_host`, on slang). The syntax schema's tables are generated
+at build time from slang's `scripts/syntax.txt` by `scripts/gen_syntax_schema.py` (its docstring
+gives the layout); `Syntax.{h,cpp}` holds the hand-written half: tokens, locations, install.
 
 ## Build and test
 
@@ -27,6 +32,9 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
 uv pip install --python packages/python/bin/python --no-build-isolation -e .   # wheel path; reruns CMake
 packages/python/bin/python -m pytest
 ```
+
+The tests run `python/svcheck/bin/svcheck`, which only the `uv pip install` step updates: rerun
+it after a `cmake --build`, or the tests see the old binary.
 
 - The CMake configure must stay offline: slang's FetchContent deps are supplied from
   `packages/` (`FETCHCONTENT_SOURCE_DIR_*`, `FETCHCONTENT_FULLY_DISCONNECTED`). A new slang

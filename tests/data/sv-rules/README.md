@@ -21,5 +21,5 @@ the comments would change (a YAML syntax error), keeps its expectations in
 `<file>.expect` instead.
 
 After an intended change to a message or position, regenerate the
-expectations with `PSS_RULES_BLESS=1 pytest tests/engine/test_rule_loader.py`
+expectations with `SV_RULES_BLESS=1 pytest tests/engine/test_rule_loader.py`
 and review the diff.

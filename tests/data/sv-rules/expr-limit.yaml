@@ -6,14 +6,14 @@ sv-rules:
       name: too-deep
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       where: >-
         [[[1]]].all(a, a.all(b, b.all(c, c > 0)))
     - id: ACME002
       name: helper-cycle
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       define:
         f(x): g(x)
         g(x): f(x)
@@ -22,7 +22,7 @@ sv-rules:
       name: bad-regex
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
       where: "'a'.matches('(a')"
 
 # expect: SVCHK216 error @ 11:33 all() nests comprehensions 3 deep, and at most 2 are allowed in one expression or helper; move the inner part into a define: helper

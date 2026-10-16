@@ -49,9 +49,12 @@ def _needs_schema():
 
 
 def pytest_collection_modifyitems(config, items):
+    # SVCHECK_RUN_HELD=1 runs the held-back tests too, to see where they stand.
+    if os.environ.get("SVCHECK_RUN_HELD"):
+        return
     held = _needs_schema()
     for item in items:
         nid = item.nodeid.replace(os.sep, "/")
         if nid in held:
             item.add_marker(pytest.mark.skip(
-                reason="needs the SV schema (svcheck-plan P1.2): " + held[nid]))
+                reason="held back (needs_schema.txt): " + held[nid]))

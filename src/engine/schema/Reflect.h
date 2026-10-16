@@ -29,6 +29,8 @@
 #pragma once
 #include <stdint.h>
 #include <string>
+#include <string_view>
+#include "svcheck/ast/Location.h"
 
 namespace svcheck {
 namespace ast {
@@ -63,7 +65,10 @@ struct Value {
         int64_t             i;              // Int, Enum, Flags
         uint64_t            u;
         double              d;
-        const std::string   *s;             // String: owned by the node
+        struct {
+            const char      *data;
+            size_t          size;
+        }                   s;              // String: the text, owned by the node
         const void          *st;            // Struct, List: owned by the node
         Node                n;              // Node: kind 0 for a null pointer
     };
@@ -74,13 +79,19 @@ struct Value {
     static Value ofInt(int64_t v) { Value r; r.kind = Kind::Int; r.i = v; return r; }
     static Value ofUint(uint64_t v) { Value r; r.kind = Kind::Uint; r.u = v; return r; }
     static Value ofFloat(double v) { Value r; r.kind = Kind::Float; r.d = v; return r; }
-    static Value ofString(const std::string *v) { Value r; r.kind = Kind::String; r.s = v; return r; }
+    static Value ofString(std::string_view v) {
+        Value r; r.kind = Kind::String; r.s.data = v.data(); r.s.size = v.size(); return r;
+    }
+    static Value ofString(const std::string *v) { return ofString(std::string_view(*v)); }
     static Value ofEnum(int64_t v, uint16_t t) { Value r; r.kind = Kind::Enum; r.i = v; r.type = t; return r; }
     static Value ofFlags(int64_t v, uint16_t t) { Value r; r.kind = Kind::Flags; r.i = v; r.type = t; return r; }
     static Value ofStruct(const void *v, uint16_t t) { Value r; r.kind = Kind::Struct; r.st = v; r.type = t; return r; }
     static Value ofNode(Node v, bool borrowed=false) {
         Value r; r.kind = Kind::Node; r.n = v; r.borrowed = borrowed; return r;
     }
+    /** String: the text. */
+    std::string_view str() const { return std::string_view(s.data, s.size); }
+
     template <class T> static Value ofList(const T *v, FieldType elem) {
         Value r; r.kind = Kind::List; r.st = v; r.type = static_cast<uint16_t>(elem); return r;
     }
@@ -147,6 +158,20 @@ struct Schema {
     uint16_t                numEnums = 0;
     const StructInfo        *structs = nullptr;
     uint16_t                numStructs = 0;
+
+    /**
+     * Where a node is (1-based line and column), for findings and the
+     * location functions; false when it has none. Unset: a `location`
+     * struct field ({fileid, lineno, linepos, extent}, as pyastbuilder
+     * models carry), or none.
+     */
+    bool                    (*location)(const Node &n, Location &loc) = nullptr;
+
+    /**
+     * For a named declaration, where its name is (a finding on a
+     * declaration points at the name); false for other nodes. Unset: never.
+     */
+    bool                    (*nameLocation)(const Node &n, Location &loc) = nullptr;
 };
 
 /**
@@ -158,6 +183,9 @@ void install(const Schema &s);
 
 /** Whether a host has installed a schema. */
 bool installed();
+
+/** The installed schema (its hooks; the tables are also the variables below). */
+const Schema &schema();
 
 extern uint16_t             NumClasses;
 extern const ClassInfo      *classes;       // [NumClasses + 1]

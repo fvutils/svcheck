@@ -11,55 +11,55 @@ sv-rules:
       aliases: [ACME901]
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME-NET001
       name: net-first
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME-DMA001
       name: dma-first
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME001
       name: same-id
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME002
       name: first
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME003
       name: alias-is-an-id
       aliases: [ACME-NET001]
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME901
       name: id-is-an-alias
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME004
       name: alias-is-own-id
       aliases: [ACME004]
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME005
       name: net-first
       aliases: [ACME-DMA001]
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME006
       name: same-id
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 
 # expect: SVCHK217 error @ 25:11 rule ID 'ACME001' is already the ID of a rule, at ids-duplicate.yaml:9:11
 # expect: SVCHK217 error @ 31:13 rule name 'first' is already the name of rule 'ACME001', at ids-duplicate.yaml:10:13

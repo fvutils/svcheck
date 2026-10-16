@@ -5,10 +5,9 @@
   without a team qualifier, and a built-in file uses nothing else.
 - The engine's own codes are SVCHK2xx.
 
-The namespace fixtures (tests/data/sv-rules/ids-*.yaml) also need a node
-schema for their `match:` kinds, which the SV host provides (P1.2), so
-test_rule_loader's fixture test is held back for them (needs_schema.txt).
-Here only their SVCHK217 expectations are checked.
+test_rule_loader's fixture test checks the namespace fixtures
+(tests/data/sv-rules/ids-*.yaml) whole; here only their SVCHK217
+expectations are, so the policy has a test of its own.
 """
 import os
 import re

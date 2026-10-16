@@ -16,10 +16,33 @@
  * limitations under the License.
  */
 #pragma once
+#include <functional>
+#include <memory>
+#include <vector>
 #include "svcheck/lint/ILintTestHooks.h"
+#include "Reflect.h"
 
 namespace svcheck {
 namespace lint {
+
+namespace run {
+class Context;
+}
+
+/**
+ * The trees of a source text, which the host parses for the node hooks
+ * (svcheck-plan P1.2): the roots, the context the run reads (null: a plain
+ * Context), and whatever keeps the roots alive.
+ */
+struct HookTrees {
+    std::vector<ast::reflect::Node>     roots;
+    std::unique_ptr<run::Context>       context;
+    std::shared_ptr<void>               keep;
+};
+
+/** Parses `source` into `out`; false, with `error`, when it cannot. */
+using HookParser = std::function<bool(const std::string &source, HookTrees &out,
+    std::string &error)>;
 
 class LintTestHooks : public virtual ILintTestHooks {
 public:
@@ -42,6 +65,29 @@ public:
     virtual std::string reflectSchema() override;
 
     /**
+     * The node hooks: as pssparser's, over the trees the host's parser
+     * makes of `source` (setParser). Without a parser they refuse.
+     *
+     * - celEvalNode: evaluates `text` with `node` bound to the first root.
+     * - celCheckNode: checks a rule-shaped document with `node` typed by
+     *   the first root's class.
+     * - lintWalk: the rules' matches, in walk order, over every root.
+     * - lintRun: a whole run of the rules enabled (all, or `enabled`).
+     */
+    std::string celEvalNode(const std::string &source, const std::string &text,
+        const std::string &bindings, uint64_t max_steps);
+    std::string celCheckNode(const std::string &source, const std::string &name,
+        const std::string &text);
+    std::string lintWalk(const std::string &source, const std::string &name,
+        const std::string &text);
+    std::string lintRun(const std::string &source, const std::string &name,
+        const std::string &text, bool allEnabled, const std::vector<std::string> &enabled,
+        uint64_t maxSteps, uint32_t gateErrors);
+
+    /** The host's parser for the node hooks. */
+    void setParser(HookParser parser) { m_parser = std::move(parser); }
+
+    /**
      * One hook call as JSON (svcheck-plan P1.1): {"op": "<hook>", "args":
      * [...]}, the hook's arguments in order. Returns the hook's JSON, or
      * {"ok": false, "error": "..."} for a request that names no hook or has
@@ -49,6 +95,11 @@ public:
      * request per line, so the Python tests drive the shipped binary.
      */
     std::string dispatch(const std::string &requestJson);
+
+private:
+    bool parse(const std::string &source, HookTrees &out, std::string &result);
+
+    HookParser          m_parser;
 };
 
 }

@@ -6,7 +6,7 @@ sv-rules:
       name: report-operands
       summary: s
       message: "operand ${finding} of ${node}"
-      match: { kind: ExprBin }
-      report: "[node.lhs, node.rhs]"
+      match: { kind: BinaryExpressionSyntax }
+      report: "[node.left, node.right]"
 
 # loads: ACME001

@@ -356,204 +356,6 @@ const char *fieldTypeName(rf::FieldType t) {
     return names[static_cast<int>(t)];
 }
 
-// The census of census_gen.py (pyastbuilder gen_census.py), reproduced from
-// the reflection tables alone: pre-order ids over owned children, then one
-// record per node of its flattened fields, base class first.
-class ReflectCensus {
-public:
-    ReflectCensus() : m_flat(rf::NumClasses + 1) {
-        for (uint16_t k=1; k<=rf::NumClasses; k++) {
-            std::vector<uint16_t> chain;
-            for (uint16_t c=k; c; c=rf::classes[c].super) {
-                chain.push_back(c);
-            }
-            for (auto it=chain.rbegin(); it!=chain.rend(); it++) {
-                const rf::ClassInfo &ci = rf::classes[*it];
-                for (uint16_t f=ci.firstField; f<ci.firstField+ci.numFields; f++) {
-                    if (rf::fields[f].type != rf::FieldType::Map) {
-                        m_flat[k].push_back(f);
-                    }
-                }
-            }
-        }
-    }
-
-    std::string run(rf::Node root) {
-        index(root);
-        JsonWriter w;
-        w.beginObject();
-        w.kv("count", static_cast<uint64_t>(m_order.size()));
-        std::vector<std::pair<std::string, uint64_t>> hist;
-        std::unordered_map<uint16_t, size_t> at;
-        for (const rf::Node &n : m_order) {
-            auto it = at.find(n.kind);
-            if (it == at.end()) {
-                at[n.kind] = hist.size();
-                hist.push_back({rf::classes[n.kind].name, 1});
-            } else {
-                hist[it->second].second++;
-            }
-        }
-        w.key("classes").beginObject();
-        for (const auto &h : hist) {
-            w.kv(h.first, h.second);
-        }
-        w.endObject();
-        w.key("records").beginArray();
-        for (const rf::Node &n : m_order) {
-            w.beginArray();
-            w.value(rf::classes[n.kind].name);
-            for (uint16_t f : m_flat[n.kind]) {
-                field(w, n, rf::fields[f]);
-            }
-            w.endArray();
-        }
-        w.endArray();
-        w.endObject();
-        return w.str();
-    }
-
-private:
-    static bool walked(const rf::FieldInfo &f) {
-        return f.owned && (f.type == rf::FieldType::Node
-            || (f.type == rf::FieldType::List && f.elem == rf::FieldType::Node));
-    }
-
-    // Iterative pre-order: children pushed last-first, so each subtree is
-    // numbered before its next sibling, as the recursive Python walk does.
-    void index(rf::Node root) {
-        std::vector<rf::Node> stack;
-        if (root) {
-            stack.push_back(root);
-        }
-        while (!stack.empty()) {
-            rf::Node n = stack.back();
-            stack.pop_back();
-            if (m_ids.count(n.ptr)) {
-                continue;
-            }
-            m_ids[n.ptr] = static_cast<int32_t>(m_order.size());
-            m_order.push_back(n);
-            std::vector<rf::Node> kids;
-            for (uint16_t fi : m_flat[n.kind]) {
-                const rf::FieldInfo &f = rf::fields[fi];
-                if (!walked(f)) {
-                    continue;
-                }
-                if (f.type == rf::FieldType::Node) {
-                    rf::Value v = f.get(n.ptr, n.kind);
-                    if (v.n) {
-                        kids.push_back(v.n);
-                    }
-                } else {
-                    uint32_t sz = f.size(n.ptr, n.kind);
-                    for (uint32_t i=0; i<sz; i++) {
-                        rf::Value v = f.at(n.ptr, n.kind, i);
-                        if (v.n) {
-                            kids.push_back(v.n);
-                        }
-                    }
-                }
-            }
-            stack.insert(stack.end(), kids.rbegin(), kids.rend());
-        }
-    }
-
-    int32_t idOf(const rf::Node &n) const {
-        auto it = m_ids.find(n.ptr);
-        return (n && it != m_ids.end()) ? it->second : -1;
-    }
-
-    // Python's _f64: the IEEE-754 bits of the value as a double, little-endian hex.
-    static std::string f64(double d) {
-        unsigned char b[8];
-        std::memcpy(b, &d, 8);
-        static const char *hex = "0123456789abcdef";
-        std::string s;
-        for (int i=0; i<8; i++) {
-            s += hex[b[i] >> 4];
-            s += hex[b[i] & 0xF];
-        }
-        return s;
-    }
-
-    void scalar(JsonWriter &w, rf::FieldType t, const rf::Value &v) {
-        switch (t) {
-            case rf::FieldType::Bool: w.value(v.b); break;
-            case rf::FieldType::I8: case rf::FieldType::I16: case rf::FieldType::I32:
-                w.value(v.i); break;
-            case rf::FieldType::U8: case rf::FieldType::U16: case rf::FieldType::U32:
-                w.value(v.u); break;
-            case rf::FieldType::I64: w.value(f64(static_cast<double>(v.i))); break;
-            case rf::FieldType::U64: w.value(f64(static_cast<double>(v.u))); break;
-            case rf::FieldType::F32: case rf::FieldType::F64: w.value(f64(v.d)); break;
-            case rf::FieldType::String: w.value(v.s ? *v.s : std::string()); break;
-            case rf::FieldType::Enum: case rf::FieldType::Flags: w.value(v.i); break;
-            default: w.valueNull(); break;
-        }
-    }
-
-    void structMembers(JsonWriter &w, const rf::Value &v) {
-        const rf::StructInfo &si = rf::structs[v.type];
-        for (uint16_t i=0; i<si.numFields; i++) {
-            scalar(w, si.fields[i].type, si.fields[i].get(v.st));
-        }
-    }
-
-    void element(JsonWriter &w, rf::FieldType t, const rf::Value &v) {
-        if (t == rf::FieldType::Struct) {
-            w.beginArray();
-            structMembers(w, v);
-            w.endArray();
-        } else if (t == rf::FieldType::List) {
-            w.beginArray();
-            uint32_t n = rf::listSize(v);
-            for (uint32_t i=0; i<n; i++) {
-                rf::Value e = rf::listAt(v, i);
-                scalar(w, static_cast<rf::FieldType>(v.type), e);
-            }
-            w.endArray();
-        } else {
-            scalar(w, t, v);
-        }
-    }
-
-    void field(JsonWriter &w, const rf::Node &n, const rf::FieldInfo &f) {
-        switch (f.type) {
-            case rf::FieldType::Node:
-                w.value(idOf(f.get(n.ptr, n.kind).n));
-                break;
-            case rf::FieldType::Struct:
-                structMembers(w, f.get(n.ptr, n.kind));
-                break;
-            case rf::FieldType::List: {
-                uint32_t sz = f.size(n.ptr, n.kind);
-                w.beginArray();
-                for (uint32_t i=0; i<sz; i++) {
-                    rf::Value v = f.at(n.ptr, n.kind, i);
-                    if (f.elem == rf::FieldType::Node) {
-                        // Entries outside the walked graph are dropped, as the
-                        // Python census and the wire format do.
-                        int32_t id = idOf(v.n);
-                        if (id >= 0) {
-                            w.value(id);
-                        }
-                    } else {
-                        element(w, f.elem, v);
-                    }
-                }
-                w.endArray();
-            } break;
-            default:
-                scalar(w, f.type, f.get(n.ptr, n.kind));
-        }
-    }
-
-    std::vector<std::vector<uint16_t>>      m_flat;
-    std::unordered_map<void *, int32_t>     m_ids;
-    std::vector<rf::Node>                   m_order;
-};
-
 std::string syntaxError(const cel::SyntaxError &e) {
     JsonWriter w;
     w.beginObject().kv("ok", false);
@@ -1048,6 +850,202 @@ std::string LintTestHooks::reflectSchema() {
     return w.str();
 }
 
+bool LintTestHooks::parse(const std::string &source, HookTrees &out, std::string &result) {
+    std::string error;
+    if (!m_parser) {
+        error = "no host parser for the node hooks";
+    } else if (m_parser(source, out, error) && !out.roots.empty()) {
+        if (!out.context) {
+            out.context.reset(new run::Context());
+        }
+        for (const rf::Node &r : out.roots) {
+            out.context->index(r);
+        }
+        return true;
+    } else if (error.empty()) {
+        error = "the source has no tree";
+    }
+    JsonWriter w;
+    w.beginObject().kv("ok", false).kv("error", error).endObject();
+    result = w.str();
+    return false;
+}
+
+std::string LintTestHooks::celEvalNode(const std::string &source, const std::string &text,
+        const std::string &bindings, uint64_t max_steps) {
+    HookTrees t;
+    std::string result;
+    if (!parse(source, t, result)) {
+        return result;
+    }
+    std::vector<std::pair<std::string, cel::Value>> vars = parseBindings(bindings);
+    cel::NodeRef ref;
+    ref.kind = t.roots[0].kind;
+    ref.ptr = t.roots[0].ptr;
+    vars.emplace_back("node", cel::Value::mkNode(ref));
+    return evalWith(text, vars, max_steps, t.context.get());
+}
+
+std::string LintTestHooks::celCheckNode(const std::string &source, const std::string &name,
+        const std::string &text) {
+    HookTrees t;
+    std::string result;
+    if (!parse(source, t, result)) {
+        return result;
+    }
+    cel::NodeRef ref;
+    ref.kind = t.roots[0].kind;
+    ref.ptr = t.roots[0].ptr;
+    cel::Value v = cel::Value::mkNode(ref);
+    return checkDoc(name, text, &v, t.context.get());
+}
+
+std::string LintTestHooks::lintWalk(const std::string &source, const std::string &name,
+        const std::string &text) {
+    HookTrees t;
+    std::string result;
+    if (!parse(source, t, result)) {
+        return result;
+    }
+    LintEngine e;
+    LintSource src;
+    src.name = name;
+    src.text = text;
+    bool loaded = e.loadRules(src, false) != nullptr;
+    run::Dispatch dispatch(e.ruleList());
+    run::Walker walker(dispatch);
+    std::vector<std::pair<const rules::Rule *, rf::Node>> matches;
+    for (const rf::Node &r : t.roots) {
+        walker.walk(r, [&matches](const rules::Rule &rule, const rf::Node &n) {
+            matches.emplace_back(&rule, n);
+        });
+    }
+
+    JsonWriter w;
+    w.beginObject();
+    w.kv("loaded", loaded);
+    w.key("diagnostics");
+    rules::diagnosticsToJson(w, e.diagnostics());
+    w.kv("visited", walker.numVisited());
+    w.key("matches").beginArray();
+    for (const auto &m : matches) {
+        int32_t fileid = -1, line = -1, col = -1;
+        run::Walker::location(m.second, fileid, line, col);
+        w.beginObject();
+        w.kv("rule", m.first->m_id).kv("kind", rf::classes[m.second.kind].name);
+        w.kv("line", static_cast<int64_t>(line)).kv("col", static_cast<int64_t>(col));
+        w.key("ancestors").beginArray();
+        for (const rf::Node &a : walker.ancestorsOf(m.second)) {
+            w.value(rf::classes[a.kind].name);
+        }
+        w.endArray();
+        w.endObject();
+    }
+    w.endArray();
+    w.endObject();
+    return w.str();
+}
+
+std::string LintTestHooks::lintRun(const std::string &source, const std::string &name,
+        const std::string &text, bool allEnabled, const std::vector<std::string> &enabled,
+        uint64_t maxSteps, uint32_t gateErrors) {
+    static const char *sevNames[] = {"error", "warning", "info", "hint"};
+    HookTrees t;
+    std::string result;
+    if (!parse(source, t, result)) {
+        return result;
+    }
+    LintEngine e;
+    LintSource src;
+    src.name = name;
+    src.text = text;
+    bool loaded = e.loadRules(src, false) != nullptr;
+    std::vector<const rules::Rule *> list = e.ruleList();
+    std::vector<const rules::Rule *> on;
+    for (const rules::Rule *r : list) {
+        if (allEnabled || std::find(enabled.begin(), enabled.end(), r->m_id) != enabled.end()) {
+            on.push_back(r);
+        }
+    }
+    run::RunOptions opts;
+    if (maxSteps) {
+        opts.maxSteps = maxSteps;
+    }
+    opts.context = t.context.get();
+    run::Runner runner(on, opts);
+    std::unique_ptr<IMarker> skipped;
+    if (gateErrors) {
+        skipped.reset(run::Runner::skippedMarker(gateErrors));
+    } else {
+        for (const rf::Node &r : t.roots) {
+            runner.run(r);
+        }
+    }
+
+    JsonWriter w;
+    w.beginObject();
+    w.kv("loaded", loaded);
+    w.key("diagnostics");
+    rules::diagnosticsToJson(w, e.diagnostics());
+    w.key("skipped");
+    if (skipped) {
+        w.beginObject();
+        w.kv("id", skipped->id()).kv("severity", sevNames[static_cast<int>(skipped->severity())]);
+        w.kv("msg", skipped->msg()).kv("line", static_cast<int64_t>(skipped->loc().lineno));
+        w.endObject();
+    } else {
+        w.valueNull();
+    }
+    w.key("findings").beginArray();
+    for (const run::Finding &f : runner.findings()) {
+        w.beginObject();
+        w.kv("id", f.rule->m_id).kv("severity", sevNames[static_cast<int>(f.severity)]);
+        w.kv("msg", f.message).kv("kind", rf::classes[f.node.kind].name);
+        w.kv("line", static_cast<int64_t>(f.loc.lineno));
+        w.kv("col", static_cast<int64_t>(f.loc.linepos));
+        w.kv("extent", static_cast<int64_t>(f.loc.extent));
+        w.endObject();
+    }
+    w.endArray();
+    w.key("failures").beginArray();
+    for (const run::RuleFailure &f : runner.failures()) {
+        std::unique_ptr<IMarker> m(run::Runner::toMarker(f));
+        w.beginObject();
+        w.kv("id", m->id()).kv("rule", f.rule->m_id).kv("in", f.in).kv("error", f.error);
+        w.kv("msg", m->msg()).kv("severity", sevNames[static_cast<int>(m->severity())]);
+        w.kv("line", static_cast<int64_t>(m->loc().lineno));
+        w.kv("col", static_cast<int64_t>(m->loc().linepos));
+        w.endObject();
+    }
+    w.endArray();
+    w.key("notes").beginArray();
+    for (const run::RuleNote &n : runner.notes()) {
+        std::unique_ptr<IMarker> m(run::Runner::toMarker(n));
+        w.beginObject();
+        w.kv("id", m->id()).kv("rule", n.rule ? n.rule->m_id : std::string()).kv("path", n.path);
+        w.kv("msg", m->msg()).kv("severity", sevNames[static_cast<int>(m->severity())]);
+        w.kv("line", static_cast<int64_t>(m->loc().lineno));
+        w.kv("col", static_cast<int64_t>(m->loc().linepos));
+        w.endObject();
+    }
+    w.endArray();
+    w.key("stats").beginArray();
+    for (const rules::Rule *r : list) {
+        // A rule not enabled was never given to the runner: all zero.
+        auto it = std::find(on.begin(), on.end(), r);
+        run::RuleStats none;
+        const run::RuleStats &s = (it == on.end()) ? none : runner.stats()[it - on.begin()];
+        w.beginObject();
+        w.kv("rule", r->m_id).kv("matches", s.matches).kv("findings", s.findings);
+        w.kv("steps", s.steps).kv("ns", s.ns).kv("errors", s.errors);
+        w.kv("error_in", s.errorIn).kv("error", s.error);
+        w.endObject();
+    }
+    w.endArray();
+    w.endObject();
+    return w.str();
+}
+
 std::string LintTestHooks::ruleLoad(const std::string &name, const std::string &text,
         bool builtin) {
     LintEngine e;
@@ -1143,6 +1141,24 @@ std::string LintTestHooks::dispatch(const std::string &requestJson) {
         return regexSearch(str(0), str(1));
     } else if (o == "reflectSchema" && fits("")) {
         return reflectSchema();
+    } else if (o == "celEvalNode" && fits("sssi")) {
+        return celEvalNode(str(0), str(1), str(2), static_cast<uint64_t>(a[3]->i));
+    } else if (o == "celCheckNode" && fits("sss")) {
+        return celCheckNode(str(0), str(1), str(2));
+    } else if (o == "lintWalk" && fits("sss")) {
+        return lintWalk(str(0), str(1), str(2));
+    } else if (o == "lintRun" && a.size() == 7 && a[0]->kind == NK::String
+            && a[1]->kind == NK::String && a[2]->kind == NK::String && a[3]->kind == NK::Bool
+            && a[4]->kind == NK::Seq && a[5]->kind == NK::Int && a[6]->kind == NK::Int) {
+        std::vector<std::string> enabled;
+        for (const yaml::NodeUP &n : a[4]->items) {
+            if (n->kind != NK::String) {
+                return refuse("lintRun: `enabled` is a list of strings");
+            }
+            enabled.push_back(n->s);
+        }
+        return lintRun(str(0), str(1), str(2), a[3]->b, enabled,
+            static_cast<uint64_t>(a[5]->i), static_cast<uint32_t>(a[6]->i));
     }
     return refuse("no hook '" + o + "' taking these arguments");
 }

@@ -5,11 +5,11 @@ sv-rules:
       tier: style
       summary: s
       message: m
-      match: { kind: Action }
-      where: "!node.name.id.endsWith('_a')"
+      match: { kind: ClassDeclaration }
+      where: "!node.name.text.endsWith('_a')"
       let:
-        quoted: '!node.name.id.startsWith("x")'
+        quoted: '!node.name.text.startsWith("x")'
         block: >-
-          !node.name.id.startsWith("y")
+          !node.name.text.startsWith("y")
 
 # loads: ACME001

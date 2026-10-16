@@ -6,18 +6,18 @@ sv-rules:
       name: good-before
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
     - id: ACME002
       name: bad
       summary: s
       message: m
-      match: { kind: ExprBin }
-      where: node.op == "x"
+      match: { kind: BinaryExpressionSyntax }
+      where: node.operatorToken.kind == "x"
     - id: ACME003
       name: good-after
       summary: s
       message: m
-      match: { kind: ExprBin }
+      match: { kind: BinaryExpressionSyntax }
 
 # expect: SVCHK215 error @ 15:14 no matching overload for '==' applied to (int, string); it takes A == A -> bool
 # loads: ACME001, ACME003

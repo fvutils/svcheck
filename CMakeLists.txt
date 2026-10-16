@@ -36,6 +36,7 @@ add_subdirectory(${PACKAGES_DIR}/slang ${CMAKE_BINARY_DIR}/slang EXCLUDE_FROM_AL
 #*****************************************************************************
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_subdirectory(src/engine)
+add_subdirectory(src/host)
 
 #*****************************************************************************
 #* svcheck
@@ -56,6 +57,6 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 add_executable(svcheck
   src/cli/main.cpp)
 target_compile_definitions(svcheck PRIVATE SVCHECK_VERSION="${SVCHECK_VERSION}")
-target_link_libraries(svcheck PRIVATE svcheck_engine slang::slang)
+target_link_libraries(svcheck PRIVATE svcheck_host)
 
 install(TARGETS svcheck RUNTIME DESTINATION bin)

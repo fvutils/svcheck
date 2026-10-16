@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft, 2026-10-15. Direction agreed in discussion; nothing is built. |
+| **Status** | Draft, 2026-10-15. Direction agreed in discussion. Built so far: the bootstrap, the engine fork and the syntax schema (svcheck-plan P0, P1.1, P1.2). |
 | **Home** | `svcheck/docs/design/`, with its SV companions (moved from pssparser 2026-10-15, §13). |
 | **What** | `svcheck` checks SystemVerilog, and UVM testbenches first, against declarative rules (`sv-rules`: YAML plus CEL), built on slang, with its own rule engine modelled on pssparser's. |
 | **Supersedes** | Nothing. Consolidates the SV material in `sv-lint-survey.md`, `sv-lint-demand.md`, `sv-uvm-rules-assessment.md`, `sv-uvm-elaboration-checks.md` and `model-query-database.md` into one design; those stay as the detailed record. |
@@ -157,15 +157,15 @@ namespace `pssp` became `svcheck`, the codes `PSSP2xx` became `SVCHK2xx`, and th
 | `src/engine/util/` | `src/lint/util/` | none |
 | `src/engine/catalog/` | `src/lint/catalog/` | `catalog.json` is hand-maintained. It holds only the engine's own markers (SVCHK000, 004, 007, 201–206, 210–223, 230), and provisional SV families |
 | `src/engine/rules/` | `src/lint/rules/` | `SVCHK` is the reserved namespace, and built-in rules use it alone |
-| `src/engine/run/` | `src/lint/run/` | `Context.{h,cpp}` is new: the language-neutral half of `lib/PssLib.h`'s `lib::Context`, with hooks for the host (C9.1). The Runner takes it in place of the PSS model |
+| `src/engine/run/` | `src/lint/run/` | `Context.{h,cpp}` is new: the language-neutral half of `lib/PssLib.h`'s `lib::Context`, with hooks for the host (C9.1). The Runner takes it in place of the PSS model. P1.2: the Walker's PSS conventions (the `ExprId` name, the implicit `FieldCompRef`) became the schema's `location`/`nameLocation` hooks |
 | `src/engine/pipeline/` | `src/lint/pipeline/` | waiver extraction is the host's (C9.3). `collectPragmas` reads the host's tokens; the `@lint_pkg::waive` annotation form was dropped |
 | `src/engine/LintEngine.*` | `src/lint/LintEngine.*` | `run()` takes schema nodes and a host `run::Context`. `collectWaivers()` takes the host's tokens |
-| `src/engine/LintTestHooks.*` | `src/lint/LintTestHooks.*` | the hooks that take a PSS tree were dropped (to return in P1.2). `dispatch()` (JSON) is new |
+| `src/engine/LintTestHooks.*` | `src/lint/LintTestHooks.*` | `dispatch()` (JSON) is new. The hooks that take a tree (`celEvalNode`, `celCheckNode`, `lintWalk`, `lintRun`) take source text, which a host parser makes trees of (P1.2); `declPaths`, `reflectCensus` and the census were dropped |
 | `src/engine/include/svcheck/` | `src/include/pssp/lint/`, `IMarker.h`, `src/Marker.h` | `ILintEngine` as above; `Marker` is header-only; `ast/Location.h` is written by hand |
-| `src/engine/schema/Reflect.*` | the interface of pyastbuilder `gen-reflect`'s generated `Reflect.h` | the tables are installed by the host at run time (C9.1), not compiled in |
+| `src/engine/schema/Reflect.*` | the interface of pyastbuilder `gen-reflect`'s generated `Reflect.h` | the tables are installed by the host at run time (C9.1), not compiled in. A string value is a view, not a `std::string` (P1.2: slang's tokens hold views) |
 | `src/engine/{cel,rules,catalog}/*.py` | the same paths | paths and names only |
 | `scripts/cel_differential.py` | `scripts/cel_differential.py` | drives `svcheck --engine-test-hooks` |
-| `tests/engine/test_{cel_*,regex,yaml*,rule_loader}.py`, `tests/data/{cel-conformance,sv-rules}/` | `tests/python/lintcore/`, `tests/data/{cel-conformance,pss-rules}/` | the root key and namespaces are renamed. The tests that need a PSS schema or PSS sources are held back (`tests/engine/needs_schema.txt`) until P1.2 |
+| `tests/engine/test_{cel_*,regex,yaml*,rule_loader}.py`, `tests/data/{cel-conformance,sv-rules}/` | `tests/python/lintcore/`, `tests/data/{cel-conformance,pss-rules}/` | the root key and namespaces are renamed. P1.2 re-targeted the tests that named PSS kinds or parsed PSS at the SV syntax schema and SV snippets; `tests/engine/needs_schema.txt` holds the few that still wait |
 
 **pssparser's C9** (separating its own core from PSS) is no longer a prerequisite. It stays in
 lint-core-plan as a deferred item for when the engines are combined.
@@ -176,11 +176,24 @@ This is the slang-specific half (sv-lint-survey §4):
 
 | Piece | Source |
 |---|---|
-| **Syntax schema** | generated from slang's `scripts/syntax.txt` (data-driven, as pssparser's comes from `ast/*.yaml`); `kindmap` groups become `kind: [...]` lists |
+| **Syntax schema** | generated from slang's `scripts/syntax.txt` (data-driven, as pssparser's comes from `ast/*.yaml`) by `scripts/gen_syntax_schema.py`; built in P1.2, below |
 | **Semantic schema** | an accessor table for `Symbol`, `Expression`, `Statement`, `Type` and `TimingControl` kinds. The kinds are enumerated, and slang's `ASTSerializer` already visits every property, so the table can largely be generated from it |
 | **Node handles** | kind, field get, children, parent, identity, location. Locations map macro expansions to the use site (slang's `SourceManager`); see S-3 in §7 |
 | **Function library** | below |
 | **Snippet compilation** for `examples:` | a default context that includes `uvm_pkg` (compiled once and cached), so UVM examples are short |
+
+**The syntax schema as built (P1.2, `src/host/Syntax.h`):**
+- **Classes:** `SyntaxNode`; one per slang syntax type, named as the C++ type
+  (`ClassDeclarationSyntax`, `ExpressionSyntax`), with the type's members as fields; and one
+  per `SyntaxKind` (`ClassDeclaration`, `AddExpression`), deriving from its type, with no
+  fields of its own. A node's class is its kind's. `match: ClassDeclaration` is one kind;
+  `match: BinaryExpressionSyntax` is every kind of the type (its `kindmap` group).
+- **Fields** are slang's member names. A `token` is a `Token` struct (`text`, `raw`, `kind` a
+  `TokenKind`, `missing`, `line`, `col`), or null when the source has none. A child is an
+  owned node. A list or separated list is a list of nodes, without the separators.
+- **Locations** are where a node's first token is, with macro expansions mapped to where the
+  macro is used (S-3). A declaration is reported at its name, found through `name`, or one
+  level down through `header`, `prototype` or `declaration`.
 
 **Function library** (sv-uvm-rules-assessment §2.4):
 

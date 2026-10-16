@@ -23,8 +23,8 @@
  *   symbols, types and constants (`in_library`, `resolves_to`, `type_of`,
  *   `const_int`, `const_string`) and carriers (`classes`, `calls_in`).
  *   They are registered only when the model is the layer installed, since
- *   their signatures name its classes; the slang accessor table stays at
- *   what the 4 UVM rules of P1.3 need (Q-SC5).
+ *   their signatures name its classes (with `--semantic=none`, only the
+ *   syntax schema is installed).
  *
  * Nothing here is UVM's: its vocabulary (roles, `is_config_db`) is written
  * in YAML, as helpers.

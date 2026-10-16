@@ -26,7 +26,6 @@
 #endif
 #include "Lint.h"
 #include "SemModel.h"
-#include "SlangSchema.h"
 #include "SvContext.h"
 #include "Syntax.h"
 #include "rules/Rule.h"
@@ -214,9 +213,6 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
     if (!m_errors && layer == SemanticLayer::Model) {
         p.design = lowerCompilation(*p.comp, *p.sources, m_libraryDirs);
         m_roots.push_back(semNode(p.design.get()));
-    } else if (!m_errors && layer == SemanticLayer::Slang) {
-        setSlangSources(p.sources.get(), &driver.sourceManager, m_libraryDirs);
-        m_roots.push_back(slangRoot(*p.comp));
     }
     m_stats.lowerS = secs(tLower, Clock::now());
     m_stats.heapLowered = heapInUse();
@@ -253,7 +249,6 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
 LintCompilation::~LintCompilation() {
     m_context.reset();
     setSources(nullptr);
-    setSlangSources(nullptr);
 }
 
 bool LintCompilation::shows(const std::string &path) const {

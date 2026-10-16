@@ -1,6 +1,6 @@
 # The 4 UVM rules of svcheck-plan P1.3 (sv-uvm-rules-assessment §4), against
-# the curated model (svcheck-design §3.6). For Q-SC5: set against
-# uvm-slang.yaml, which has the same rules against slang's own AST.
+# the curated model (svcheck-design §3.6). Q-SC5 set them against the same
+# rules on slang's own AST; P1.8 chose the model (svcheck-spike-report §3).
 sv-rules:
   version: 1
   defaults:

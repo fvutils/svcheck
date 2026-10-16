@@ -17,7 +17,7 @@ from svcheck import native_path
 
 class EngineHooks:
     def __init__(self, semantic=None, uvm=None):
-        """`semantic`: "model" or "slang" for a semantic layer, whose node hooks
+        """`semantic`: "model" for the semantic layer, whose node hooks
         compile their source (svcheck-plan P1.3), against uvm_pkg from `uvm`
         (UVM's src directory) when the source mentions `uvm_`."""
         args = [native_path(), "--engine-test-hooks"]

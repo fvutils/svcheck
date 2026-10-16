@@ -25,12 +25,13 @@ that file when its test runs; never add one to hide a failure.
 at build time from slang's `scripts/syntax.txt` by `scripts/gen_syntax_schema.py` (its docstring
 gives the layout); `Syntax.{h,cpp}` holds the hand-written half: tokens, locations, install.
 
-The semantic layer (P1.3) is one of two, chosen at startup, and installed before the syntax
-schema in one merged table (`Schema.cpp`): the curated model (`src/ast/*.yaml`, pyastbuilder,
-generated at configure time by `scripts/gen_sem_model.py`; lowered from slang by `src/lower`), or
-a thin accessor table over slang's AST (`SlangSchema.cpp`), kept for the Q-SC5 comparison until
-P1.8. `svcheck --engine-test-hooks --semantic=model|slang --uvm=packages/uvm-core/src` compiles
-the hooks' source; `tests/host/test_semantic.py` runs `tests/host/rules/` on both layers.
+The semantic layer (P1.3) is the curated model (`src/ast/*.yaml`, pyastbuilder, generated at
+configure time by `scripts/gen_sem_model.py`; lowered from slang by `src/lower`), installed
+before the syntax schema in one merged table (`Schema.cpp`); `--semantic=none` leaves it out.
+Q-SC5 compared it with an accessor table over slang's AST, which P1.8 deleted
+(`docs/design/svcheck-spike-report.md`). `svcheck --engine-test-hooks --semantic=model
+--uvm=packages/uvm-core/src` compiles the hooks' source; `tests/host/test_semantic.py` runs
+`tests/host/rules/` on it.
 
 P1.4 added, all in the engine unless named:
 - the examples harness (`run/Examples.h`; hook `lintExamples`, `check_examples()` in

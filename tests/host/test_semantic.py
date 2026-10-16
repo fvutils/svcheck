@@ -1,14 +1,13 @@
-"""The semantic layers (svcheck-plan P1.3; svcheck-design §3.6, Q-SC5).
+"""The semantic layer (svcheck-plan P1.3; svcheck-design §3.6): the curated
+model, lowered from slang (src/ast, src/lower).
 
-Two layers answer the same 4 UVM rules (sv-uvm-rules-assessment §4):
-
-- `model`: the curated model, lowered from slang (src/ast, src/lower);
-- `slang`: a thin accessor table over slang's own AST (src/host/SlangSchema.cpp).
-
-Each layer's rule file is in tests/host/rules/, and both run on the same
-examples (tests/host/rules/examples.yaml), whose `// expect: ID` comments say
-where a finding must be: they are given to each file as its rules'
-`examples:` and run by the examples harness (src/engine/run/Examples.h).
+It answers the 4 UVM rules of sv-uvm-rules-assessment §4
+(tests/host/rules/uvm-model.yaml). Q-SC5 compared it with a thin accessor
+table over slang's own AST on the same rules; P1.8 chose the model and
+deleted the table. The examples are in tests/host/rules/examples.yaml, whose
+`// expect: ID` comments say where a finding must be: they are given to the
+rules as their `examples:` and run by the examples harness
+(src/engine/run/Examples.h).
 The hooks compile their source with slang, against uvm_pkg from
 packages/uvm-core when it mentions `uvm_`, and again from packages/uvm-1.2
 (the second UVM configuration, svcheck-plan P1.7).
@@ -39,15 +38,13 @@ with open(os.path.join(RULES, "examples.yaml"), encoding="utf-8") as _fp:
     EXAMPLES = yaml.safe_load(_fp)
 
 
-@pytest.fixture(scope="module", params=[("model", UVM), ("slang", UVM), ("model", UVM12),
-                                        ("slang", UVM12)],
-                ids=["model", "slang", "model-uvm1.2", "slang-uvm1.2"])
-def layer(request):
-    name, uvm = request.param
+@pytest.fixture(scope="module", params=[UVM, UVM12], ids=["model", "model-uvm1.2"])
+def model_uvm(request):
+    uvm = request.param
     if not os.path.isfile(os.path.join(uvm, "uvm_pkg.sv")):
         pytest.skip("%s is not in packages/ (ivpm update)" % uvm)
-    h = EngineHooks(semantic=name, uvm=uvm)
-    yield name, h
+    h = EngineHooks(semantic="model", uvm=uvm)
+    yield h
     h.close()
 
 
@@ -84,9 +81,8 @@ def _rules_with_examples(layer):
 
 @needs_uvm
 @pytest.mark.parametrize("rid", list(EXAMPLES))
-def test_both_layers_answer_the_uvm_rules_examples(layer, rid):
-    name, hooks = layer
-    results = check_examples(hooks, "uvm-%s.yaml" % name, _rules_with_examples(name), [rid])
+def test_the_model_answers_the_uvm_rules_examples(model_uvm, rid):
+    results = check_examples(model_uvm, "uvm-model.yaml", _rules_with_examples("model"), [rid])
     assert len(results) == len(EXAMPLES[rid])
 
 

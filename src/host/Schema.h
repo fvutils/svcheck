@@ -24,10 +24,11 @@
  * the semantic layer's. A class name must be unique across both; install
  * fails if one is not.
  *
- * Which semantic layer (Q-SC5, decided at P1.8):
+ * Which semantic layer:
  * - Model: the curated model (svcheck-design §3.6; src/ast, src/lower);
- * - Slang: a thin accessor table over slang's own AST (SlangSchema.h);
  * - None: the syntax schema alone.
+ * (Q-SC5, decided at P1.8: the curated model. The accessor table over
+ * slang's own AST that it was compared with is deleted.)
  */
 #pragma once
 #include <string>
@@ -36,9 +37,9 @@
 namespace svcheck {
 namespace host {
 
-enum class SemanticLayer { None, Model, Slang };
+enum class SemanticLayer { None, Model };
 
-/** "none", "model", "slang"; false for another name. */
+/** "none", "model"; false for another name. */
 bool semanticLayerOf(const std::string &name, SemanticLayer &layer);
 
 /**

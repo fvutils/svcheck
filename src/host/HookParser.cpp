@@ -18,7 +18,6 @@
 #include <memory>
 #include "HookParser.h"
 #include "SemModel.h"
-#include "SlangSchema.h"
 #include "SvContext.h"
 #include "Syntax.h"
 #include "run/Context.h"
@@ -48,7 +47,6 @@ struct Compiled {
 
     ~Compiled() {
         setSources(nullptr);
-        setSlangSources(nullptr);
     }
 };
 
@@ -144,9 +142,6 @@ lint::run::Compiler hostCompiler(SemanticLayer layer, const std::string &uvmDir,
             if (layer == SemanticLayer::Model) {
                 p->design = lowerCompilation(*p->comp, *p->sources, lib);
                 out.roots.push_back(semNode(p->design.get()));
-            } else if (layer == SemanticLayer::Slang) {
-                setSlangSources(p->sources.get(), p->sm.get(), lib);
-                out.roots.push_back(slangRoot(*p->comp));
             }
         }
         for (const auto &t : p->trees) {

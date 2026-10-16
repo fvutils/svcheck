@@ -1,7 +1,7 @@
-# The examples the 4 UVM rules of svcheck-plan P1.3 run on, shared by both
-# semantic layers' rule files (uvm-model.yaml, uvm-slang.yaml), so that
-# Q-SC5 compares the rules on the same code. A `// expect: ID` comment marks
-# the line a finding must be on; a line without one must have none.
+# The examples the 4 UVM rules of svcheck-plan P1.3 (uvm-model.yaml) run on.
+# Q-SC5 ran them on both semantic layers until P1.8 deleted the slang one.
+# A `// expect: ID` comment marks the line a finding must be on; a line
+# without one must have none.
 UVM001:
   - |
     import uvm_pkg::*; `include "uvm_macros.svh"

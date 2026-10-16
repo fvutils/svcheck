@@ -39,7 +39,7 @@ static double seconds(Clock::time_point a, Clock::time_point b) {
     return std::chrono::duration<double>(b - a).count();
 }
 
-// --engine-test-hooks [--semantic=none|model|slang] [--uvm=DIR]: with a
+// --engine-test-hooks [--semantic=none|model] [--uvm=DIR]: with a
 // semantic layer (P1.3), the node hooks compile their source, against
 // uvm_pkg from DIR (UVM's src directory) when it mentions `uvm_`.
 static int serveTestHooks(int argc, char** argv) {
@@ -97,8 +97,8 @@ int main(int argc, char** argv) {
                        "<file>");
     driver.cmdLine.add("--format", format, "How findings are written: text (default), json "
                        "or sarif", "<format>");
-    driver.cmdLine.add("--semantic", semantic, "The semantic layer rules see: model (default), "
-                       "slang or none", "<layer>");
+    driver.cmdLine.add("--semantic", semantic, "The semantic layer rules see: model (default) "
+                       "or none", "<layer>");
     driver.cmdLine.add("--library-dir", lint.libraryDirs, "Code under this directory is "
                        "library code: not checked, and in_library() (uvm_pkg's always is)",
                        "<dir>");
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
         lint.format = *format;
     }
     if (semantic && !svcheck::host::semanticLayerOf(*semantic, lint.layer)) {
-        std::fprintf(stderr, "svcheck: unknown --semantic '%s' (model, slang, none)\n",
+        std::fprintf(stderr, "svcheck: unknown --semantic '%s' (model, none)\n",
                      semantic->c_str());
         return 2;
     }

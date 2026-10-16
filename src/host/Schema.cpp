@@ -22,7 +22,6 @@
 #include <vector>
 #include "Schema.h"
 #include "SemModel.h"
-#include "SlangSchema.h"
 #include "Syntax.h"
 
 namespace svcheck {
@@ -123,8 +122,6 @@ bool semanticLayerOf(const std::string &name, SemanticLayer &layer) {
         layer = SemanticLayer::None;
     } else if (name == "model") {
         layer = SemanticLayer::Model;
-    } else if (name == "slang") {
-        layer = SemanticLayer::Slang;
     } else {
         return false;
     }
@@ -138,7 +135,6 @@ void installSchema(SemanticLayer layer) {
     s_layer = layer;
     switch (layer) {
     case SemanticLayer::Model: s_first = &semModelSchema(); break;
-    case SemanticLayer::Slang: s_first = &slangSchema(); break;
     case SemanticLayer::None: s_first = nullptr; break;
     }
     s_second = &syntaxSchema();

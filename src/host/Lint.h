@@ -68,7 +68,7 @@ public:
     /** Where the constructor's time and memory went (`--stats`). */
     struct Stats {
         double  elaborateS = 0;     // createCompilation and every diagnostic
-        double  lowerS = 0;         // the semantic layer's build: lowering, or the slang root
+        double  lowerS = 0;         // the lowering
         size_t  heapElaborated = 0; // heapInUse() after elaborating
         size_t  heapLowered = 0;    // and after lowering
     };

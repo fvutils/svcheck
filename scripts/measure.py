@@ -13,10 +13,10 @@ time is the minimum over the runs, the heap is the last run's. The tables:
    compile and bind, every diagnostic), lower, classify, rules; and the
    heap after each. *Lower %* is lowering against parse + elaborate, Q-SC5's
    criterion (design §3.6: adopt the model under about 20%).
-2. **Q-SC5 layers**: the same 4 UVM rules on each layer
-   (tests/host/rules/uvm-{model,slang}.yaml): the layer's build, the rules'
-   time and their findings.
-3. **Classify**: the classify stage with each classifier set of the trial.
+2. **Classify**: the classify stage with each classifier set of the trial.
+
+The Q-SC5 table (the 4 UVM rules on each semantic layer) went with the
+slang layer at P1.8; its last output is in svcheck-plan §6.1.
 """
 import argparse
 import json
@@ -67,15 +67,10 @@ def main():
     ap.add_argument("corpora", nargs="*", default=CORPORA)
     args = ap.parse_args()
 
-    phases, layers, classify = [], [], []
+    phases, classify = [], []
     for c in args.corpora:
         out = best(args.svcheck, args.runs, c, SPIKE + [TRIAL])
         phases.append((c, out))
-        q5 = {}
-        for layer in ("model", "slang"):
-            q5[layer] = best(args.svcheck, args.runs, c,
-                             ["tests/host/rules/uvm-%s.yaml" % layer], layer)
-        layers.append((c, q5))
         conv = best(args.svcheck, args.runs, c, [TRIAL, CONVENTION])
         classify.append((c, out, conv))
 
@@ -101,20 +96,6 @@ def main():
     for c, out in phases:
         t = {r["id"]: r["s"] for r in out["stats"]["rules"]}
         print("| %s | " % c + " | ".join(ms(t[i]) for i in ids) + " |")
-
-    print("\n### Q-SC5: the 4 UVM rules on each layer (ms, min of %d)\n" % args.runs)
-    print("| Corpus | Model: lower | Model: rules | Model: findings | Slang: build "
-          "| Slang: rules | Slang: findings | Only the model finds |")
-    print("|---|---|---|---|---|---|---|---|")
-    for c, q5 in layers:
-        def found(o):
-            return {(f["code"], f["file"], f["line"]) for f in o["findings"]
-                    if not f["code"].startswith("SVCHK")}
-        m, s = q5["model"], q5["slang"]
-        print("| %s | %s | %s | %d | %s | %s | %d | %d |" % (
-            c, ms(m["stats"]["lower_s"]), ms(m["stats"]["rules_s"]), len(found(m)),
-            ms(s["stats"]["lower_s"]), ms(s["stats"]["rules_s"]), len(found(s)),
-            len(found(m) - found(s))))
 
     print("\n### Classify: the trial's classifier sets (ms, min of %d)\n" % args.runs)
     print("| Corpus | Content | Content + convention |")

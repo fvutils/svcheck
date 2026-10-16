@@ -23,7 +23,6 @@
 #include <unordered_set>
 #include <vector>
 #include "Schema.h"
-#include "SlangSchema.h"
 #include "SvContext.h"
 #include "SvLib.h"
 #include "Syntax.h"
@@ -206,10 +205,6 @@ bool classIs(const sem::IClass *c, const std::string &name) {
 Value derivesFromImpl(CallArgs &c) {
     rf::Node n = toNode(c[0]);
     const std::string &name = c[1].s;
-    if (installedLayer() == SemanticLayer::Slang) {
-        c.steps = 1;
-        return Value::boolean(slangDerivesFrom(n, name));
-    }
     if (installedLayer() != SemanticLayer::Model) {
         return Value::boolean(false);
     }

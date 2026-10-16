@@ -644,9 +644,11 @@ private:
             return true;
         }
         std::string ns = namespaceOf(s);
-        if (m_builtin && ns != "SVCHK") {
+        // A built-in pack has its own qualified namespace (SVCHK-UVM);
+        // plain SVCHK is the engine's and host's markers (svcheck-plan R-7).
+        if (m_builtin && !isReservedNamespace(ns)) {
             diag(code::IdConflict, v->mark, "'" + s + "' is in namespace '" + ns + "'; a "
-                "built-in rule's IDs are in the SVCHK namespace");
+                "built-in rule's IDs are in the SVCHK namespace, or a pack's (SVCHK-UVM)");
             return false;
         }
         if (!m_builtin && isReservedNamespace(ns)) {

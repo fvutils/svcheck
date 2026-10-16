@@ -331,6 +331,6 @@ def test_builtin_and_site_files_share_one_claim_table(factory):
     text = open(os.path.join(FIXTURES, "ids-builtin.yaml"), encoding="utf-8").read()
     assert e.load_rules("builtin.yaml", text, builtin=True)
     assert e.load_rules("site.yaml", _ONE % ("ACME001", "plain-svchk"))
-    assert [r["id"] for r in e.rules()] == ["SVCHK950"]
-    [d] = e.rule_diagnostics()[2:]
+    assert [r["id"] for r in e.rules()] == ["SVCHK-UVM001", "SVCHK950"]
+    [d] = e.rule_diagnostics()[1:]
     assert d["code"] == "SVCHK217" and d["related"]["file"] == "builtin.yaml"

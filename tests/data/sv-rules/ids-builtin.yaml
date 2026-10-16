@@ -1,5 +1,6 @@
 # builtin
-# A built-in rule file uses the SVCHK namespace only (format §5).
+# A built-in rule file uses the SVCHK namespace, plain or qualified by a
+# pack (SVCHK-UVM; format §5, svcheck-plan R-7), and nothing else.
 sv-rules:
   defaults:
     tier: style
@@ -16,15 +17,15 @@ sv-rules:
             component top { }   // expect: ACME001
         - code: |
             component top { }
-    - id: SVCHK-NET001
-      name: qualified-svchk
+    - id: SVCHK-UVM001
+      name: pack-svchk
       summary: s
       message: m
       doc: d
       match: { kind: BinaryExpressionSyntax }
       examples:
         - code: |
-            component top { }   // expect: SVCHK-NET001
+            component top { }   // expect: SVCHK-UVM001
         - code: |
             component top { }
     - id: SVCHK950
@@ -39,6 +40,5 @@ sv-rules:
         - code: |
             component top { }
 
-# expect: SVCHK217 error @ 8:11 'ACME001' is in namespace 'ACME'; a built-in rule's IDs are in the SVCHK namespace
-# expect: SVCHK217 error @ 19:11 'SVCHK-NET001' is in namespace 'SVCHK-NET'; a built-in rule's IDs are in the SVCHK namespace
-# loads: SVCHK950
+# expect: SVCHK217 error @ 9:11 'ACME001' is in namespace 'ACME'; a built-in rule's IDs are in the SVCHK namespace, or a pack's (SVCHK-UVM)
+# loads: SVCHK-UVM001, SVCHK950

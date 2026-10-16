@@ -55,6 +55,8 @@ struct LowerHost {
     std::function<bool(slang::SourceRange range, sem::Location &loc)>  locate;
     /** The path of the file whose text `loc` is in; "" for none. */
     std::function<std::string(slang::SourceLocation loc)>             filePath;
+    /** The macro whose expansion `loc` is in, outermost when they nest; "" for none. */
+    std::function<std::string(slang::SourceLocation loc)>             macroOf;
     /** Whether a symbol is library code, lowered as a declaration only. */
     std::function<bool(const slang::ast::Symbol &sym)>                 isLibrary;
 };

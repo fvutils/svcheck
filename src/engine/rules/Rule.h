@@ -97,6 +97,25 @@ struct Example {
     yaml::Mark                  mark;
 };
 
+/**
+ * A `contexts:` classifier (sv-contexts.md §3.3; svcheck-plan P1.4): on the
+ * nodes of the `carrier` kinds, `when` says whether the carrier has `label`
+ * on `axis`. Experimental until the P1.6b trial settles it.
+ */
+struct Classifier {
+    std::string                 label;
+    std::string                 axis;
+    KindSet                     carrier;
+    bool                        strong = true;      // content; weak: a convention
+    cel::ExprUP                 when;               // bool, with `carrier` bound
+    cel::ExprUP                 name;               // string: the unit's name; null: the carrier's
+    cel::ExprUP                 joins;              // list(node): carriers joining the unit; or null
+    std::vector<RuleOption>     options;            // the file options it reads, at their defaults
+    std::string                 file;
+    yaml::Mark                  mark;
+};
+using ClassifierUP = std::unique_ptr<Classifier>;
+
 class Rule : public virtual IRule {
 public:
     virtual const std::string &id() const override { return m_id; }
@@ -166,6 +185,8 @@ public:
     bool                        m_builtin;
     int32_t                     m_version = 1;
     std::vector<RuleUP>         m_rules;
+    // The file's `contexts:` and its used files', in load order.
+    std::vector<ClassifierUP>   m_classifiers;
 };
 using RuleSetUP = std::unique_ptr<RuleSet>;
 

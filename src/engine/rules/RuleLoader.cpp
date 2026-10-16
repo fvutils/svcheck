@@ -17,8 +17,10 @@
  */
 #include <algorithm>
 #include <cctype>
+#include <fstream>
 #include <map>
 #include <set>
+#include <sstream>
 #include <tuple>
 #include <unordered_set>
 #include "Reflect.h"
@@ -334,11 +336,49 @@ bool splitTemplate(const std::string &s, std::vector<Piece> &out, uint32_t &errO
     return true;
 }
 
+// `rel`, a path a file named `from` gives, as a path from where `from` is:
+// relative to its directory, '/' separated, without '.' or '..' steps.
+std::string resolvePath(const std::string &from, const std::string &rel) {
+    std::string p = rel;
+    if (!(rel.size() && rel[0] == '/')) {
+        size_t slash = from.find_last_of('/');
+        if (slash != std::string::npos) {
+            p = from.substr(0, slash + 1) + rel;
+        }
+    }
+    std::vector<std::string> steps;
+    size_t i = 0;
+    while (i <= p.size()) {
+        size_t j = p.find('/', i);
+        if (j == std::string::npos) {
+            j = p.size();
+        }
+        std::string step = p.substr(i, j - i);
+        if (step == "..") {
+            if (!steps.empty() && steps.back() != "..") {
+                steps.pop_back();
+            } else if (!(p.size() && p[0] == '/')) {
+                steps.push_back(step);
+            }
+        } else if (!step.empty() && step != ".") {
+            steps.push_back(step);
+        }
+        i = j + 1;
+    }
+    std::string out = (p.size() && p[0] == '/') ? "/" : "";
+    for (size_t k=0; k<steps.size(); k++) {
+        out += (k ? "/" : "") + steps[k];
+    }
+    return out;
+}
+
 class Loader {
 public:
     Loader(const LintSource &src, bool builtin, RuleClaims &claims,
-            std::vector<RuleDiagnostic> &diags) :
-        m_src(src), m_builtin(builtin), m_claims(claims), m_diags(diags), m_lines(src.text) { }
+            std::vector<RuleDiagnostic> &diags, const FileReader &reader) :
+            m_src(src), m_builtin(builtin), m_claims(claims), m_diags(diags), m_reader(reader) {
+        addFile(src.name, src.text);
+    }
 
     RuleSetUP load();
 
@@ -349,11 +389,17 @@ private:
 
     void diag(const char *code, const yaml::Mark &m, const std::string &msg,
             RuleDiagnostic::Severity sev=RuleDiagnostic::Severity::Error) {
+        diagIn(m_cur, code, m, msg, sev);
+    }
+
+    // A diagnostic at mark `m` of file `file` (m_files).
+    void diagIn(size_t file, const char *code, const yaml::Mark &m, const std::string &msg,
+            RuleDiagnostic::Severity sev=RuleDiagnostic::Severity::Error) {
         RuleDiagnostic d;
         d.code = code;
         d.severity = sev;
         d.message = msg;
-        d.file = m_src.name;
+        d.file = m_files[file]->name;
         d.line = m.line;
         d.col = m.col;
         d.rule = m_rule;
@@ -370,7 +416,8 @@ private:
             return;
         }
         const Source &s = m_sources[source];
-        diag(code, m_lines.at(yaml::sourceOffset(*s.node, s.base + offset)), msg);
+        diagIn(s.file, code, m_files[s.file]->lines->at(yaml::sourceOffset(*s.node,
+            s.base + offset)), msg);
     }
 
     void checkErrors(const std::vector<cel::CheckError> &errs) {
@@ -383,7 +430,7 @@ private:
 
     // A mark inside string node `n`: byte `off` of its value.
     yaml::Mark markIn(const Node *n, uint32_t off) {
-        return m_lines.at(yaml::sourceOffset(*n, off));
+        return m_files[m_cur]->lines->at(yaml::sourceOffset(*n, off));
     }
 
     //************************************************************************
@@ -393,13 +440,14 @@ private:
     struct Source {
         const Node      *node;
         uint32_t        base;       // where the expression starts in the node's value
+        size_t          file;       // m_files
     };
 
     // Parses `text`, which starts at byte `base` of string node `n`. Null on
     // a syntax error, which is reported.
     cel::ExprUP parseCel(const Node *n, uint32_t base, const std::string &text, uint32_t &source) {
         source = static_cast<uint32_t>(m_sources.size());
-        m_sources.push_back({n, base});
+        m_sources.push_back({n, base, m_cur});
         try {
             cel::CelParser p(text);
             return p.parse();
@@ -818,7 +866,7 @@ private:
         return ok;
     }
 
-    bool loadOptions(const Node *n, Rule &r) {
+    bool loadOptions(const Node *n, std::vector<RuleOption> &out) {
         if (n->kind != NK::Map) {
             diag(code::FieldInvalid, n->mark, "'options' must be a mapping of option names to "
                 "specs, not " + what(n));
@@ -907,9 +955,256 @@ private:
                 ok = false;
                 continue;
             }
-            r.m_options.push_back(std::move(o));
+            out.push_back(std::move(o));
         }
         return ok;
+    }
+
+    //************************************************************************
+    //* uses: (svcheck-plan P1.4)
+    //************************************************************************
+
+    size_t addFile(const std::string &name, const std::string &text) {
+        std::unique_ptr<File> f(new File());
+        f->name = name;
+        f->text = text;
+        f->lines.reset(new yaml::LineIndex(f->text));
+        m_files.push_back(std::move(f));
+        return m_files.size() - 1;
+    }
+
+    // The files a `uses:` list of file m_cur names, each loaded once, before
+    // what names it: their helpers and options join the rule file's.
+    void loadUses(const Node *list) {
+        if (list->kind != NK::Seq) {
+            diag(code::FieldInvalid, list->mark, "'uses' must be a list of file paths, not "
+                + what(list));
+            return;
+        }
+        for (const yaml::NodeUP &item : list->items) {
+            if (item->kind != NK::String || item->s.empty()) {
+                diag(code::FieldInvalid, item->mark, "a 'uses' entry must be a file path, not "
+                    + what(item.get()));
+                continue;
+            }
+            std::string path = resolvePath(m_files[m_cur]->name, item->s);
+            auto on = std::find(m_useStack.begin(), m_useStack.end(), path);
+            if (on != m_useStack.end()) {
+                std::string chain;
+                for (auto it=on; it!=m_useStack.end(); it++) {
+                    chain += *it + " -> ";
+                }
+                diag(code::FileStructure, item->mark, "'uses' makes a cycle: " + chain + path);
+                continue;
+            }
+            if (!m_usedPaths.insert(path).second) {
+                continue;
+            }
+            std::string text;
+            if (!m_reader) {
+                diag(code::FileStructure, item->mark, "cannot load '" + item->s + "': this "
+                    "host reads no files for 'uses'");
+                continue;
+            }
+            if (!m_reader(path, text)) {
+                diag(code::FileStructure, item->mark, "cannot read '" + path + "', which "
+                    "'uses' names");
+                continue;
+            }
+            loadHelperFile(path, text);
+        }
+    }
+
+    // A file named in `uses:`: helpers, options and uses only.
+    void loadHelperFile(const std::string &path, const std::string &text) {
+        size_t saved = m_cur;
+        m_cur = addFile(path, text);
+        m_useStack.push_back(path);
+        File &f = *m_files[m_cur];
+        yaml::Mark start;
+        start.line = start.col = 1;
+        const Node *top = nullptr;
+        try {
+            f.root = yaml::parse(path, f.text);
+        } catch (const yaml::YamlError &e) {
+            diag(code::FileYaml, e.mark(), e.what());
+        }
+        if (f.root && f.root->kind == NK::Map) {
+            top = f.root->get("sv-rules");
+        }
+        if (!f.root || (f.root->kind != NK::Map) || !top || top->kind != NK::Map) {
+            if (f.root || m_diags.empty() || m_diags.back().code != std::string(code::FileYaml)) {
+                diag(code::FileStructure, start, "not a helper file: a file named in 'uses' is "
+                    "a mapping with the single key 'sv-rules', holding 'define', 'options', "
+                    "'contexts' or 'uses'");
+            }
+        } else {
+            if (const Node *v = top->get("version")) {
+                if (v->kind != NK::Int || v->i != 1) {
+                    diag(code::FileStructure, v->mark, "this svcheck reads sv-rules version 1");
+                }
+            }
+            for (const Node::Member &m : top->members) {
+                if (m.key == "rules" || m.key == "defaults") {
+                    diag(code::FileStructure, m.keyMark, "'" + m.key + "' in a file named in "
+                        "'uses': such a file holds helpers only ('define', 'options', "
+                        "'contexts', 'uses'); load it as a rule file for its rules");
+                }
+            }
+            checkKeys(top, {"version", "define", "options", "uses", "contexts", "rules",
+                "defaults"}, "under 'sv-rules' of a file named in 'uses'");
+            if (const Node *u = top->get("uses")) {
+                loadUses(u);
+            }
+            if (const Node *o = top->get("options")) {
+                std::vector<RuleOption> opts;
+                loadOptions(o, opts);
+                addFileOptions(o, opts);
+            }
+            if (const Node *d = top->get("define")) {
+                std::vector<cel::Define> defs;
+                std::vector<const Node::Member *> keys;
+                parseDefines(d, defs, &keys);
+                for (size_t i=0; i<defs.size(); i++) {
+                    bool clash = false;
+                    for (size_t j=0; j<m_usedDefines.size(); j++) {
+                        if (m_usedDefines[j].name == defs[i].name) {
+                            diag(code::FieldInvalid, keys[i]->keyMark, "helper '" + defs[i].name
+                                + "' is also defined in " + m_files[m_usedDefineFile[j]]->name
+                                + ", which 'uses' also loads; rename one");
+                            clash = true;
+                        }
+                    }
+                    if (!clash) {
+                        m_usedDefines.push_back(defs[i]);
+                        m_usedDefineKeys.push_back(keys[i]);
+                        m_usedDefineFile.push_back(m_cur);
+                    }
+                }
+            }
+            if (const Node *c = top->get("contexts")) {
+                loadContexts(c, m_usedDefines, m_usedClassifiers);
+            }
+        }
+        m_useStack.pop_back();
+        m_cur = saved;
+    }
+
+    //************************************************************************
+    //* contexts: (sv-contexts.md §3.3; svcheck-plan P1.4)
+    //************************************************************************
+
+    // The classifiers of a `contexts:` list in file m_cur, checked with
+    // `defines` and the file options loaded so far.
+    void loadContexts(const Node *list, const std::vector<cel::Define> &defines,
+            std::vector<ClassifierUP> &out) {
+        if (list->kind != NK::Seq) {
+            diag(code::FieldInvalid, list->mark, "'contexts' must be a list of classifiers, "
+                "not " + what(list));
+            return;
+        }
+        for (const yaml::NodeUP &item : list->items) {
+            const Node *n = item.get();
+            if (n->kind != NK::Map) {
+                diag(code::FieldInvalid, n->mark, "a classifier must be a mapping (label, axis, "
+                    "carrier, when, ...), not " + what(n));
+                continue;
+            }
+            size_t before = m_errors;
+            checkKeys(n, {"label", "axis", "carrier", "strength", "name", "when", "joins"},
+                "in a classifier");
+            ClassifierUP c(new Classifier());
+            c->file = m_files[m_cur]->name;
+            c->mark = n->mark;
+            for (const char *k : {"label", "axis"}) {
+                const Node *v = n->get(k);
+                if (!v || v->kind != NK::String || v->s.empty()) {
+                    diag(code::FieldInvalid, v ? v->mark : n->mark, std::string("a classifier "
+                        "needs a '") + k + "', a non-empty string");
+                    continue;
+                }
+                (std::string(k) == "label" ? c->label : c->axis) = v->s;
+            }
+            if (const Node *v = n->get("strength")) {
+                if (v->kind != NK::String || (v->s != "strong" && v->s != "weak")) {
+                    diag(code::FieldInvalid, v->mark, "a classifier's 'strength' is 'strong' "
+                        "(content) or 'weak' (a convention), not " + what(v));
+                } else {
+                    c->strong = (v->s == "strong");
+                }
+            }
+            cel::Type carrierT = cel::Type::node(0);
+            if (const Node *v = n->get("carrier")) {
+                if (loadKinds(v, "carrier", c->carrier)) {
+                    uint16_t base = c->carrier.classes[0];
+                    for (uint16_t k : c->carrier.classes) {
+                        base = cel::commonBase(base, k);
+                    }
+                    carrierT = cel::Type::node(base);
+                }
+            } else {
+                diag(code::FieldInvalid, n->mark, "a classifier needs a 'carrier': the node "
+                    "kinds it labels (Package, Definition, Class)");
+            }
+            cel::CheckEnv env;
+            env.vars.emplace_back("carrier", carrierT);
+            for (const RuleOption &o : m_fileOptions) {
+                env.vars.emplace_back("options." + o.name, o.celType);
+            }
+            env.defines = defines;
+            c->options = m_fileOptions;
+            auto field = [&](const char *key, const cel::Type &want, cel::ExprUP &e) {
+                const Node *v = n->get(key);
+                if (!v || !celString(v, key)) {
+                    return;
+                }
+                uint32_t src;
+                cel::ExprUP parsed = parseCel(v, 0, v->s, src);
+                if (!parsed) {
+                    return;
+                }
+                cel::CelChecker chk(env);
+                cel::CheckResult res = chk.check(parsed.get(), src, &want, key);
+                checkErrors(res.errors);
+                e = std::move(res.expr);
+            };
+            if (!n->get("when")) {
+                diag(code::FieldInvalid, n->mark, "a classifier needs a 'when': a CEL condition "
+                    "on `carrier`");
+            }
+            field("when", cel::Type(cel::Type::Kind::Bool), c->when);
+            field("name", cel::Type(cel::Type::Kind::String), c->name);
+            field("joins", cel::Type::list(cel::Type::node(0)), c->joins);
+            if (m_errors == before && c->when) {
+                out.push_back(std::move(c));
+            }
+        }
+    }
+
+    // File-level options (`options:` under `sv-rules`) from file m_cur: every
+    // rule of the rule file gets them, as if it declared them.
+    void addFileOptions(const Node *map, std::vector<RuleOption> &opts) {
+        for (RuleOption &o : opts) {
+            bool clash = false;
+            for (size_t j=0; j<m_fileOptions.size(); j++) {
+                if (m_fileOptions[j].name == o.name) {
+                    const Node::Member *k = nullptr;
+                    for (const Node::Member &m : map->members) {
+                        if (m.key == o.name) {
+                            k = &m;
+                        }
+                    }
+                    diag(code::FieldInvalid, k ? k->keyMark : map->mark, "option '" + o.name
+                        + "' is also a file option of " + m_files[m_fileOptionFile[j]]->name
+                        + "; rename one");
+                    clash = true;
+                }
+            }
+            if (!clash) {
+                m_fileOptions.push_back(std::move(o));
+                m_fileOptionFile.push_back(m_cur);
+            }
+        }
     }
 
     // One `// expect:` or `/* expect: */` comment's items, at `begin` in
@@ -1106,11 +1401,23 @@ private:
             std::unordered_set<const cel::Overload *> &calls);
 
 private:
+    // A file the load reads: the rule file, then each file `uses:` names.
+    struct File {
+        std::string                         name;
+        std::string                         text;
+        std::unique_ptr<yaml::LineIndex>    lines;
+        yaml::NodeUP                        root;       // a used file's
+    };
+
     const LintSource                    &m_src;
     bool                                m_builtin;
     RuleClaims                          &m_claims;
     std::vector<RuleDiagnostic>         &m_diags;
-    yaml::LineIndex                     m_lines;
+    const FileReader                    &m_reader;
+    std::vector<std::unique_ptr<File>>  m_files;        // [0]: the rule file
+    size_t                              m_cur = 0;      // the file being read
+    std::vector<std::string>            m_useStack;     // the `uses:` chain being loaded
+    std::set<std::string>               m_usedPaths;
     std::string                         m_rule;         // the rule being loaded, for diagnostics
     size_t                              m_errors = 0;
 
@@ -1120,8 +1427,15 @@ private:
 
     std::map<std::string, const Node *>     m_defaults;
     std::set<std::string>                   m_badDefaults;
-    std::vector<cel::Define>                m_fileDefines;
+    std::vector<cel::Define>                m_fileDefines;      // used files', then its own
     std::vector<const Node::Member *>       m_fileDefineKeys;
+    std::vector<size_t>                     m_fileDefineFile;   // m_files
+    std::vector<cel::Define>                m_usedDefines;
+    std::vector<const Node::Member *>       m_usedDefineKeys;
+    std::vector<size_t>                     m_usedDefineFile;
+    std::vector<RuleOption>                 m_fileOptions;      // used files', then its own
+    std::vector<ClassifierUP>               m_usedClassifiers;
+    std::vector<size_t>                     m_fileOptionFile;
     std::vector<std::string>                m_classNames;
 };
 
@@ -1259,7 +1573,29 @@ void Loader::loadRule(const Node *n, size_t index, RuleSet &set) {
 
     // options and match, which the expressions' environment needs.
     if (val.count("options")) {
-        failed |= !loadOptions(val["options"], *r);
+        failed |= !loadOptions(val["options"], r->m_options);
+    }
+    // The file's options, after the rule's own: the rule reads them the same way.
+    for (const RuleOption &o : m_fileOptions) {
+        bool clash = false;
+        for (const RuleOption &own : r->m_options) {
+            clash |= (own.name == o.name);
+        }
+        if (clash) {
+            const Node *opts = val["options"];
+            yaml::Mark at = opts->mark;
+            for (const Node::Member &m : opts->members) {
+                if (m.key == o.name) {
+                    at = m.keyMark;
+                }
+            }
+            diag(code::FieldInvalid, at, "option '" + o.name + "' is also a file option (of "
+                + m_files[m_fileOptionFile[&o - &m_fileOptions[0]]]->name + "); rename the "
+                "rule's");
+            failed = true;
+        } else {
+            r->m_options.push_back(o);
+        }
     }
     cel::Type nodeT = cel::Type::node(0);
     if (val.count("match") && loadMatch(val["match"], *r)) {
@@ -1292,8 +1628,10 @@ void Loader::loadRule(const Node *n, size_t index, RuleSet &set) {
                 if (m_fileDefines[j].name == mine[i].name) {
                     const yaml::Mark &fm = m_fileDefineKeys[j]->keyMark;
                     diag(code::HelperShadowed, keys[i]->keyMark, "helper '" + mine[i].name
-                        + "' shadows the file's helper of the same name (line "
-                        + std::to_string(fm.line) + ")", RuleDiagnostic::Severity::Info);
+                        + "' shadows the file's helper of the same name ("
+                        + (m_fileDefineFile[j] ? m_files[m_fileDefineFile[j]]->name + " " : "")
+                        + "line " + std::to_string(fm.line) + ")",
+                        RuleDiagnostic::Severity::Info);
                 }
             }
             env.defines.push_back(mine[i]);
@@ -1474,11 +1812,12 @@ RuleSetUP Loader::load() {
         }
     }
     if (pss->kind != NK::Map) {
-        diag(code::FileStructure, pss->mark, "'sv-rules' must be a mapping (version, defaults, "
-            "define, rules), not " + what(pss));
+        diag(code::FileStructure, pss->mark, "'sv-rules' must be a mapping (version, uses, "
+            "options, defaults, define, rules), not " + what(pss));
         return nullptr;
     }
-    checkKeys(pss, {"version", "defaults", "define", "rules"}, "under 'sv-rules'");
+    checkKeys(pss, {"version", "defaults", "define", "options", "uses", "contexts", "rules"},
+        "under 'sv-rules'");
     const Node *rules = pss->get("rules");
     if (!rules) {
         diag(code::FileStructure, pss->mark, "'sv-rules' has no 'rules' list (write "
@@ -1496,12 +1835,50 @@ RuleSetUP Loader::load() {
     if (const Node *d = pss->get("defaults")) {
         loadDefaults(d);
     }
+    m_useStack.push_back(m_src.name);
+    m_usedPaths.insert(m_src.name);
+    if (const Node *u = pss->get("uses")) {
+        loadUses(u);
+    }
+    m_useStack.clear();
+    if (const Node *o = pss->get("options")) {
+        std::vector<RuleOption> opts;
+        loadOptions(o, opts);
+        addFileOptions(o, opts);
+    }
+    // The used files' helpers, then this file's, which shadow them.
+    m_fileDefines = m_usedDefines;
+    m_fileDefineKeys = m_usedDefineKeys;
+    m_fileDefineFile = m_usedDefineFile;
     if (const Node *d = pss->get("define")) {
-        parseDefines(d, m_fileDefines, &m_fileDefineKeys);
+        std::vector<cel::Define> own;
+        std::vector<const Node::Member *> keys;
+        parseDefines(d, own, &keys);
+        for (size_t i=0; i<own.size(); i++) {
+            for (size_t j=0; j<m_usedDefines.size(); j++) {
+                if (m_usedDefines[j].name == own[i].name) {
+                    diag(code::HelperShadowed, keys[i]->keyMark, "helper '" + own[i].name
+                        + "' shadows the helper of the same name in "
+                        + m_files[m_usedDefineFile[j]]->name, RuleDiagnostic::Severity::Info);
+                }
+            }
+            m_fileDefines.push_back(own[i]);
+            m_fileDefineKeys.push_back(keys[i]);
+            m_fileDefineFile.push_back(0);
+        }
+    }
+    if (!m_fileDefines.empty()) {
         cel::CheckEnv env;
         env.defines = m_fileDefines;
+        for (const RuleOption &o : m_fileOptions) {
+            env.vars.emplace_back("options." + o.name, o.celType);
+        }
         cel::CelChecker defs(env);
         checkErrors(defs.checkDefines());
+    }
+    set->m_classifiers = std::move(m_usedClassifiers);
+    if (const Node *c = pss->get("contexts")) {
+        loadContexts(c, m_fileDefines, set->m_classifiers);
     }
     for (size_t i=0; i<rules->items.size(); i++) {
         loadRule(rules->items[i].get(), i, *set);
@@ -1625,9 +2002,22 @@ RuleProbe probeRuleText(const std::string &text) {
 }
 
 RuleSetUP loadRuleFile(const LintSource &src, bool builtin, RuleClaims &claims,
-        std::vector<RuleDiagnostic> &diags) {
-    Loader l(src, builtin, claims, diags);
+        std::vector<RuleDiagnostic> &diags, const FileReader &reader) {
+    Loader l(src, builtin, claims, diags, reader);
     return l.load();
+}
+
+FileReader diskReader() {
+    return [](const std::string &path, std::string &text) {
+        std::ifstream in(path, std::ios::binary);
+        if (!in) {
+            return false;
+        }
+        std::ostringstream ss;
+        ss << in.rdbuf();
+        text = ss.str();
+        return true;
+    };
 }
 
 }

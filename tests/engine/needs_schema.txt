@@ -7,7 +7,7 @@ tests/engine/test_rule_loader.py::test_a_clash_across_files_names_both
 tests/engine/test_rule_loader.py::test_builtin_and_site_files_share_one_claim_table
 tests/engine/test_rule_loader.py::test_engine_builtin_flag
 tests/engine/test_rule_loader.py::test_engine_loads_and_accumulates
-## needs a flags enum, which the SV syntax schema has none of, and has_flag (P1.3, P1.4)
+## needs a flags enum, which neither the SV syntax schema nor the curated model has (P1.4), and has_flag
 tests/engine/test_cel_check.py::test_errors[FieldAttr.Rand + 1-0-FieldAttr.Rand is a 'FieldAttr' flag, not a number: test a flag with has_flag(x, FieldAttr.Rand)]
 tests/engine/test_cel_check.py::test_errors[int(FieldAttr.Rand)-4-FieldAttr.Rand is a 'FieldAttr' flag, not a number]
 tests/engine/test_cel_check.py::test_errors[has_flag(4, TokenKind.DoubleEquals)-12-TokenKind.DoubleEquals is a member of enum 'TokenKind', which is not a set of flags]

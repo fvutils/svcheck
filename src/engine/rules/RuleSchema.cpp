@@ -215,6 +215,13 @@ std::string rulesSchemaJson() {
     w.key("version").beginObject()
         .kv("description", "Format major version; this schema is version 1")
         .kv("const", 1).endObject();
+    w.key("uses").beginObject()
+        .kv("description", "Helper files whose define: helpers and options: this file's "
+            "rules read, each a path relative to this file")
+        .kv("type", "array").key("items").beginObject().kv("type", "string")
+        .kv("minLength", 1).endObject().endObject();
+    w.key("options");
+    ref(w, "options");
     w.key("defaults");
     ref(w, "defaults");
     w.key("define");

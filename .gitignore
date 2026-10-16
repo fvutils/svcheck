@@ -228,3 +228,6 @@ __marimo__/
 # clangd link into build/
 /compile_commands.json
 *.swp
+# Local design docs and reference material, never tracked
+/docs/design/
+/lowrisc-style-guides/

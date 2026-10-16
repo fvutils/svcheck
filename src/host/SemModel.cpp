@@ -99,6 +99,9 @@ std::unique_ptr<sem::IDesign> lowerCompilation(slang::ast::Compilation &c, Sourc
     host.filePath = [&sources](slang::SourceLocation loc) {
         return sources.pathOf(loc);
     };
+    host.macroOf = [&sources](slang::SourceLocation loc) {
+        return sources.macroOf(loc);
+    };
     host.isLibrary = [&libraryDirs, fp = host.filePath](const slang::ast::Symbol &sym) {
         if (!sym.location.valid()) {
             return true;        // built in: the std package

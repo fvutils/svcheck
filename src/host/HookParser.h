@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * How the engine's test hooks make trees of SV source text (snippet.sv).
+ * How the engine's test hooks and the examples harness make trees of SV
+ * source text.
  */
 #pragma once
 #include <string>
@@ -25,17 +26,23 @@
 namespace svcheck {
 namespace host {
 
-/** The syntax tree of the source alone (P1.2). */
-lint::HookParser syntaxHookParser();
-
 /**
- * The source compiled and elaborated, for a semantic layer (P1.3): its
- * roots are the layer's root, then the syntax tree's. When `uvmDir` is set
- * (UVM's `src` directory) and the source mentions `uvm_`, uvm_pkg is
- * compiled with it, parsed once and kept; its code is library code. A
- * source with errors is refused, with the first one.
+ * Compiles source files, each a compilation unit named as given.
+ *
+ * - With no semantic layer, each file is parsed alone (P1.2), and its roots
+ *   are the syntax trees. `strict`: a file with a syntax error is refused.
+ * - With one (P1.3), the files are compiled and elaborated together, and
+ *   their roots are the layer's root, then the syntax trees. A file with
+ *   errors is always refused. When `uvmDir` is set (UVM's `src` directory)
+ *   and a file mentions `uvm_`, uvm_pkg is compiled with them, parsed once
+ *   and kept; its code is library code.
+ *
+ * A refusal gives the first error.
  */
-lint::HookParser semanticHookParser(SemanticLayer layer, const std::string &uvmDir);
+lint::run::Compiler hostCompiler(SemanticLayer layer, const std::string &uvmDir, bool strict);
+
+/** The node hooks' parser: the source alone, as `snippet.sv`, through `compile`. */
+lint::HookParser hookParser(lint::run::Compiler compile);
 
 }
 }

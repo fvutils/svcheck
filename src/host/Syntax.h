@@ -64,6 +64,9 @@ bool isSyntaxNode(const rf::Node &n);
 /** The node for a syntax node; a null node for nullptr. */
 rf::Node syntaxNode(const slang::syntax::SyntaxNode *n);
 
+/** The macro a syntax node's first token comes from (Sources::macroOf); "" for none. */
+std::string syntaxMacroOf(const rf::Node &n);
+
 /**
  * The files of one run, and where things are in them. Files get ids in
  * the order they are first located (or added), from 0; the ids index
@@ -84,6 +87,13 @@ public:
 
     /** The path of the file whose text `loc` is in, macro expansions mapped to their use. */
     std::string pathOf(slang::SourceLocation loc);
+
+    /**
+     * The macro whose expansion `loc` is in, the outermost when expansions
+     * nest; "" when it is in none. A macro argument is where it is written:
+     * in the macro its use is in, if any.
+     */
+    std::string macroOf(slang::SourceLocation loc);
 
     const std::vector<std::string> &paths() const { return m_paths; }
 

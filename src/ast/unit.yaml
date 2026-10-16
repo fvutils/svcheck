@@ -1,6 +1,6 @@
 #****************************************************************************
 #* unit.yaml -- context units (sv-contexts.md; svcheck-plan R-6). Declared in
-#* P1.3; the classify stage that fills them comes in P1.4.
+#* P1.3; filled by the classify stage (P1.4, src/host/SvContext.cpp).
 #****************************************************************************
 enums:
 - UnitDepKind:
@@ -16,13 +16,16 @@ classes:
 - Unit:
     super: SemNode
     doc: |
-        A context unit: one or more carriers (packages, definitions) with
-        their labels (sv-contexts.md §2).
+        A context unit: one or more carriers (packages, definitions,
+        classes) with their labels (sv-contexts.md §2). Carriers with the
+        same unit name are one unit: a classifier's `joins:` gives the
+        carriers it joins its name (Q-CX5's starting point).
 
         Attributes:
-            name: the unit's name (`apb` in `agent(apb)`)
-            labels: its labels, on every axis
-            carriers: the packages and definitions it is made of
+            name: the unit's name (`apb` in `agent(apb)`): a tag's, a classifier's `name:`, else the carrier's
+            labels: its labels, on every axis, each once
+            carriers: the carriers it is made of
+            evidence: where each label came from, one line each: `unit agent: Content (r.yaml:12) on Package apb_pkg`
     data:
     - name:
         type: string
@@ -33,6 +36,9 @@ classes:
     - carriers:
         type: list<P<Decl>>
         is_ctor: false
+    - evidence:
+        type: list<string>
+        is_ctor: false
 
 - UnitDep:
     super: SemNode
@@ -41,6 +47,7 @@ classes:
     - kind:
         type: UnitDepKind
         is_ctor: false
+        init: UnitDepKind::Import
     - from:
         type: P<Unit>
         is_ctor: false

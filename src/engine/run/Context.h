@@ -48,6 +48,29 @@ namespace run {
 
 namespace rf = svcheck::ast::reflect;
 
+/**
+ * A context label on a carrier (sv-contexts.md §2; svcheck-plan P1.4), as
+ * classify() (Classify.h) resolves it on one axis.
+ */
+struct ContextLabel {
+    enum class Source { Declared, Content, Convention, Nested };
+
+    rf::Node        carrier;
+    std::string     axis;
+    std::string     label;
+    std::string     unit;           // the unit's name; "" for none
+    Source          source = Source::Content;
+    std::string     evidence;       // where it came from: "file:line", the tag's position
+};
+
+/** A context tag written in the source: `// svcheck context: agent(apb)`. */
+struct DeclaredContext {
+    rf::Node        carrier;
+    std::string     label;
+    std::string     unit;
+    std::string     where;          // "file:line"
+};
+
 class Context : public cel::Host {
 public:
     Context();
@@ -92,6 +115,9 @@ public:
     /** The path file_of() gives for fileid `f`; false when the host did not name it. */
     bool filePath(int32_t f, std::string &path) const;
 
+    /** Every file's path, by fileid, as setFiles() made them. */
+    const std::unordered_map<int32_t, std::string> &filePaths() const { return m_filePath; }
+
     /** The fileid whose filePath() is `path`; -2 when none is. */
     int32_t fileidOfPath(const std::string &path) const;
 
@@ -114,6 +140,19 @@ public:
 
     /** A type reference as written, or "" for another node (format §3.4). */
     virtual std::string spelledType(const rf::Node &n) const;
+
+    /**
+     * The context tags written before the carriers' declarations, which
+     * classify() takes as declared labels. Default: none.
+     */
+    virtual std::vector<DeclaredContext> declaredContexts() const;
+
+    /**
+     * The context labels found so far, after each axis classify() resolves:
+     * the host makes its units of them, which the next axis's classifiers
+     * and the rules read. Default: nothing.
+     */
+    virtual void applyContexts(const std::vector<ContextLabel> &labels);
 
     /**
      * Called when a node is asked about that no index()ed tree holds: the

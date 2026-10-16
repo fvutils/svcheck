@@ -58,10 +58,9 @@ static int serveTestHooks(int argc, char** argv) {
     svcheck::host::installSchema(layer);
     svcheck::lint::cel::setHostLib(&svcheck::host::registerSvLib);
     svcheck::lint::LintTestHooks hooks;
-    if (layer == SemanticLayer::None)
-        hooks.setParser(svcheck::host::syntaxHookParser());
-    else
-        hooks.setParser(svcheck::host::semanticHookParser(layer, uvmDir));
+    // The snippet hooks take a source with syntax errors; examples may not.
+    hooks.setParser(svcheck::host::hookParser(svcheck::host::hostCompiler(layer, uvmDir, false)));
+    hooks.setCompiler(svcheck::host::hostCompiler(layer, uvmDir, true));
     std::string line;
     while (std::getline(std::cin, line)) {
         std::cout << hooks.dispatch(line) << '\n' << std::flush;

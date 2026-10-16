@@ -20,6 +20,8 @@
 #include <memory>
 #include <set>
 #include <unordered_map>
+#include <set>
+#include <tuple>
 #include "LintEngine.h"
 #include "Reflect.h"
 #include "svcheck/IMarker.h"
@@ -53,7 +55,7 @@ void LintEngine::resetHostMarkers() {
 LintEngine::~LintEngine() { }
 
 const IRuleSet *LintEngine::loadRules(const LintSource &src, bool builtin) {
-    rules::RuleSetUP set = rules::loadRuleFile(src, builtin, m_claims, m_diagnostics);
+    rules::RuleSetUP set = rules::loadRuleFile(src, builtin, m_claims, m_diagnostics, m_reader);
     if (!set) {
         return nullptr;
     }
@@ -101,6 +103,20 @@ std::vector<const rules::Rule *> LintEngine::ruleList() const {
     for (const rules::RuleSetUP &s : m_rulesets) {
         for (const rules::RuleUP &r : s->m_rules) {
             out.push_back(r.get());
+        }
+    }
+    return out;
+}
+
+std::vector<const rules::Classifier *> LintEngine::classifiers() const {
+    // A file several rule files use gives its classifiers to each: once here.
+    std::vector<const rules::Classifier *> out;
+    std::set<std::tuple<std::string, uint32_t, uint32_t>> seen;
+    for (const rules::RuleSetUP &s : m_rulesets) {
+        for (const rules::ClassifierUP &c : s->m_classifiers) {
+            if (seen.insert(std::make_tuple(c->file, c->mark.line, c->mark.col)).second) {
+                out.push_back(c.get());
+            }
         }
     }
     return out;

@@ -89,9 +89,11 @@ classes:
     - check:
         type: CaseCheck
         is_ctor: false
+        init: CaseCheck::NoCheck
     - condition:
         type: CaseCondition
         is_ctor: false
+        init: CaseCondition::Normal
     - expr:
         type: UP<Expr>
         is_ctor: false
@@ -148,6 +150,7 @@ classes:
     - kind:
         type: AssertKind
         is_ctor: false
+        init: AssertKind::Assert
     - cond:
         type: UP<Expr>
         is_ctor: false

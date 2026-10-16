@@ -5,7 +5,8 @@ C++ core on slang; Python is packaging only.
 
 - Design: `docs/design/svcheck-design.md`. Plan and progress: `docs/design/svcheck-plan.md`.
   Update the plan's item status and its §7 log when an item starts or ends.
-- The other `docs/design/*.md` files are the design's companions, copied from pssparser
+- `docs/design/` is local only (gitignored, never commit it), as is `lowrisc-style-guides/`.
+  The other `docs/design/*.md` files are the design's companions, copied from pssparser
   (`psstools/pssparser/docs/design/`, untracked there). Edit the copies here.
 - pssparser's rule engine is the reference design (`psstools/pssparser/src/lint`). Code may be
   copied from it; never depend on it. Record every copy in the lineage table, design §3.1.
@@ -31,6 +32,17 @@ a thin accessor table over slang's AST (`SlangSchema.cpp`), kept for the Q-SC5 c
 P1.8. `svcheck --engine-test-hooks --semantic=model|slang --uvm=packages/uvm-core/src` compiles
 the hooks' source; `tests/host/test_semantic.py` runs `tests/host/rules/` on both layers.
 
+P1.4 added, all in the engine unless named:
+- the examples harness (`run/Examples.h`; hook `lintExamples`, `check_examples()` in
+  `tests/engine/hooks.py`), with the host compiling each example (`hostCompiler`,
+  `src/host/HookParser.cpp`);
+- `uses:` and file-level options (the loader; files read through `LintEngine::setReader`);
+- contexts: `contexts:` classifiers, run by `run/Classify.cpp` before the rules. The host's
+  half is `src/host/SvContext.cpp` (units, edges, `context(n)`).
+
+The library functions over the model (`src/host/SvLib.cpp`) are registered only when the model
+is the layer installed.
+
 ## Build and test
 
 ```sh
@@ -41,7 +53,10 @@ packages/python/bin/python -m pytest
 ```
 
 The tests run `python/svcheck/bin/svcheck`, which only the `uv pip install` step updates: rerun
-it after a `cmake --build`, or the tests see the old binary.
+it after a build, or the tests see the old binary. The wheel build runs the venv's `ninja`
+(`packages/python/bin`), while `cmake --build` runs the one in `build/CMakeCache.txt`
+(`/usr/bin/ninja`); the two read each other's logs as changed commands, so each switch rebuilds
+everything. Build with `packages/python/bin/ninja -C build` instead.
 
 - The CMake configure must stay offline: slang's FetchContent deps are supplied from
   `packages/` (`FETCHCONTENT_SOURCE_DIR_*`, `FETCHCONTENT_FULLY_DISCONNECTED`). A new slang

@@ -24,10 +24,10 @@ sv-rules:
     - id: UVM010
       name: uvm-object-new
       summary: A UVM object or component is constructed with new() instead of the factory
-      message: "${node.typeName} is constructed with new(); use type_id::create"
+      message: "${node.type.name} is constructed with new(); use type_id::create"
       match: { kind: NewClass }
       where: >-
-        is(node.typeClass, "uvm_object") && !is(node.typeClass, "uvm_port_base") &&
+        is(node.type.classDecl, "uvm_object") && !is(node.type.classDecl, "uvm_port_base") &&
         enclosing(node, Subroutine).name != "create"
 
     - id: UVM020
@@ -39,7 +39,7 @@ sv-rules:
         p: parent(node)
       where: >-
         node.name == "randomize" &&
-        (p.isa(ExprStmt) || (p.isa(Conversion) && p.typeName == "void") ||
+        (p.isa(ExprStmt) || (p.isa(Conversion) && p.type.name == "void") ||
          ancestors(node).exists(a, a.isa(ImmediateAssert)))
 
     - id: UVM030

@@ -21,24 +21,16 @@
 #include <vector>
 #include "svcheck/lint/ILintTestHooks.h"
 #include "Reflect.h"
+#include "run/Examples.h"
 
 namespace svcheck {
 namespace lint {
 
-namespace run {
-class Context;
-}
-
 /**
  * The trees of a source text, which the host parses for the node hooks
- * (svcheck-plan P1.2): the roots, the context the run reads (null: a plain
- * Context), and whatever keeps the roots alive.
+ * (svcheck-plan P1.2).
  */
-struct HookTrees {
-    std::vector<ast::reflect::Node>     roots;
-    std::unique_ptr<run::Context>       context;
-    std::shared_ptr<void>               keep;
-};
+using HookTrees = run::Trees;
 
 /** Parses `source` into `out`; false, with `error`, when it cannot. */
 using HookParser = std::function<bool(const std::string &source, HookTrees &out,
@@ -84,8 +76,19 @@ public:
         const std::string &text, bool allEnabled, const std::vector<std::string> &enabled,
         uint64_t maxSteps, uint32_t gateErrors);
 
+    /**
+     * Runs the examples (run/Examples.h) of the rules enabled (all, or
+     * `enabled`) in rule file `name`, compiling them with the host's
+     * compiler (setCompiler); without one it refuses.
+     */
+    std::string lintExamples(const std::string &name, const std::string &text, bool allEnabled,
+        const std::vector<std::string> &enabled);
+
     /** The host's parser for the node hooks. */
     void setParser(HookParser parser) { m_parser = std::move(parser); }
+
+    /** The host's compiler for the examples hook. */
+    void setCompiler(run::Compiler compiler) { m_compiler = std::move(compiler); }
 
     /**
      * One hook call as JSON (svcheck-plan P1.1): {"op": "<hook>", "args":
@@ -100,6 +103,7 @@ private:
     bool parse(const std::string &source, HookTrees &out, std::string &result);
 
     HookParser          m_parser;
+    run::Compiler       m_compiler;
 };
 
 }

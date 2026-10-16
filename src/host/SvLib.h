@@ -15,9 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * The SV host's function library (svcheck-design §3.2), library "sv". So far
- * the language-neutral group only (svcheck-plan P1.3): `isa` and navigation,
- * forked from pssparser's lib/PssLib.cpp. P1.4 adds the rest.
+ * The SV host's function library (svcheck-design §3.2), library "sv":
+ *
+ * - every layer: `isa` and navigation, forked from pssparser's
+ *   lib/PssLib.cpp (P1.3); `derives_from`; `macro_of` (P1.4);
+ * - the curated model only (P1.4): classes (`member`, `members`, `owner`),
+ *   symbols, types and constants (`in_library`, `resolves_to`, `type_of`,
+ *   `const_int`, `const_string`) and carriers (`classes`, `calls_in`).
+ *   They are registered only when the model is the layer installed, since
+ *   their signatures name its classes; the slang accessor table stays at
+ *   what the 4 UVM rules of P1.3 need (Q-SC5).
+ *
+ * Nothing here is UVM's: its vocabulary (roles, `is_config_db`) is written
+ * in YAML, as helpers.
  */
 #pragma once
 #include "cel/CelFunctions.h"

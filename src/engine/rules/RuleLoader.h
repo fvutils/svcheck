@@ -27,6 +27,7 @@
  * validates against it, and the JSON Schema (C4.4) is generated from it.
  */
 #pragma once
+#include <functional>
 #include <string>
 #include <vector>
 #include "svcheck/lint/ILintEngine.h"
@@ -126,12 +127,23 @@ bool optionValue(const RuleOption &o, const yaml::Node *v, cel::Value &out);
 RuleProbe probeRuleText(const std::string &text);
 
 /**
+ * Reads the file at `path` into `text` for `uses:` (svcheck-plan P1.4);
+ * false when it cannot be read.
+ */
+using FileReader = std::function<bool(const std::string &path, std::string &text)>;
+
+/** A FileReader over the file system. */
+FileReader diskReader();
+
+/**
  * Loads one rule file, appending its diagnostics to `diags`. Returns null if
  * the file as a whole is refused. `claims` holds the IDs and names of the
- * files loaded before; this file's are added to it.
+ * files loaded before; this file's are added to it. The files its `uses:`
+ * names are read through `reader` (none: `uses:` is refused), each
+ * relative to the file naming it.
  */
 RuleSetUP loadRuleFile(const LintSource &src, bool builtin, RuleClaims &claims,
-        std::vector<RuleDiagnostic> &diags);
+        std::vector<RuleDiagnostic> &diags, const FileReader &reader=FileReader());
 
 }
 }

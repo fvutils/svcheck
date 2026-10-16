@@ -1,6 +1,14 @@
 #****************************************************************************
 #* expr.yaml -- expressions (user code only).
 #****************************************************************************
+enums:
+- ConstKind:
+    doc: Whether an expression has a constant value, and of what kind.
+    values:
+    - NotConst: "not a constant, or not one the model keeps"
+    - Int: "an integer with no X or Z bits, that fits 64 bits"
+    - String: "a string"
+
 classes:
 - Expr:
     super: SemNode
@@ -8,14 +16,24 @@ classes:
         An expression.
 
         Attributes:
-            typeName: its type, as slang prints it
-            typeClass: its type's class, when it is a class handle
+            type: its type
+            constKind: whether it is a constant (a literal, a parameter, an enum value, or an operator over those), and of what kind: what `const_value` reads
+            constInt: its value, when constKind is Int
+            constString: its value, when constKind is String
     data:
-    - typeName:
-        type: string
+    - type:
+        type: P<TypeRef>
         is_ctor: false
-    - typeClass:
-        type: P<Class>
+    - constKind:
+        type: ConstKind
+        is_ctor: false
+        init: ConstKind::NotConst
+    - constInt:
+        type: int64_t
+        is_ctor: false
+        init: 0
+    - constString:
+        type: string
         is_ctor: false
 
 - Call:
@@ -29,6 +47,7 @@ classes:
             subroutine: the subroutine called, or null for a built-in or system one
             isSystem: a built-in method or system subroutine (`randomize`, `$display`)
             isSuper: called through `super.`
+            classType: the class the subroutine is a member of, as the call names it: `uvm_config_db#(virtual bus_if)` for `uvm_config_db#(virtual bus_if)::get(...)`; null for a subroutine outside a class
             receiver: the object a method is called on (`obj` in `obj.m()`), or null
             args: the arguments, in order
     data:
@@ -46,6 +65,9 @@ classes:
         type: bool
         is_ctor: false
         init: false
+    - classType:
+        type: P<TypeRef>
+        is_ctor: false
     - receiver:
         type: UP<Expr>
         is_ctor: false
@@ -56,7 +78,7 @@ classes:
 - NewClass:
     super: Expr
     doc: |
-        `new(...)` of a class: `typeClass` is the class constructed.
+        `new(...)` of a class: `type.classDecl` is the class constructed.
     data:
     - args:
         type: list<UP<Expr>>
@@ -112,7 +134,7 @@ classes:
 
 - Conversion:
     super: Expr
-    doc: A cast, written (`void'(x)`, `int'(x)`) or implicit; `typeName` is the target type.
+    doc: A cast, written (`void'(x)`, `int'(x)`) or implicit; `type` is the target type.
     data:
     - operand:
         type: UP<Expr>

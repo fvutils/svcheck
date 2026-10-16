@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include "pipeline/Selection.h"
 #include "rules/Rule.h"
+#include "rules/RuleLoader.h"
 #include "run/Runner.h"
 
 namespace svcheck {
@@ -81,6 +82,12 @@ public:
     /** Every loaded rule, in load order: what the runner (C5) dispatches. */
     std::vector<const rules::Rule *> ruleList() const;
 
+    /** The loaded files' `contexts:` classifiers, in load order, each once. */
+    std::vector<const rules::Classifier *> classifiers() const;
+
+    /** How the files a rule file's `uses:` names are read; none by default. */
+    void setReader(rules::FileReader reader) { m_reader = std::move(reader); }
+
 private:
     // m_hostMarkers back to the embedded catalogue's markers.
     void resetHostMarkers();
@@ -93,6 +100,7 @@ private:
 
 private:
     std::vector<rules::RuleSetUP>   m_rulesets;
+    rules::FileReader               m_reader;
     std::vector<RuleDiagnostic>     m_diagnostics;
     rules::RuleClaims               m_claims;          // IDs and names, across files
     bool                            m_builtinLoaded = false;

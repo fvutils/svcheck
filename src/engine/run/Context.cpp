@@ -164,6 +164,12 @@ bool Context::indexMore() const {
     return false;
 }
 
+std::vector<DeclaredContext> Context::declaredContexts() const {
+    return {};
+}
+
+void Context::applyContexts(const std::vector<ContextLabel> &) { }
+
 void Context::noteUnknownType(const std::string &path) const {
     if (m_unknownSeen.emplace(m_curRule, path).second) {
         m_unknown.push_back({m_curRule, m_curNode, path});

@@ -233,6 +233,13 @@ void setSources(Sources *s) {
     syntax::s_sources = s;
 }
 
+std::string syntaxMacroOf(const rf::Node &n) {
+    if (!n || !isSyntaxNode(n) || !syntax::s_sources) {
+        return "";
+    }
+    return syntax::s_sources->macroOf(syntax::asSyntax(n)->getFirstToken().location());
+}
+
 int32_t Sources::fileid(slang::BufferID buffer) {
     return fileid(buffer, "");
 }
@@ -258,6 +265,19 @@ int32_t Sources::fileid(slang::BufferID buffer, const std::string &name) {
 std::string Sources::pathOf(slang::SourceLocation loc) {
     slang::SourceLocation e = m_sm.getFullyExpandedLoc(loc);
     return e.valid() ? m_paths[fileid(e.buffer())] : std::string();
+}
+
+std::string Sources::macroOf(slang::SourceLocation loc) {
+    std::string name;
+    while (loc.valid() && m_sm.isMacroLoc(loc)) {
+        if (m_sm.isMacroArgLoc(loc)) {
+            loc = m_sm.getOriginalLoc(loc);
+            continue;
+        }
+        name = std::string(m_sm.getMacroName(loc));
+        loc = m_sm.getExpansionLoc(loc);
+    }
+    return name;
 }
 
 bool Sources::locate(slang::SourceRange range, ast::Location &loc) {

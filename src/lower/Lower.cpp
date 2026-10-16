@@ -23,6 +23,7 @@
  *    to the nodes the first two steps made.
  */
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -54,12 +55,14 @@
 #include "Package.h"
 #include "Return.h"
 #include "Subroutine.h"
+#include "TypeRef.h"
 #include "Typedef.h"
 #include "VarDecl.h"
 #include "Variable.h"
 
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
+#include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/Statement.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
@@ -70,6 +73,7 @@
 #include "slang/ast/statements/ConditionalStatements.h"
 #include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
+#include "slang/ast/symbols/AttributeSymbol.h"
 #include "slang/ast/symbols/ClassSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -191,6 +195,9 @@ private:
         if (m_host.locate && m_host.locate(r, loc)) {
             n->setLocation(loc);
         }
+        if (m_host.macroOf && r.start().valid()) {
+            n->setMacro(m_host.macroOf(r.start()));
+        }
     }
 
     void setDecl(sem::IDecl *n, const sa::Symbol &s, sem::IDecl *carrier, const std::string &prefix) {
@@ -198,10 +205,68 @@ private:
         n->setQname(prefix.empty() ? std::string(s.name) : prefix + "::" + std::string(s.name));
         n->setInLibrary(library(s));
         n->setCarrier(carrier);
+        if (s.kind == sa::SymbolKind::Package || s.kind == sa::SymbolKind::Definition
+                || s.kind == sa::SymbolKind::ClassType
+                || s.kind == sa::SymbolKind::GenericClassDef) {
+            n->getTags() = tagsOf(s);
+            // The attribute form (Q-CX1): (* svcheck_context = "agent(apb)" *).
+            for (const sa::AttributeSymbol *a : m_comp.getAttributes(s)) {
+                if (a->name == "svcheck_context") {
+                    const slang::ConstantValue &v = a->getValue();
+                    std::string tag = trimmed(v.isString() ? v.str() : v.convertToStr().str());
+                    if (!tag.empty()) {
+                        n->getTags().push_back(tag);
+                    }
+                }
+            }
+        }
         if (s.location.valid()) {
             setLocation(n, slang::SourceRange(s.location, s.location + s.name.size()));
         }
         m_decls[&s] = n;
+    }
+
+    // The context tags in the comments before a declaration: each item of
+    // `// svcheck context: agent(apb), hdl` (sv-contexts.md §3.1, Q-CX1).
+    static std::vector<std::string> tagsOf(const sa::Symbol &s) {
+        std::vector<std::string> out;
+        const slang::syntax::SyntaxNode *syn = s.getSyntax();
+        if (!syn) {
+            return out;
+        }
+        static const std::string key = "svcheck context:";
+        for (const slang::parsing::Trivia &t : syn->getFirstToken().trivia()) {
+            if (t.kind != slang::parsing::TriviaKind::LineComment
+                    && t.kind != slang::parsing::TriviaKind::BlockComment) {
+                continue;
+            }
+            std::string text(t.getRawText());
+            size_t p = text.find(key);
+            if (p == std::string::npos) {
+                continue;
+            }
+            text = text.substr(p + key.size());
+            if (t.kind == slang::parsing::TriviaKind::BlockComment && text.size() >= 2
+                    && text.compare(text.size() - 2, 2, "*/") == 0) {
+                text.resize(text.size() - 2);
+            }
+            std::string item;
+            int depth = 0;
+            for (size_t i=0; i<=text.size(); i++) {
+                char c = (i < text.size()) ? text[i] : ',';
+                depth += (c == '(') - (c == ')');
+                if (c == ',' && depth <= 0) {
+                    std::string tag = trimmed(item);
+                    if (!tag.empty()) {
+                        out.push_back(tag);
+                    }
+                    item.clear();
+                } else {
+                    item += c;
+                }
+            }
+        }
+        return out;
     }
 
     bool library(const sa::Symbol &s) const {
@@ -300,7 +365,6 @@ private:
             sem::Typedef *n = new sem::Typedef();
             setDecl(n, m, carrier, prefix);
             const sa::Type &t = m.as<sa::TypeAliasType>().targetType.getType();
-            n->setTypeName(t.toString());
             m_typedefs.emplace_back(&t, n);
             return n;
         }
@@ -398,7 +462,7 @@ private:
         n->setIsVirtual(s.isVirtual());
         n->setIsPure(s.flags.has(sa::MethodFlags::Pure));
         n->setIsStatic(s.flags.has(sa::MethodFlags::Static));
-        n->setReturnTypeName(s.getReturnType().toString());
+        m_returns.emplace_back(&s.getReturnType(), n);
         for (const sa::FormalArgumentSymbol *a : s.getArguments()) {
             n->getArgs().push_back(sem::IVariableUP(declVariable(*a, carrier, n->getQname())));
         }
@@ -414,7 +478,6 @@ private:
         sem::Variable *n = new sem::Variable();
         setDecl(n, v, carrier, prefix);
         const sa::Type &t = v.getType();
-        n->setTypeName(t.toString());
         n->setIsConst(v.flags.has(sa::VariableFlags::Const));
         n->setIsStatic(v.lifetime == sa::VariableLifetime::Static
             && v.kind == sa::SymbolKind::ClassProperty);
@@ -470,7 +533,10 @@ private:
             }
         }
         for (auto &[t, n] : m_typedefs) {
-            n->setTypeClass(classNode(*t));
+            n->setType(typeRef(*t));
+        }
+        for (auto &[t, n] : m_returns) {
+            n->setReturnType(typeRef(*t));
         }
         for (auto &[t, n] : m_vars) {
             linkVariable(*t, n);
@@ -479,15 +545,47 @@ private:
     }
 
     void linkVariable(const sa::Type &t, sem::Variable *n) {
-        n->setTypeClass(classNode(t));
+        n->setType(typeRef(t));
+    }
+
+    // The TypeRef of a type, made once (Design.types). Called once the
+    // declarations are made: it refers to their nodes.
+    sem::ITypeRef *typeRef(const sa::Type &t) {
+        auto it = m_types.find(&t);
+        if (it != m_types.end()) {
+            return it->second;
+        }
+        sem::TypeRef *n = new sem::TypeRef();
+        m_design->getTypes().push_back(sem::ITypeRefUP(n));
+        m_types[&t] = n;
+        n->setName(t.toString());
         const sa::Type &c = t.getCanonicalType();
-        if (c.kind == sa::SymbolKind::VirtualInterfaceType) {
+        n->setIsIntegral(c.isIntegral());
+        n->setIsFourState(c.isIntegral() && c.isFourState());
+        n->setIsString(c.isString());
+        n->setBitWidth(c.isIntegral() ? static_cast<int32_t>(c.getBitWidth()) : 0);
+        if (c.kind == sa::SymbolKind::ClassType) {
+            n->setIsClass(true);
+            n->setClassDecl(classNode(c));
+            const sa::ClassType &ct = c.as<sa::ClassType>();
+            if (ct.genericClass) {
+                for (const sa::Symbol &m : ct.members()) {
+                    if (m.kind == sa::SymbolKind::TypeParameter
+                            && m.as<sa::TypeParameterSymbol>().isPortParam()) {
+                        n->getArgs().push_back(
+                            typeRef(m.as<sa::TypeParameterSymbol>().targetType.getType()));
+                    }
+                }
+            }
+        } else if (c.kind == sa::SymbolKind::VirtualInterfaceType) {
+            n->setIsVirtualInterface(true);
             const sa::DefinitionSymbol &def = c.as<sa::VirtualInterfaceType>().iface.getDefinition();
-            auto it = m_definitions.find(&def);
-            if (it != m_definitions.end()) {
-                n->setVifDefinition(it->second);
+            auto d = m_definitions.find(&def);
+            if (d != m_definitions.end()) {
+                n->setIfaceDecl(d->second);
             }
         }
+        return n;
     }
 
     std::vector<sem::IPackage *> &importsOf(sem::IDecl *n) {
@@ -698,10 +796,71 @@ private:
     template <class T> T *typed(T *n, const sa::Expression &e) {
         setLocation(n, e.sourceRange);
         if (e.type) {
-            n->setTypeName(e.type->toString());
-            n->setTypeClass(classNode(*e.type));
+            n->setType(typeRef(*e.type));
         }
+        setConst(n, e);
         return n;
+    }
+
+    // Whether `e` is a constant the model keeps: a literal, a parameter or
+    // enum value, or an operator over those. Calls are left out, so nothing
+    // is run that could take long or fail.
+    static bool constShape(const sa::Expression &e) {
+        switch (e.kind) {
+        case sa::ExpressionKind::IntegerLiteral:
+        case sa::ExpressionKind::UnbasedUnsizedIntegerLiteral:
+        case sa::ExpressionKind::StringLiteral:
+            return true;
+        case sa::ExpressionKind::NamedValue: {
+            sa::SymbolKind k = e.as<sa::NamedValueExpression>().symbol.kind;
+            return k == sa::SymbolKind::Parameter || k == sa::SymbolKind::EnumValue;
+        }
+        case sa::ExpressionKind::UnaryOp:
+        case sa::ExpressionKind::BinaryOp:
+        case sa::ExpressionKind::ConditionalOp:
+        case sa::ExpressionKind::Concatenation:
+        case sa::ExpressionKind::Replication:
+        case sa::ExpressionKind::Conversion: {
+            Children c = childrenOf(e);
+            if (c.exprs.empty()) {
+                return false;
+            }
+            for (const sa::Expression *x : c.exprs) {
+                if (!constShape(*x)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        default:
+            return false;
+        }
+    }
+
+    void setConst(sem::IExpr *n, const sa::Expression &e) {
+        if (!constShape(e)) {
+            return;
+        }
+        if (e.kind == sa::ExpressionKind::StringLiteral) {
+            // A string literal is a bit vector in SV; the model keeps its text.
+            n->setConstKind(sem::ConstKind::String);
+            n->setConstString(std::string(e.as<sa::StringLiteral>().getValue()));
+            return;
+        }
+        sa::ASTContext actx(m_comp.getRoot(), sa::LookupLocation::max);
+        sa::EvalContext ctx(actx);
+        slang::ConstantValue v = e.eval(ctx);
+        if (v.isInteger()) {
+            const slang::SVInt &i = v.integer();
+            std::optional<int64_t> x = i.hasUnknown() ? std::nullopt : i.as<int64_t>();
+            if (x) {
+                n->setConstKind(sem::ConstKind::Int);
+                n->setConstInt(*x);
+            }
+        } else if (v.isString()) {
+            n->setConstKind(sem::ConstKind::String);
+            n->setConstString(v.str());
+        }
     }
 
     sem::IExpr *lowerExpr(const sa::Expression &e) {
@@ -712,7 +871,12 @@ private:
             n->setName(std::string(c.getSubroutineName()));
             n->setIsSystem(c.isSystemCall());
             if (!c.isSystemCall()) {
-                n->setSubroutine(subroutineNode(*std::get<0>(c.subroutine)));
+                const sa::SubroutineSymbol &sub = *std::get<0>(c.subroutine);
+                n->setSubroutine(subroutineNode(sub));
+                const sa::Scope *scope = sub.getParentScope();
+                if (scope && scope->asSymbol().kind == sa::SymbolKind::ClassType) {
+                    n->setClassType(typeRef(scope->asSymbol().as<sa::ClassType>()));
+                }
             }
             n->setIsSuper(e.syntax && trimmed(e.syntax->toString()).rfind("super", 0) == 0);
             if (c.thisClass()) {
@@ -805,6 +969,8 @@ private:
     std::vector<std::pair<const sa::VariableSymbol *, sem::Variable *>>  m_inits;
     std::vector<std::pair<const sa::Type *, sem::Typedef *>>        m_typedefs;
     std::vector<std::pair<const sa::Type *, sem::Variable *>>       m_vars;
+    std::vector<std::pair<const sa::Type *, sem::Subroutine *>>     m_returns;
+    std::unordered_map<const sa::Type *, sem::TypeRef *>            m_types;
     std::vector<std::pair<const sa::Scope *, sem::IDecl *>>         m_imports;
 };
 

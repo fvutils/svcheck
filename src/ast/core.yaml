@@ -32,11 +32,17 @@ classes:
 - SemNode:
     doc: |
         The root of every curated node.
+
+        Attributes:
+            location: where the node is
+            macro: the macro whose expansion made the node, outermost first when expansions nest (`uvm_object_utils`); empty when the node is written out (Q-UVM2: what `macro_of` reads)
     data:
     - location:
         type: Location
         is_ctor: false
-        doc: Where the node is.
+    - macro:
+        type: string
+        is_ctor: false
 
 - Design:
     super: SemNode
@@ -47,6 +53,7 @@ classes:
             packages: every package, user and library, in compilation order
             definitions: the modules, interfaces and programs
             items: declarations outside any package or definition (`$unit`)
+            types: every type a declaration or expression has, once each (TypeRef)
             units: the context units (sv-contexts.md); empty until classify runs
             deps: the dependency edges between units; empty until classify runs
     data:
@@ -58,6 +65,9 @@ classes:
         is_ctor: false
     - items:
         type: list<UP<Decl>>
+        is_ctor: false
+    - types:
+        type: list<UP<TypeRef>>
         is_ctor: false
     - units:
         type: list<UP<Unit>>

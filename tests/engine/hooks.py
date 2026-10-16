@@ -97,3 +97,21 @@ class EngineHooks:
     def lint_run(self, name, text, source, enabled=None, max_steps=0, gate_errors=0):
         return self._call("lintRun", source, name, text, enabled is None,
                           list(enabled or []), max_steps, gate_errors)
+
+    def lint_examples(self, name, text, rules=None):
+        """The examples of rule file `name`'s rules (those in `rules`, or all),
+        run as src/engine/run/Examples.h does; a result per example."""
+        return self._call("lintExamples", name, text, rules is None, list(rules or []))
+
+
+def check_examples(hooks, name, text, rules=None):
+    """Runs the examples of rule file `name`, raising AssertionError that lists
+    every failing one (and every load diagnostic); returns the results."""
+    r = hooks.lint_examples(name, text, rules)
+    assert r["ok"], r
+    errors = [d for d in r["diagnostics"] if d["severity"] == "error"]
+    assert r["loaded"] and not errors, errors
+    failed = [x["describe"] for x in r["results"] if not x["ok"]]
+    if failed:
+        raise AssertionError("\n".join(failed))
+    return r["results"]

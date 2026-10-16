@@ -20,12 +20,25 @@
  * and the run's parent links, so they serve every layer.
  */
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include "Schema.h"
 #include "SlangSchema.h"
+#include "SvContext.h"
 #include "SvLib.h"
+#include "Syntax.h"
 #include "reflect/Reflect.h"
+#include "svcheck/sem/ICall.h"
 #include "svcheck/sem/IClass.h"
+#include "svcheck/sem/IDefinition.h"
+#include "svcheck/sem/IMemberAccess.h"
+#include "svcheck/sem/INamedValue.h"
+#include "svcheck/sem/INewClass.h"
+#include "svcheck/sem/IPackage.h"
+#include "svcheck/sem/ISubroutine.h"
+#include "svcheck/sem/ITypeRef.h"
+#include "svcheck/sem/ITypedef.h"
+#include "svcheck/sem/IVariable.h"
 #include "cel/CelNode.h"
 #include "cel/CelValue.h"
 #include "run/Context.h"
@@ -216,6 +229,229 @@ Value derivesFromImpl(CallArgs &c) {
     return Value::boolean(false);
 }
 
+//* The curated model (svcheck-plan P1.4). These read the model's nodes, and
+//* are registered only when it is the layer installed.
+
+// The model node a value holds; null for null, or for another layer's node.
+sem::ISemNode *semOf(const Value &v) {
+    return (v.kind == Value::Kind::Node) ? sem::reflect::asSemNode(toNode(v)) : nullptr;
+}
+
+Value semValue(sem::ISemNode *n) {
+    return n ? nodeValue(sem::reflect::classify(n)) : Value::null();
+}
+
+Value semList(const std::vector<sem::ISemNode *> &nodes) {
+    cel::ValueList l;
+    l.reserve(nodes.size());
+    for (sem::ISemNode *n : nodes) {
+        l.push_back(semValue(n));
+    }
+    return Value::mkList(std::move(l));
+}
+
+sem::IDecl *findMember(sem::IClass *c, const std::string &name) {
+    for (const sem::IDeclUP &m : c->getMembers()) {
+        if (m->getName() == name) {
+            return m.get();
+        }
+    }
+    return nullptr;
+}
+
+Value memberImpl(CallArgs &c) {
+    auto *cls = dynamic_cast<sem::IClass *>(semOf(c[0]));
+    if (!cls) {
+        return Value::null();
+    }
+    c.steps = 1;
+    if (sem::IDecl *d = findMember(cls, c[1].s)) {
+        return semValue(d);
+    }
+    for (sem::IClass *b : cls->getSupers()) {
+        c.steps++;
+        if (sem::IDecl *d = findMember(b, c[1].s)) {
+            return semValue(d);
+        }
+    }
+    return Value::null();
+}
+
+Value membersImpl(CallArgs &c) {
+    auto *cls = dynamic_cast<sem::IClass *>(semOf(c[0]));
+    if (!cls) {
+        return Value::mkList({});
+    }
+    std::vector<sem::ISemNode *> out;
+    std::unordered_set<std::string> seen;
+    auto add = [&](sem::IClass *k) {
+        for (const sem::IDeclUP &m : k->getMembers()) {
+            if (seen.insert(m->getName()).second) {
+                out.push_back(m.get());
+            }
+        }
+    };
+    add(cls);
+    for (sem::IClass *b : cls->getSupers()) {
+        add(b);
+    }
+    c.steps = out.size();
+    return semList(out);
+}
+
+// The nearest class, package or definition above `n` in the run's tree.
+sem::IDecl *ownerOf(const Context &ctx, const rf::Node &n, uint64_t &steps) {
+    for (rf::Node p=ctx.parentOf(n); p; p=ctx.parentOf(p)) {
+        steps++;
+        sem::ISemNode *s = sem::reflect::asSemNode(p);
+        if (dynamic_cast<sem::IClass *>(s) || dynamic_cast<sem::IPackage *>(s)
+                || dynamic_cast<sem::IDefinition *>(s)) {
+            return dynamic_cast<sem::IDecl *>(s);
+        }
+    }
+    return nullptr;
+}
+
+Value ownerImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("owner");
+    }
+    if (!semOf(c[0])) {
+        return Value::null();
+    }
+    return semValue(ownerOf(*ctx, toNode(c[0]), c.steps));
+}
+
+Value inLibraryImpl(CallArgs &c) {
+    sem::ISemNode *n = semOf(c[0]);
+    if (auto *d = dynamic_cast<sem::IDecl *>(n)) {
+        return Value::boolean(d->getInLibrary());
+    }
+    const Context *ctx = context(c);
+    if (!n || !ctx) {
+        return Value::boolean(false);
+    }
+    for (rf::Node p=ctx->parentOf(toNode(c[0])); p; p=ctx->parentOf(p)) {
+        c.steps++;
+        if (auto *d = dynamic_cast<sem::IDecl *>(sem::reflect::asSemNode(p))) {
+            return Value::boolean(d->getInLibrary());
+        }
+    }
+    return Value::boolean(false);
+}
+
+Value resolvesToImpl(CallArgs &c) {
+    sem::ISemNode *n = semOf(c[0]);
+    if (auto *v = dynamic_cast<sem::INamedValue *>(n)) {
+        return semValue(v->getDecl());
+    } else if (auto *m = dynamic_cast<sem::IMemberAccess *>(n)) {
+        return semValue(m->getDecl());
+    } else if (auto *k = dynamic_cast<sem::ICall *>(n)) {
+        return semValue(k->getSubroutine());
+    } else if (auto *nc = dynamic_cast<sem::INewClass *>(n)) {
+        return semValue(nc->getType() ? nc->getType()->getClassDecl() : nullptr);
+    } else if (auto *t = dynamic_cast<sem::ITypeRef *>(n)) {
+        return t->getClassDecl() ? semValue(t->getClassDecl()) : semValue(t->getIfaceDecl());
+    }
+    return Value::null();
+}
+
+Value typeOfImpl(CallArgs &c) {
+    sem::ISemNode *n = semOf(c[0]);
+    if (auto *e = dynamic_cast<sem::IExpr *>(n)) {
+        return semValue(e->getType());
+    } else if (auto *v = dynamic_cast<sem::IVariable *>(n)) {
+        return semValue(v->getType());
+    } else if (auto *t = dynamic_cast<sem::ITypedef *>(n)) {
+        return semValue(t->getType());
+    } else if (auto *s = dynamic_cast<sem::ISubroutine *>(n)) {
+        return semValue(s->getReturnType());
+    } else if (auto *t = dynamic_cast<sem::ITypeRef *>(n)) {
+        return semValue(t);
+    }
+    return Value::null();
+}
+
+Value constIntImpl(CallArgs &c) {
+    auto *e = dynamic_cast<sem::IExpr *>(semOf(c[0]));
+    if (e && e->getConstKind() == sem::ConstKind::Int) {
+        return Value::some(Value::integer(e->getConstInt()));
+    }
+    return Value::none();
+}
+
+Value constStringImpl(CallArgs &c) {
+    auto *e = dynamic_cast<sem::IExpr *>(semOf(c[0]));
+    if (e && e->getConstKind() == sem::ConstKind::String) {
+        return Value::some(Value::string(e->getConstString()));
+    }
+    return Value::none();
+}
+
+// The nodes of class `name` under `n`, in pre-order (descendants(n, K)).
+Value descendantsNamed(CallArgs &c, const char *name) {
+    uint16_t cls;
+    if (!cel::lookupClass(name, cls)) {
+        return Value::error(std::string("the schema has no class '") + name + "'");
+    }
+    std::vector<rf::Node> out, work, kids;
+    if (c[0].kind != Value::Kind::Node) {
+        return nodeList(out);
+    }
+    Walker::children(toNode(c[0]), kids);
+    work.assign(kids.rbegin(), kids.rend());
+    while (!work.empty()) {
+        rf::Node n = work.back();
+        work.pop_back();
+        c.steps++;
+        if (cel::isSubclass(n.kind, cls)) {
+            out.push_back(n);
+        }
+        kids.clear();
+        Walker::children(n, kids);
+        work.insert(work.end(), kids.rbegin(), kids.rend());
+    }
+    return nodeList(out);
+}
+
+Value classesImpl(CallArgs &c) {
+    return descendantsNamed(c, "Class");
+}
+
+Value callsInImpl(CallArgs &c) {
+    return descendantsNamed(c, "Call");
+}
+
+Value contextOf(CallArgs &c, const std::string &axis) {
+    // No SvContext: classify did not run, so there are no units.
+    auto *ctx = dynamic_cast<const SvContext *>(c.host);
+    if (!ctx || !semOf(c[0])) {
+        return Value::null();
+    }
+    return semValue(ctx->contextOf(toNode(c[0]), axis));
+}
+
+Value contextImpl(CallArgs &c) {
+    return contextOf(c, "");
+}
+
+Value contextAxisImpl(CallArgs &c) {
+    return contextOf(c, c[1].s);
+}
+
+//* Both layers.
+
+Value macroOfImpl(CallArgs &c) {
+    if (c[0].kind != Value::Kind::Node) {
+        return Value::string("");
+    }
+    if (sem::ISemNode *n = semOf(c[0])) {
+        return Value::string(n->getMacro());
+    }
+    return Value::string(syntaxMacroOf(toNode(c[0])));
+}
+
 }
 
 void registerSvLib(cel::FunctionRegistry &r) {
@@ -276,6 +512,85 @@ void registerSvLib(cel::FunctionRegistry &r) {
         "`derives_from(c, \"uvm_object\")`. The name is plain, or qualified by its "
         "package (`uvm_pkg::uvm_object`). False for a node that is not a class, and for "
         "null. One step per class in the chain.")
+        .nullable = true;
+
+    r.group("Preprocessor");
+    r.add("macro_of_node", "macro_of(node) -> string", &macroOfImpl, C::Constant,
+        "The macro whose expansion made the node: `\"uvm_object_utils\"` for the `type_id` "
+        "typedef that `` `uvm_object_utils(c) `` declares. When expansions nest, the "
+        "outermost: the macro written in the source. A macro argument is where it is "
+        "written, so `macro_of` of the message in `` `uvm_info(\"ID\", msg, UVM_LOW) `` is "
+        "\"\" when the use is not itself in a macro. `\"\"` for a node written out, and "
+        "for null. For a syntax node, the macro its first token comes from.")
+        .nullable = true;
+
+    if (installedLayer() != SemanticLayer::Model) {
+        return;
+    }
+    r.add("member_node_string", "member(node, string) -> Decl", &memberImpl, C::Custom,
+        "The member of a class with this name, its own or inherited, the nearest first: "
+        "`member(node, \"type_id\") == null` for an unregistered UVM class. `null` when there "
+        "is none, and for a node that is not a class. One step per class searched.")
+        .nullable = true;
+    r.add("members_node", "members(node) -> list(Decl)", &membersImpl, C::Custom,
+        "A class's members, its own and inherited, in declaration order, its own first: a "
+        "member hidden by one of the same name nearer the class is left out. Empty for a "
+        "node that is not a class. `node.members` is the class's own. One step per member.")
+        .nullable = true;
+    r.add("owner_node", "owner(node) -> Decl", &ownerImpl, C::Custom,
+        "The class, package or definition the node is in, the nearest: a method's class, a "
+        "class's package. `null` for a package or definition, which are in none, and for a "
+        "node of another layer. One step per owner visited.")
+        .nullable = true;
+
+    r.group("Symbols, types, constants");
+    r.add("in_library_node", "in_library(node) -> bool", &inLibraryImpl, C::Custom,
+        "Whether the node is library code (uvm_pkg, a configured VIP), lowered as "
+        "declarations only: a declaration's `inLibrary`, else that of the nearest "
+        "declaration it is in. False for null, and for a node of another layer.")
+        .nullable = true;
+    r.add("resolves_to_node", "resolves_to(node) -> Decl", &resolvesToImpl, C::Constant,
+        "The declaration a reference names: a NamedValue's or MemberAccess's `decl`, a "
+        "Call's `subroutine`, the class a NewClass constructs, a TypeRef's class or "
+        "interface. `null` for anything else, for a name the model does not lower (a "
+        "built-in, a parameter), and for null.")
+        .nullable = true;
+    r.add("type_of_node", "type_of(node) -> TypeRef", &typeOfImpl, C::Constant,
+        "The type of an expression, variable or typedef, or a subroutine's return type: "
+        "`type_of(node).isVirtualInterface`. A TypeRef is itself. `null` for another node.")
+        .nullable = true;
+    r.add("const_int_node", "const_int(node) -> optional(int)", &constIntImpl, C::Constant,
+        "The value of a constant integer expression: a literal, a parameter, an enum value, "
+        "or an operator over those, as slang evaluates it. `optional.none()` for anything "
+        "else: a call, a variable, a value with X or Z bits, one that does not fit 64 bits.")
+        .nullable = true;
+    r.add("const_string_node", "const_string(node) -> optional(string)", &constStringImpl,
+        C::Constant,
+        "The value of a constant string expression: a string literal, or a parameter or "
+        "operator over constants whose type is `string`. `optional.none()` for anything else.")
+        .nullable = true;
+
+    r.group("Carriers");
+    r.add("classes_node", "classes(node) -> list(Class)", &classesImpl, C::Custom,
+        "The classes declared in a package, definition or class, nested ones too, in "
+        "declaration order: what a context classifier looks through "
+        "(`classes(carrier).exists(c, is(c, \"uvm_agent\"))`). One step per node visited.")
+        .nullable = true;
+    r.add("context_node", "context(node) -> Unit", &contextImpl, C::Custom,
+        "The context unit of the node (sv-contexts.md; experimental): that of the innermost "
+        "carrier, the node itself or one it is in, that the classify stage labelled. "
+        "`\"agent\" in context(node).labels`. `null` when no carrier above it has a unit, "
+        "and when the run has no `contexts:`. One step per owner visited.")
+        .nullable = true;
+    r.add("context_node_string", "context(node, string) -> Unit", &contextAxisImpl, C::Custom,
+        "`context(node)`, but the innermost carrier with a label on the axis named: "
+        "`context(node, \"unit\")`. An agent class in a mixed package answers with the "
+        "class's unit, not the package's (Q-CX3).")
+        .nullable = true;
+    r.add("calls_in_node", "calls_in(node) -> list(Call)", &callsInImpl, C::Custom,
+        "The calls in a carrier's code, or in any node's subtree, in pre-order: "
+        "`descendants(node, Call)`. Library code has no bodies, so none of its calls. One "
+        "step per node visited.")
         .nullable = true;
 }
 

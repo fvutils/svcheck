@@ -7,8 +7,10 @@ Two layers answer the same 4 UVM rules (sv-uvm-rules-assessment §4):
 
 Each layer's rule file is in tests/host/rules/, and both run on the same
 examples (tests/host/rules/examples.yaml), whose `// expect: ID` comments say
-where a finding must be. The node hooks compile their source with slang,
-against uvm_pkg from packages/uvm-core when it mentions `uvm_`.
+where a finding must be: they are given to each file as its rules'
+`examples:` and run by the examples harness (src/engine/run/Examples.h).
+The hooks compile their source with slang, against uvm_pkg from
+packages/uvm-core when it mentions `uvm_`.
 
 The model's carrier fields (svcheck-plan R-6, sv-contexts.md §2.2) are
 checked on a package that `include`s a file.
@@ -23,7 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "tests", "engine"))
 
-from hooks import EngineHooks  # noqa: E402
+from hooks import EngineHooks, check_examples  # noqa: E402
 
 UVM = os.path.join(ROOT, "packages", "uvm-core", "src")
 RULES = os.path.join(HERE, "rules")
@@ -64,23 +66,21 @@ def _plain(v):
 
 # ------------------------------------------------------ the exit criterion --
 
-def _cases():
-    for rid, codes in EXAMPLES.items():
-        for i in range(len(codes)):
-            yield rid, i
+def _rules_with_examples(layer):
+    """The layer's rule file, each rule given its examples from examples.yaml."""
+    with open(os.path.join(RULES, "uvm-%s.yaml" % layer), encoding="utf-8") as fp:
+        doc = yaml.safe_load(fp)
+    for r in doc["sv-rules"]["rules"]:
+        r["examples"] = [{"code": c} for c in EXAMPLES[r["id"]]]
+    return yaml.safe_dump(doc, sort_keys=False)
 
 
 @needs_uvm
-@pytest.mark.parametrize("rid,idx", list(_cases()), ids=lambda x: str(x))
-def test_both_layers_answer_the_uvm_rules_examples(layer, rid, idx):
+@pytest.mark.parametrize("rid", list(EXAMPLES))
+def test_both_layers_answer_the_uvm_rules_examples(layer, rid):
     name, hooks = layer
-    with open(os.path.join(RULES, "uvm-%s.yaml" % name), encoding="utf-8") as fp:
-        rules = fp.read()
-    code = EXAMPLES[rid][idx]
-    want = [i + 1 for i, line in enumerate(code.splitlines()) if "expect: " + rid in line]
-    r = hooks.lint_run("uvm-%s.yaml" % name, rules, code, enabled=[rid])
-    assert r["loaded"] and r["diagnostics"] == [] and r["failures"] == [], r
-    assert sorted(f["line"] for f in r["findings"] if f["id"] == rid) == want, r["findings"]
+    results = check_examples(hooks, "uvm-%s.yaml" % name, _rules_with_examples(name), [rid])
+    assert len(results) == len(EXAMPLES[rid])
 
 
 # --------------------------------------------------- the model: structure --
@@ -174,7 +174,7 @@ def test_carriers_know_their_files_imports_and_vifs(model, tmp_path):
     assert _eval(model, src, pkg + '.items.map(i, [i.name, i.carrier.name])') == [
         ["agent_drv", "agent_pkg"]]
     # A virtual interface knows its interface; the module its imports.
-    assert _eval(model, src, pkg + '.items[0].members[0].vifDefinition.name') == "bus_if"
+    assert _eval(model, src, pkg + '.items[0].members[0].type.ifaceDecl.name') == "bus_if"
     tb = 'node.definitions.filter(d, d.name == "tb")[0]'
     assert _eval(model, src, tb + '.imports.map(i, i.name)') == ["agent_pkg"]
     assert _eval(model, src, tb + '.items.map(i, [i.name, i.carrier.name])') == [["d", "tb"]]

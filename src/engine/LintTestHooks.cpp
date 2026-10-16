@@ -31,6 +31,8 @@
 #include "cel/CelParser.h"
 #include "regex/Regex.h"
 #include "rules/RuleLoader.h"
+#include "run/Classify.h"
+#include "run/Examples.h"
 #include "run/Runner.h"
 #include "run/Walker.h"
 #include "util/JsonWriter.h"
@@ -908,6 +910,7 @@ std::string LintTestHooks::lintWalk(const std::string &source, const std::string
         return result;
     }
     LintEngine e;
+    e.setReader(rules::diskReader());
     LintSource src;
     src.name = name;
     src.text = text;
@@ -956,6 +959,7 @@ std::string LintTestHooks::lintRun(const std::string &source, const std::string 
         return result;
     }
     LintEngine e;
+    e.setReader(rules::diskReader());
     LintSource src;
     src.name = name;
     src.text = text;
@@ -971,12 +975,25 @@ std::string LintTestHooks::lintRun(const std::string &source, const std::string 
     if (maxSteps) {
         opts.maxSteps = maxSteps;
     }
+    if (!t.context) {
+        t.context.reset(new run::Context());
+    }
     opts.context = t.context.get();
+    // The runner sets the context's file names from opts: keep the host's.
+    opts.fileNames = t.context->filePaths();
     run::Runner runner(on, opts);
     std::unique_ptr<IMarker> skipped;
+    run::Contexts contexts;
     if (gateErrors) {
         skipped.reset(run::Runner::skippedMarker(gateErrors));
     } else {
+        for (const rf::Node &r : t.roots) {
+            runner.index(r);
+        }
+        std::vector<const rules::Classifier *> cls = e.classifiers();
+        if (!cls.empty()) {
+            contexts = run::classify(cls, *t.context);
+        }
         for (const rf::Node &r : t.roots) {
             runner.run(r);
         }
@@ -1029,6 +1046,25 @@ std::string LintTestHooks::lintRun(const std::string &source, const std::string 
         w.endObject();
     }
     w.endArray();
+    // The classify stage (run/Classify.h): each label, and what it noted.
+    auto lineOf = [](const rf::Node &n) {
+        ast::Location loc;
+        return (n && run::Walker::location(n, loc)) ? static_cast<int64_t>(loc.lineno) : -1;
+    };
+    w.key("contexts").beginArray();
+    for (const run::ContextLabel &l : contexts.labels) {
+        w.beginObject();
+        w.kv("kind", rf::classes[l.carrier.kind].name).kv("line", lineOf(l.carrier));
+        w.kv("axis", l.axis).kv("label", l.label).kv("unit", l.unit);
+        w.kv("source", run::sourceName(l.source)).kv("evidence", l.evidence);
+        w.endObject();
+    }
+    w.endArray();
+    w.key("context_notes").beginArray();
+    for (const run::ContextNote &n : contexts.notes) {
+        w.beginObject().kv("line", lineOf(n.carrier)).kv("message", n.message).endObject();
+    }
+    w.endArray();
     w.key("stats").beginArray();
     for (const rules::Rule *r : list) {
         // A rule not enabled was never given to the runner: all zero.
@@ -1046,9 +1082,62 @@ std::string LintTestHooks::lintRun(const std::string &source, const std::string 
     return w.str();
 }
 
+std::string LintTestHooks::lintExamples(const std::string &name, const std::string &text,
+        bool allEnabled, const std::vector<std::string> &enabled) {
+    if (!m_compiler) {
+        JsonWriter w;
+        w.beginObject().kv("ok", false).kv("error", "the host has no compiler for examples")
+            .endObject();
+        return w.str();
+    }
+    LintEngine e;
+    e.setReader(rules::diskReader());
+    LintSource src;
+    src.name = name;
+    src.text = text;
+    bool loaded = e.loadRules(src, false) != nullptr;
+
+    JsonWriter w;
+    w.beginObject();
+    w.kv("ok", true).kv("loaded", loaded);
+    w.key("diagnostics");
+    rules::diagnosticsToJson(w, e.diagnostics());
+    w.key("results").beginArray();
+    for (const rules::Rule *r : e.ruleList()) {
+        if (!allEnabled && std::find(enabled.begin(), enabled.end(), r->m_id) == enabled.end()) {
+            continue;
+        }
+        for (const rules::Example &x : r->m_examples) {
+            run::ExampleResult res = run::runExample(*r, x, m_compiler, e.classifiers());
+            w.beginObject();
+            w.kv("rule", res.rule).kv("name", res.name).kv("file", res.file);
+            w.kv("line", static_cast<int64_t>(res.line)).kv("col", static_cast<int64_t>(res.col));
+            w.kv("ok", res.ok()).kv("describe", res.describe());
+            w.key("problems").beginArray();
+            for (const std::string &p : res.problems) {
+                w.value(p);
+            }
+            w.endArray();
+            w.key("markers").beginArray();
+            for (const run::ExampleMarker &m : res.markers) {
+                w.beginObject();
+                w.kv("code", m.code).kv("file", m.file).kv("line", static_cast<int64_t>(m.line));
+                w.kv("col", static_cast<int64_t>(m.col)).kv("message", m.message);
+                w.endObject();
+            }
+            w.endArray();
+            w.endObject();
+        }
+    }
+    w.endArray();
+    w.endObject();
+    return w.str();
+}
+
 std::string LintTestHooks::ruleLoad(const std::string &name, const std::string &text,
         bool builtin) {
     LintEngine e;
+    e.setReader(rules::diskReader());
     LintSource src;
     src.name = name;
     src.text = text;
@@ -1159,6 +1248,16 @@ std::string LintTestHooks::dispatch(const std::string &requestJson) {
         }
         return lintRun(str(0), str(1), str(2), a[3]->b, enabled,
             static_cast<uint64_t>(a[5]->i), static_cast<uint32_t>(a[6]->i));
+    } else if (o == "lintExamples" && a.size() == 4 && a[0]->kind == NK::String
+            && a[1]->kind == NK::String && a[2]->kind == NK::Bool && a[3]->kind == NK::Seq) {
+        std::vector<std::string> enabled;
+        for (const yaml::NodeUP &n : a[3]->items) {
+            if (n->kind != NK::String) {
+                return refuse("lintExamples: `enabled` is a list of strings");
+            }
+            enabled.push_back(n->s);
+        }
+        return lintExamples(str(0), str(1), a[2]->b, enabled);
     }
     return refuse("no hook '" + o + "' taking these arguments");
 }

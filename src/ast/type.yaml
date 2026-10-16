@@ -1,0 +1,60 @@
+#****************************************************************************
+#* type.yaml -- types (svcheck-plan P1.4). Each type a declaration or an
+#* expression has is one TypeRef, in Design.types; the nodes refer to it.
+#****************************************************************************
+classes:
+- TypeRef:
+    super: SemNode
+    doc: |
+        A type, as a declaration or expression has it: what `type_of` gives.
+        Two uses of one type, as slang knows it, share a TypeRef. A typedef's
+        name is kept: `item_t` is not `my_item`, though both are that class.
+
+        Attributes:
+            name: the type, as slang prints it (`int`, `uvm_pkg::uvm_config_db#(virtual bus_if)`)
+            isClass: a class handle
+            classDecl: the class, for a class handle: a specialisation's generic class (S-2)
+            args: a class specialisation's type arguments, in parameter order; value parameters are left out
+            isVirtualInterface: a virtual interface
+            ifaceDecl: the interface, for a virtual interface
+            isIntegral: an integral type (bits, logic, int, enum, packed struct)
+            isFourState: an integral type whose bits can be X or Z (`logic`, `integer`)
+            isString: `string`
+            bitWidth: the width in bits of an integral type; 0 for another type
+    data:
+    - name:
+        type: string
+        is_ctor: false
+    - isClass:
+        type: bool
+        is_ctor: false
+        init: false
+    - classDecl:
+        type: P<Class>
+        is_ctor: false
+    - args:
+        type: list<P<TypeRef>>
+        is_ctor: false
+    - isVirtualInterface:
+        type: bool
+        is_ctor: false
+        init: false
+    - ifaceDecl:
+        type: P<Definition>
+        is_ctor: false
+    - isIntegral:
+        type: bool
+        is_ctor: false
+        init: false
+    - isFourState:
+        type: bool
+        is_ctor: false
+        init: false
+    - isString:
+        type: bool
+        is_ctor: false
+        init: false
+    - bitWidth:
+        type: int32_t
+        is_ctor: false
+        init: 0

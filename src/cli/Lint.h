@@ -18,6 +18,8 @@
  * `svcheck --rules FILE ... [slang's file arguments]` (svcheck-plan P1.5):
  * the rules of each FILE over the compilation, findings as text, JSON or
  * SARIF on stdout. `--contexts` prints the classify stage's units instead.
+ * `--stats` (P1.7) adds each phase's time and the heap in use after it: to
+ * stderr, or as `stats` in the JSON output.
  *
  * Exit status: 0 no findings; 1 findings of warning or error severity, or
  * a compilation with errors; 2 a rule file with errors, or bad usage.
@@ -42,6 +44,7 @@ struct LintOptions {
     host::SemanticLayer         layer = host::SemanticLayer::Model;
     std::vector<std::string>    libraryDirs;    // code under these is library code
     bool                        contexts = false;   // print units, not findings
+    bool                        stats = false;      // where the time and memory went
 };
 
 /** Whether `name` is an output format. */

@@ -262,12 +262,42 @@ int32_t Sources::fileid(slang::BufferID buffer, const std::string &name) {
     return id;
 }
 
+Sources::Buffer &Sources::buffer(slang::SourceLocation loc) {
+    Buffer &b = m_buffers[loc.buffer().getId()];
+    if (b.kind == Buffer::Unknown) {
+        if (m_sm.isMacroLoc(loc)) {
+            b.kind = Buffer::Macro;
+        } else {
+            b.kind = Buffer::File;
+            b.text = m_sm.getSourceText(loc.buffer());
+        }
+    }
+    return b;
+}
+
+slang::SourceLocation Sources::expanded(slang::SourceLocation loc) {
+    if (!loc.valid() || buffer(loc).kind == Buffer::File) {
+        return loc;
+    }
+    return m_sm.getFullyExpandedLoc(loc);
+}
+
 std::string Sources::pathOf(slang::SourceLocation loc) {
-    slang::SourceLocation e = m_sm.getFullyExpandedLoc(loc);
+    slang::SourceLocation e = expanded(loc);
     return e.valid() ? m_paths[fileid(e.buffer())] : std::string();
 }
 
 std::string Sources::macroOf(slang::SourceLocation loc) {
+    if (!loc.valid()) {
+        return std::string();
+    }
+    Buffer &b = buffer(loc);
+    if (b.kind == Buffer::File) {
+        return std::string();
+    }
+    if (b.macroKnown) {
+        return b.macro;
+    }
     std::string name;
     while (loc.valid() && m_sm.isMacroLoc(loc)) {
         if (m_sm.isMacroArgLoc(loc)) {
@@ -277,24 +307,36 @@ std::string Sources::macroOf(slang::SourceLocation loc) {
         name = std::string(m_sm.getMacroName(loc));
         loc = m_sm.getExpansionLoc(loc);
     }
+    b.macroKnown = true;
+    b.macro = name;
     return name;
 }
 
 bool Sources::locate(slang::SourceRange range, ast::Location &loc) {
     loc = ast::Location();
-    slang::SourceLocation start = m_sm.getFullyExpandedLoc(range.start());
+    slang::SourceLocation start = expanded(range.start());
     if (!start.valid()) {
         return false;
     }
     loc.fileid = fileid(start.buffer());
+    // The line through slang, which knows `line directives; the column as
+    // slang counts it (bytes from the line's start), from the cached text.
     loc.lineno = static_cast<int32_t>(m_sm.getLineNumber(start));
-    loc.linepos = static_cast<int32_t>(m_sm.getColumnNumber(start));
+    std::string_view text = buffer(start).text;
+    size_t lineStart = std::min<size_t>(start.offset(), text.size());
+    while (lineStart > 0 && text[lineStart - 1] != '\n' && text[lineStart - 1] != '\r') {
+        lineStart--;
+    }
+    loc.linepos = static_cast<int32_t>(start.offset() - lineStart + 1);
     loc.extent = 0;
-    slang::SourceLocation end = m_sm.getFullyExpandedLoc(range.end());
-    if (end.valid() && end.buffer() == start.buffer()
-            && m_sm.getLineNumber(end) == static_cast<size_t>(loc.lineno)
-            && end.offset() >= start.offset()) {
-        loc.extent = static_cast<int32_t>(end.offset() - start.offset());
+    // The extent is kept for a range on one line: no newline between its ends.
+    slang::SourceLocation end = expanded(range.end());
+    if (end.valid() && end.buffer() == start.buffer() && end.offset() >= start.offset()
+            && end.offset() <= text.size()) {
+        std::string_view span = text.substr(start.offset(), end.offset() - start.offset());
+        if (span.find_first_of("\r\n") == std::string_view::npos) {
+            loc.extent = static_cast<int32_t>(span.size());
+        }
     }
     return loc.lineno > 0;
 }

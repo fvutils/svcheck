@@ -147,6 +147,22 @@ def test_json(tb):
     assert stats["ACME001"]["findings"] == 2 and stats["ACME001"]["outside"] >= 2
 
 
+def test_stats(tb):
+    r = svcheck(tb, "-f", "tb.f", "--rules", "r.yaml", "--format", "json", "--stats")
+    st = json.loads(r.stdout)["stats"]
+    for k in ("parse_s", "elaborate_s", "lower_s", "classify_s", "rules_s", "index_s",
+              "total_s"):
+        assert st[k] >= 0, k
+    assert st["total_s"] >= st["parse_s"] + st["elaborate_s"]
+    assert st["heap"]["lowered"] >= st["heap"]["parsed"] > 0
+    assert st["max_rss"] > 0
+    assert [x["id"] for x in st["rules"]] == ["ACME001", "ACME002"]
+    r = svcheck(tb, "-f", "tb.f", "--rules", "r.yaml", "--stats")
+    assert "elaborate" in r.stderr and "peak RSS" in r.stderr
+    assert "stats" not in json.loads(svcheck(tb, "-f", "tb.f", "--rules", "r.yaml",
+                                             "--format", "json").stdout)
+
+
 def test_sarif(tb):
     r = svcheck(tb, "-f", "tb.f", "--rules", "r.yaml", "--format", "sarif")
     doc = json.loads(r.stdout)

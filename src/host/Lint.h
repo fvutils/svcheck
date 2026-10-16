@@ -53,8 +53,26 @@ namespace rf = svcheck::ast::reflect;
 
 class SvContext;
 
+/**
+ * Bytes of heap in use now: glibc's arena and mmapped blocks (mallinfo2,
+ * or mallinfo before 2.33); 0 where that is not known. For `--stats`
+ * (svcheck-plan P1.7).
+ */
+size_t heapInUse();
+
+/** Peak resident set size so far, in bytes; 0 where that is not known. */
+size_t peakRss();
+
 class LintCompilation {
 public:
+    /** Where the constructor's time and memory went (`--stats`). */
+    struct Stats {
+        double  elaborateS = 0;     // createCompilation and every diagnostic
+        double  lowerS = 0;         // the semantic layer's build: lowering, or the slang root
+        size_t  heapElaborated = 0; // heapInUse() after elaborating
+        size_t  heapLowered = 0;    // and after lowering
+    };
+
     /**
      * Compiles the driver's files (parsed already, parseAllSources()) with
      * the semantic layer installed. Library code is code in `libraryDirs`
@@ -104,6 +122,8 @@ public:
     /** The library directories, as absolute paths. */
     const std::vector<std::string> &libraryDirs() const { return m_libraryDirs; }
 
+    const Stats &stats() const { return m_stats; }
+
 private:
     struct Impl;
     std::unique_ptr<Impl>                       m_impl;
@@ -114,6 +134,7 @@ private:
     std::vector<std::string>                    m_unparsed;
     std::vector<std::string>                    m_files;
     std::vector<std::string>                    m_libraryDirs;
+    Stats                                       m_stats;
 };
 
 /** Whether rule `r` needs the compilation (design §3.3), so cannot run without it. */

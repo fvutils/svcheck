@@ -16,7 +16,14 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
+#if !defined(__wasi__)
+#include <sys/resource.h>
+#endif
 #include "Lint.h"
 #include "SemModel.h"
 #include "SlangSchema.h"
@@ -28,6 +35,7 @@
 #include "slang/diagnostics/DiagnosticEngine.h"
 #include "slang/driver/Driver.h"
 #include "slang/parsing/Preprocessor.h"
+#include "slang/syntax/AllSyntax.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/text/SourceManager.h"
 
@@ -62,9 +70,44 @@ bool under(const std::string &path, const std::vector<std::string> &dirs) {
 
 }
 
+size_t heapInUse() {
+#if defined(__GLIBC__) && (__GLIBC__ > 2 || __GLIBC_MINOR__ >= 33)
+    struct mallinfo2 mi = mallinfo2();
+    return mi.uordblks + mi.hblkhd;
+#elif defined(__GLIBC__)
+    // manylinux_2_28's glibc has only mallinfo, whose int fields wrap at 2 GB.
+    struct mallinfo mi = mallinfo();
+    return static_cast<size_t>(static_cast<unsigned>(mi.uordblks))
+        + static_cast<size_t>(static_cast<unsigned>(mi.hblkhd));
+#else
+    return 0;
+#endif
+}
+
+size_t peakRss() {
+#if defined(__wasi__)
+    return 0;           // WASI's emulated rusage has no ru_maxrss
+#else
+    struct rusage ru;
+    if (getrusage(RUSAGE_SELF, &ru) != 0) {
+        return 0;
+    }
+#if defined(__APPLE__)
+    return static_cast<size_t>(ru.ru_maxrss);
+#else
+    return static_cast<size_t>(ru.ru_maxrss) * 1024;
+#endif
+#endif
+}
+
 LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer layer,
         const std::vector<std::string> &libraryDirs) : m_impl(new Impl()) {
+    using Clock = std::chrono::steady_clock;
+    auto secs = [](Clock::time_point a, Clock::time_point b) {
+        return std::chrono::duration<double>(b - a).count();
+    };
     Impl &p = *m_impl;
+    auto t0 = Clock::now();
     p.comp = driver.createCompilation();
     // slang's warnings are not findings (Q-UVM4, P2.2); its errors gate,
     // as its own command line ranks them (-Werror and the like included).
@@ -75,6 +118,8 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
         }
     }
     m_errors = static_cast<uint32_t>(driver.diagEngine.getNumErrors());
+    m_stats.elaborateS = secs(t0, Clock::now());
+    m_stats.heapElaborated = heapInUse();
 
     for (const std::string &d : libraryDirs) {
         m_libraryDirs.push_back(absolute(d));
@@ -122,14 +167,20 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
     // --single-unit one tree holds every file, the library's too. Findings
     // in a file with a syntax error, or in library code, are not shown
     // (shows()).
-    std::vector<const slang::syntax::SyntaxTree *> trees;
+    // A tree that holds library files too (--single-unit) is linted from
+    // its user members, so the walk and the indexes skip the library's
+    // syntax (svcheck-plan P1.7: uvm_pkg was half of OpenTitan's walk).
+    std::vector<std::pair<const slang::syntax::SyntaxTree *, bool>> trees;
     for (const auto &t : driver.syntaxTrees) {
         std::vector<std::string> mine;
+        bool mixed = false;
         for (slang::BufferID buf : t->getSourceBufferIds()) {
             std::string path = absolute(driver.sourceManager.getFullPath(buf).string());
             if (!under(path, m_libraryDirs)) {
                 p.sources->fileid(buf);
                 mine.push_back(path);
+            } else {
+                mixed = true;
             }
         }
         if (mine.empty()) {
@@ -155,10 +206,11 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
         if (std::any_of(mine.begin(), mine.end(), [this](const std::string &f) {
                 return std::find(m_unparsed.begin(), m_unparsed.end(), f) == m_unparsed.end();
             })) {
-            trees.push_back(t.get());
+            trees.emplace_back(t.get(), mixed);
         }
     }
 
+    auto tLower = Clock::now();
     if (!m_errors && layer == SemanticLayer::Model) {
         p.design = lowerCompilation(*p.comp, *p.sources, m_libraryDirs);
         m_roots.push_back(semNode(p.design.get()));
@@ -166,8 +218,23 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
         setSlangSources(p.sources.get(), &driver.sourceManager, m_libraryDirs);
         m_roots.push_back(slangRoot(*p.comp));
     }
-    for (const slang::syntax::SyntaxTree *t : trees) {
-        m_roots.push_back(syntaxNode(&t->root()));
+    m_stats.lowerS = secs(tLower, Clock::now());
+    m_stats.heapLowered = heapInUse();
+    for (const auto &[t, mixed] : trees) {
+        const slang::syntax::SyntaxNode &root = t->root();
+        if (!mixed || root.kind != slang::syntax::SyntaxKind::CompilationUnit) {
+            m_roots.push_back(syntaxNode(&root));
+            continue;
+        }
+        for (const slang::syntax::MemberSyntax *m
+                : root.as<slang::syntax::CompilationUnitSyntax>().members) {
+            slang::SourceLocation loc = driver.sourceManager.getFullyOriginalLoc(
+                m->getFirstToken().location());
+            if (!loc.valid() || !under(absolute(
+                    driver.sourceManager.getFullPath(loc.buffer()).string()), m_libraryDirs)) {
+                m_roots.push_back(syntaxNode(m));
+            }
+        }
     }
 
     if (p.design) {

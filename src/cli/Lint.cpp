@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -60,6 +61,18 @@ struct Finding {
     int64_t         col = 0;
     int64_t         extent = 0;
 };
+
+// `--stats`: each phase's time, and the heap in use after it.
+struct RunStats {
+    double  parseS = 0;
+    double  totalS = 0;
+    size_t  heapParsed = 0;
+    size_t  heapEnd = 0;
+};
+
+double nsToS(int64_t ns) {
+    return static_cast<double>(ns) / 1e9;
+}
 
 // A path as shown: relative to the working directory when under it.
 std::string shown(const std::string &path) {
@@ -127,8 +140,59 @@ void writeText(const std::vector<Finding> &found) {
     }
 }
 
-void writeJson(const std::vector<Finding> &found, const host::LintCompilation &lc,
+int64_t num(const lint::yaml::Node *n, const char *key);
+
+void writeStatsJson(JsonWriter &w, const RunStats &rs, const host::LintCompilation &lc,
         const lint::yaml::Node *result) {
+    const host::LintCompilation::Stats &cs = lc.stats();
+    w.key("stats").beginObject();
+    w.kv("parse_s", rs.parseS).kv("elaborate_s", cs.elaborateS).kv("lower_s", cs.lowerS);
+    w.kv("classify_s", nsToS(num(result, "classify_ns")));
+    w.kv("rules_s", nsToS(num(result, "run_ns")));
+    w.kv("index_s", nsToS(num(result, "index_ns")));
+    w.kv("total_s", rs.totalS);
+    w.key("heap").beginObject();
+    w.kv("parsed", static_cast<uint64_t>(rs.heapParsed));
+    w.kv("elaborated", static_cast<uint64_t>(cs.heapElaborated));
+    w.kv("lowered", static_cast<uint64_t>(cs.heapLowered));
+    w.kv("end", static_cast<uint64_t>(rs.heapEnd)).endObject();
+    w.kv("max_rss", static_cast<uint64_t>(host::peakRss()));
+    w.key("rules").beginArray();
+    if (const lint::yaml::Node *stats = result->get("stats")) {
+        for (const lint::yaml::NodeUP &st : stats->items) {
+            w.beginObject().kv("id", str(st.get(), "id"));
+            w.kv("s", nsToS(num(st.get(), "ns"))).kv("steps", num(st.get(), "steps"));
+            w.endObject();
+        }
+    }
+    w.endArray().endObject();
+}
+
+void writeStatsText(const RunStats &rs, const host::LintCompilation &lc,
+        const lint::yaml::Node *result) {
+    const host::LintCompilation::Stats &cs = lc.stats();
+    auto mb = [](size_t b) { return static_cast<double>(b) / (1024.0 * 1024.0); };
+    std::fprintf(stderr, "svcheck: stats\n");
+    std::fprintf(stderr, "  parse      %8.3f s   heap %8.1f MB\n", rs.parseS, mb(rs.heapParsed));
+    std::fprintf(stderr, "  elaborate  %8.3f s   heap %8.1f MB\n", cs.elaborateS,
+        mb(cs.heapElaborated));
+    std::fprintf(stderr, "  lower      %8.3f s   heap %8.1f MB\n", cs.lowerS,
+        mb(cs.heapLowered));
+    std::fprintf(stderr, "  index      %8.3f s\n", nsToS(num(result, "index_ns")));
+    std::fprintf(stderr, "  classify   %8.3f s\n", nsToS(num(result, "classify_ns")));
+    std::fprintf(stderr, "  rules      %8.3f s\n", nsToS(num(result, "run_ns")));
+    std::fprintf(stderr, "  total      %8.3f s   heap %8.1f MB, peak RSS %.1f MB\n",
+        rs.totalS, mb(rs.heapEnd), mb(host::peakRss()));
+    if (const lint::yaml::Node *stats = result->get("stats")) {
+        for (const lint::yaml::NodeUP &st : stats->items) {
+            std::fprintf(stderr, "    %-12s %8.3f s  %lld matches\n", str(st.get(), "id").c_str(),
+                nsToS(num(st.get(), "ns")), static_cast<long long>(num(st.get(), "matches")));
+        }
+    }
+}
+
+void writeJson(const std::vector<Finding> &found, const host::LintCompilation &lc,
+        const lint::yaml::Node *result, const RunStats *rs) {
     JsonWriter w;
     w.beginObject();
     w.kv("version", SVCHECK_VERSION);
@@ -165,6 +229,9 @@ void writeJson(const std::vector<Finding> &found, const host::LintCompilation &l
         }
     }
     w.endArray();
+    if (rs) {
+        writeStatsJson(w, *rs, lc, result);
+    }
     w.endObject();
     std::printf("%s\n", w.str().c_str());
 }
@@ -352,7 +419,12 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     if (!driver.processOptions()) {
         return 2;
     }
+    using Clock = std::chrono::steady_clock;
+    RunStats rs;
+    auto t0 = Clock::now();
     (void)driver.parseAllSources();
+    rs.parseS = std::chrono::duration<double>(Clock::now() - t0).count();
+    rs.heapParsed = host::heapInUse();
     host::LintCompilation lc(driver, opts.layer, opts.libraryDirs);
     (void)driver.reportDiagnostics(/*quiet*/ true);
     for (const std::string &u : lc.unparsed()) {
@@ -423,12 +495,17 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
             < std::make_tuple(!b.file.empty(), b.file, b.line, b.col);
     });
 
+    rs.totalS = std::chrono::duration<double>(Clock::now() - t0).count();
+    rs.heapEnd = host::heapInUse();
     if (opts.format == "json") {
-        writeJson(found, lc, result.get());
+        writeJson(found, lc, result.get(), opts.stats ? &rs : nullptr);
     } else if (opts.format == "sarif") {
         writeSarif(found, engine);
     } else {
         writeText(found);
+    }
+    if (opts.stats && opts.format != "json") {
+        writeStatsText(rs, lc, result.get());
     }
 
     size_t errors = 0, warnings = 0;

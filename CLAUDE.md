@@ -64,6 +64,14 @@ classifier set, `classify-convention.yaml` adds the weak one as a second `--rule
 `docs/design/sv-contexts-trial.md`. The model has `Process` (procedural blocks), and the library
 `subclasses(c)`.
 
+P1.7 measured the corpora: `svcheck --stats` (phase times and heap; `stats` in the JSON), and
+`scripts/measure.py` prints the plan's §6.1 tables. `tests/corpora/fwvip.f` is the VIPs with no
+bench (S-1/S-2); `ctx-positive.f` is a positive corpus for the trial rules, with its sources in
+the repo. UVM 1.2 is an ivpm dependency (`packages/uvm-1.2/src`); the examples run on both UVM
+versions. `scripts/wasm_size.sh TOOLS BUILD` builds svcheck for WASI (it downloads wasi-sdk,
+binaryen and wasmtime into TOOLS) and prints its size. A generic class's model body comes from a
+specialisation the design makes, and the default only when there is none.
+
 ## Build and test
 
 ```sh

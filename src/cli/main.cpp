@@ -102,6 +102,9 @@ int main(int argc, char** argv) {
     driver.cmdLine.add("--library-dir", lint.libraryDirs, "Code under this directory is "
                        "library code: not checked, and in_library() (uvm_pkg's always is)",
                        "<dir>");
+    std::optional<bool> stats;
+    driver.cmdLine.add("--stats", stats, "Report each phase's time and the heap in use after "
+                       "it: on stderr, or as 'stats' in the JSON output");
     driver.cmdLine.add("--contexts", contexts, "Print each unit the rules' classifiers find, "
                        "with its labels and their evidence, instead of findings");
 
@@ -134,6 +137,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     lint.contexts = contexts == true;
+    lint.stats = stats == true;
     if (!lint.rules.empty() || lint.contexts) {
         if (lint.rules.empty()) {
             std::fprintf(stderr, "svcheck: --contexts needs --rules: the classifiers are in "

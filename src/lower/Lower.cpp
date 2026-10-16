@@ -437,15 +437,33 @@ private:
         sem::Class *n = newClass(g, carrier, prefix);
         n->setIsInterface(g.isInterface);
         m_generics[&g] = n;
-        const sa::Type *spec = nullptr;
-        if (const sa::Scope *scope = g.getParentScope()) {
-            spec = g.getDefaultSpecialization(*scope);
+        // The body comes from a specialisation the design makes (S-2): the
+        // default's can be ill-typed (`type vif_t = int` makes `vif.f()`
+        // invalid, so its calls are lost). Of several, the first by name,
+        // so the choice does not depend on elaboration order. The default
+        // only when the design makes none.
+        std::vector<const sa::Type *> made;
+        for (const sa::Type &t : g.specializations()) {
+            made.push_back(&t);
         }
-        if (!spec || !spec->isClass()) {
-            for (const sa::Type &t : g.specializations()) {
-                spec = &t;
-                break;
+        const sa::Type *dflt = nullptr;
+        if (const sa::Scope *scope = g.getParentScope()) {
+            dflt = g.getDefaultSpecialization(*scope);
+        }
+        const sa::Type *spec = nullptr;
+        std::string specName;
+        for (const sa::Type *t : made) {
+            if (t == dflt || !t->isClass()) {
+                continue;
             }
+            std::string name = t->toString();
+            if (!spec || name < specName) {
+                spec = t;
+                specName = std::move(name);
+            }
+        }
+        if (!spec) {
+            spec = dflt;
         }
         if (spec && spec->isClass()) {
             const sa::ClassType &ct = spec->getCanonicalType().as<sa::ClassType>();
@@ -927,7 +945,8 @@ private:
                     n->setClassType(typeRef(scope->asSymbol().as<sa::ClassType>()));
                 }
             }
-            n->setIsSuper(e.syntax && trimmed(e.syntax->toString()).rfind("super", 0) == 0);
+            n->setIsSuper(e.syntax
+                && e.syntax->getFirstToken().kind == slang::parsing::TokenKind::SuperKeyword);
             if (c.thisClass()) {
                 n->setReceiver(lowerExpr(*c.thisClass()));
             }

@@ -1,7 +1,8 @@
 """The spike's 10 rules (svcheck-plan P1.6; rules/spike/): 3 Verible-equivalent,
 4 UVM, 3 fw-hdl.
 
-- Every rule's examples pass, on the curated model.
+- Every rule's examples pass, on the curated model, with UVM 1800.2-2020.3.1
+  and with UVM 1.2 (the second configuration, P1.7).
 - Every predicate is at most 15 lines (the P1.6 exit criterion): `where`,
   `let` and the rule's own `define`.
 - The Verible-equivalent rules find what Verible finds on a small testbench,
@@ -24,6 +25,7 @@ from hooks import EngineHooks, check_examples  # noqa: E402
 from svcheck import native_path  # noqa: E402
 
 UVM = os.path.join(ROOT, "packages", "uvm-core", "src")
+UVM12 = os.path.join(ROOT, "packages", "uvm-1.2", "src")
 SPIKE = os.path.join(ROOT, "rules", "spike")
 VERIBLE = os.path.join(ROOT, "packages", "verible", "bin", "verible-verilog-lint")
 pytestmark = pytest.mark.skipif(not os.path.isfile(os.path.join(UVM, "uvm_pkg.sv")),
@@ -48,9 +50,12 @@ def _rules():
                 yield f, r
 
 
-@pytest.fixture(scope="module")
-def model():
-    h = EngineHooks(semantic="model", uvm=UVM)
+@pytest.fixture(scope="module", params=["2020.3.1", "1.2"])
+def model(request):
+    uvm = UVM if request.param == "2020.3.1" else UVM12
+    if not os.path.isfile(os.path.join(uvm, "uvm_pkg.sv")):
+        pytest.skip("UVM %s is not in packages/ (ivpm update)" % request.param)
+    h = EngineHooks(semantic="model", uvm=uvm)
     yield h
     h.close()
 

@@ -10,7 +10,8 @@ examples (tests/host/rules/examples.yaml), whose `// expect: ID` comments say
 where a finding must be: they are given to each file as its rules'
 `examples:` and run by the examples harness (src/engine/run/Examples.h).
 The hooks compile their source with slang, against uvm_pkg from
-packages/uvm-core when it mentions `uvm_`.
+packages/uvm-core when it mentions `uvm_`, and again from packages/uvm-1.2
+(the second UVM configuration, svcheck-plan P1.7).
 
 The model's carrier fields (svcheck-plan R-6, sv-contexts.md §2.2) are
 checked on a package that `include`s a file.
@@ -28,6 +29,7 @@ sys.path.insert(0, os.path.join(ROOT, "tests", "engine"))
 from hooks import EngineHooks, check_examples  # noqa: E402
 
 UVM = os.path.join(ROOT, "packages", "uvm-core", "src")
+UVM12 = os.path.join(ROOT, "packages", "uvm-1.2", "src")
 RULES = os.path.join(HERE, "rules")
 
 needs_uvm = pytest.mark.skipif(not os.path.isfile(os.path.join(UVM, "uvm_pkg.sv")),
@@ -37,10 +39,15 @@ with open(os.path.join(RULES, "examples.yaml"), encoding="utf-8") as _fp:
     EXAMPLES = yaml.safe_load(_fp)
 
 
-@pytest.fixture(scope="module", params=["model", "slang"])
+@pytest.fixture(scope="module", params=[("model", UVM), ("slang", UVM), ("model", UVM12),
+                                        ("slang", UVM12)],
+                ids=["model", "slang", "model-uvm1.2", "slang-uvm1.2"])
 def layer(request):
-    h = EngineHooks(semantic=request.param, uvm=UVM)
-    yield request.param, h
+    name, uvm = request.param
+    if not os.path.isfile(os.path.join(uvm, "uvm_pkg.sv")):
+        pytest.skip("%s is not in packages/ (ivpm update)" % uvm)
+    h = EngineHooks(semantic=name, uvm=uvm)
+    yield name, h
     h.close()
 
 
@@ -111,6 +118,23 @@ def test_a_specialisation_is_its_generic_class(model):
     assert _eval(model, src, 'node.items[1].supers.map(s, s.name)')[:2] == [
         "uvm_driver", "uvm_component"]
     assert _eval(model, src, 'node.items[1].base.params') == ["REQ", "RSP"]
+
+
+def test_a_generic_body_comes_from_a_specialisation_the_design_makes(model):
+    # S-2 (svcheck-plan P1.7): the default (`V = int`) cannot call vif.ping(),
+    # so the body comes from the specialisation the module makes. With none,
+    # it is the default's, and the call is not there.
+    cls = ("interface bus_if; function void ping(); endfunction endinterface\n"
+           "class cfg_p #(type V = int);\n"
+           "  V vif;\n"
+           "  function void go(); vif.ping(); endfunction\n"
+           "endclass\n")
+    used = cls + ("module top; bus_if b();\n"
+                  "  initial begin cfg_p #(virtual bus_if) c = new(); c.vif = b; end\n"
+                  "endmodule\n")
+    calls = 'descendants(node, Call).map(c, c.name)'
+    assert "ping" in _eval(model, used, calls)
+    assert "ping" not in _eval(model, cls, calls)
 
 
 def test_supers_and_overrides(model):

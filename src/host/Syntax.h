@@ -105,9 +105,22 @@ public:
     bool locate(slang::SourceRange range, ast::Location &loc);
 
 private:
+    // What is known of a buffer, cached so that most queries, on a file's
+    // own text, take no lock in the SourceManager (svcheck-plan P1.7).
+    struct Buffer {
+        enum Kind : uint8_t { Unknown, File, Macro } kind = Unknown;
+        std::string_view    text;           // a File's
+        bool                macroKnown = false;
+        std::string         macro;          // a Macro's macroOf(): the same at every offset
+    };
+    Buffer &buffer(slang::SourceLocation loc);
+    // getFullyExpandedLoc, with no lock for a location in a file's text.
+    slang::SourceLocation expanded(slang::SourceLocation loc);
+
     const slang::SourceManager                  &m_sm;
     std::unordered_map<uint32_t, int32_t>       m_ids;
     std::vector<std::string>                    m_paths;
+    std::unordered_map<uint32_t, Buffer>        m_buffers;  // by buffer id (sparse)
 };
 
 /**

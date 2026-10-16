@@ -179,13 +179,27 @@ sv-rules:
         "my_base_env: true", "my_base_test: false"]
 
 
-@pytest.mark.parametrize("corpus", ["uvm-tb-proto", "fw-wb-dma", "opentitan-uart"])
+@pytest.mark.parametrize("corpus", ["uvm-tb-proto", "fw-wb-dma", "opentitan-uart", "fwvip",
+                                    "ctx-positive"])
 def test_corpus_compiles(corpus):
-    if not os.path.isdir(os.path.join(ROOT, "packages", corpus)):
-        pytest.skip("packages/%s is not there (tests/corpora/README.md)" % corpus)
+    snapshot = {"fwvip": "uvm-tb-proto", "ctx-positive": "uvm-core"}.get(corpus, corpus)
+    if not os.path.isdir(os.path.join(ROOT, "packages", snapshot)):
+        pytest.skip("packages/%s is not there (tests/corpora/README.md)" % snapshot)
     r = subprocess.run([native_path(), "--rules", os.path.join(TRIAL, "contexts.yaml"),
                         "-F", os.path.join(CORPORA, corpus + ".f"), "--format", "json"],
                        capture_output=True, text=True, timeout=300, cwd=ROOT)
     out = json.loads(r.stdout)
     assert out["compilation"]["errors"] == 0, r.stderr
     assert out["compilation"]["unparsed"] == []
+
+
+def test_the_positive_corpus_fires():
+    """P1.7's positive corpus: one package holds the agent, env and test, and
+    the monitor raises an objection (tests/corpora/ctx-positive.f)."""
+    r = subprocess.run([native_path(), "--rules", os.path.join(TRIAL, "contexts.yaml"),
+                        "-F", os.path.join(CORPORA, "ctx-positive.f"), "--format", "json"],
+                       capture_output=True, text=True, timeout=300, cwd=ROOT)
+    out = json.loads(r.stdout)
+    assert out["compilation"]["errors"] == 0, r.stderr
+    assert [(f["code"], os.path.basename(f["file"]), f["line"]) for f in out["findings"]] == [
+        ("CTX002", "tb_pkg.sv", 4), ("CTX001", "tb_pkg.sv", 68), ("CTX001", "tb_pkg.sv", 72)]

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <map>
 #include <memory>
@@ -918,6 +919,15 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
         }
     }
 
+    // Where the time goes (`svcheck --stats`, svcheck-plan P1.7): the
+    // classify stage, and the rules (`run_ns`, every rule's `ns`). Indexing
+    // the roots is the context's `index_ns`, in neither.
+    using Clock = std::chrono::steady_clock;
+    auto nsBetween = [](Clock::time_point a, Clock::time_point b) {
+        return static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count());
+    };
+    uint64_t classifyNs = 0;
     std::unique_ptr<IMarker> skipped;
     if (gateErrors && !on.empty()) {
         skipped.reset(run::Runner::skippedMarker(gateErrors));
@@ -929,7 +939,10 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
         for (const ast::reflect::Node &r : roots) {
             opts.context->index(r);
         }
+        uint64_t indexed = opts.context->indexNs();
+        auto t1 = Clock::now();
         classify(roots, *opts.context, opts.maxSteps);
+        classifyNs = nsBetween(t1, Clock::now()) - (opts.context->indexNs() - indexed);
         // A rule whose applies_to names an axis no carrier has a label on
         // would run nowhere: unknown is reported, not guessed (sv-contexts §3.2).
         std::vector<std::pair<const rules::Rule *, std::string>> unknown;
@@ -946,11 +959,14 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
         }
     }
     run::Runner runner(on, opts);
+    auto tRun = Clock::now();
+    uint64_t indexedBefore = opts.context->indexNs();
     if (!gateErrors) {
         for (const ast::reflect::Node &r : roots) {
             runner.run(r);
         }
     }
+    uint64_t runNs = nsBetween(tRun, Clock::now()) - (opts.context->indexNs() - indexedBefore);
 
     w.beginObject();
     w.kv("ok", true);
@@ -986,6 +1002,7 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
     }
     w.endArray();
     w.kv("index_ns", runner.indexNs());
+    w.kv("classify_ns", classifyNs).kv("run_ns", runNs);
     w.key("problems").beginArray();
     for (const std::string &p : problems) {
         w.value(p);

@@ -29,7 +29,7 @@ sv-rules:
       match: { kind: Class }
       where: >-
         !node.inLibrary && !node.isAbstract && is(node, "uvm_object") &&
-        !node.members.exists(m, m.name == "type_id") &&
+        !registered(node) &&
         !options.exempt_bases.exists(b, derives_from(node, b))
       examples:
         - code: |
@@ -63,13 +63,21 @@ sv-rules:
         ${node.type.name} is constructed with new(); use
         ${node.type.name}::type_id::create(...) so factory overrides apply
       doc: |
-        TLM ports and exports (uvm_port_base) are built with new() by
-        convention, and a class's own `create` method is where new() belongs.
+        Only a class that registers itself is reported: with no `type_id` of
+        its own there is no create() to use instead (UVM001 reports the class),
+        and an inherited one would create the base. In UVM 1.2 that leaves
+        out the TLM FIFOs and uvm_event, which are not registered there.
+        TLM ports, exports and FIFOs (uvm_port_base, uvm_tlm_fifo_base) are
+        built with new() by convention, and a class may construct its own type
+        (in its `create`, a clone or a static constructor).
       match: { kind: NewClass }
+      let:
+        t: node.type.classDecl
+        sub: enclosing(node, Subroutine)
       where: >-
-        !in_library(node) && is(node.type.classDecl, "uvm_object") &&
-        !is(node.type.classDecl, "uvm_port_base") &&
-        enclosing(node, Subroutine).name != "create"
+        !in_library(node) && is(t, "uvm_object") && registered(t) &&
+        !is(t, "uvm_port_base") && !is(t, "uvm_tlm_fifo_base") &&
+        t != cls(node) && (sub == null || sub.name != "create")
       examples:
         - code: |
             import uvm_pkg::*; `include "uvm_macros.svh"
@@ -84,9 +92,30 @@ sv-rules:
                 my_item a = new("a");                   // expect: UVM010
                 my_item b;
                 uvm_analysis_port #(my_item) ap = new("ap", this);
+                uvm_tlm_analysis_fifo #(my_item) f = new("f", this);
                 b = my_item::type_id::create("b");
               endfunction
             endclass
+            module top;
+              initial begin
+                my_item i = new("i");                   // expect: UVM010
+              end
+            endmodule
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class cfg extends uvm_object;
+              `uvm_object_utils(cfg)
+              function new(string name = ""); super.new(name); endfunction
+              static function cfg make(); cfg c = new(); return c; endfunction
+            endclass
+            class cfg_p #(type T = int) extends cfg;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            module top;
+              initial begin
+                cfg_p #(bit) c = new();
+              end
+            endmodule
 
     - id: UVM020
       name: unchecked-randomize

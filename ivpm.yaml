@@ -44,6 +44,12 @@ package:
     - name: uvm-core
       url: https://github.com/accellera-official/uvm-core/archive/refs/tags/2020.3.1.tar.gz
       type: raw
+    # UVM 1.2 (Accellera's release archive): the second UVM configuration
+    # (svcheck-plan P1.7, S-7), which OpenTitan's DV needs
+    # (tests/corpora/opentitan-uart.f). Test-only. Apache-2.0.
+    - name: uvm-1.2
+      url: https://www.accellera.org/images/downloads/standards/uvm/uvm-1.2.tar.gz
+      type: raw
     - name: pyastbuilder
       url: https://github.com/mballance-utils/pyastbuilder.git
     # The differential oracle for the engine's CEL evaluator

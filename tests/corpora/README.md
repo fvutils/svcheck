@@ -19,7 +19,8 @@ whose snapshot is missing.
 |---|---|---|---|
 | `fw-wb-dma` | featherweight-ip's wb_dma UVM bench, wb flavour: 180 files | the working tree of `featherweight-ip/fw-wb-dma` (at `45cbb7b`, with uncommitted changes), its `packages/` deps and two generated `rundir/` directories | a dependency the env no longer imported, and LRM errors that Verilator lets through (P1-24): see below |
 | `uvm-tb-proto` | uvm-tb-proto's generated SPI-controller bench (`out/`), with the VIPs it targets: 69 files | `uvm-tb-proto/out`; fwvip-common, fwvip-wb and fwvip-spi from `featherweight-vip/fwvip-spi` (its `packages/` and `src/`); fwprotocol-defs from `featherweight-vip/fwvip-wb/packages.1` (the one copy with `WB_MONITOR_PORT`) | the generated code did not match the fwvip APIs: interface ports `clock`/`reset`, transaction fields `we`/`adr`/`dat` |
-| `opentitan-uart` | OpenTitan's UART DV, `lowrisc:dv:uart_sim` target `sim`, at opentitan `83fc48ed3a`: 377 files | FuseSoC 2.4.5's export of the target (generated RAL included), and UVM 1.2 (`fvutils/uvm-1.2/src`), which OpenTitan needs | none; `-Wno-string-int-concat` in the list (4 byte-in-string concatenations, which slang rejects by §11.4.12.2 and VCS accepts). Needed slang patch SL-2 |
+| `opentitan-uart` | OpenTitan's UART DV, `lowrisc:dv:uart_sim` target `sim`, at opentitan `83fc48ed3a`: 377 files | FuseSoC 2.4.5's export of the target (generated RAL included). It needs UVM 1.2, which the list takes from `packages/uvm-1.2` (an ivpm dependency since P1.7) | none; `-Wno-string-int-concat` in the list (4 byte-in-string concatenations, which slang rejects by §11.4.12.2 and VCS accepts). Needed slang patch SL-2 |
+| `fwvip` | the fwvip VIPs of `uvm-tb-proto` alone (fwvip-common, fwvip-wb, fwvip-spi), with no testbench, test or top: P1.7's S-1/S-2 case, where nothing specialises a generic class or instantiates an interface | the `uvm-tb-proto` snapshot | none |
 
 ## Rebuilding a snapshot
 
@@ -62,8 +63,8 @@ and `pycryptodome`, which its generators import):
 fusesoc --cores-root $OT run --target=sim --setup --build-root=/tmp/ot --tool=vcs lowrisc:dv:uart_sim:0.1
 D=packages/opentitan-uart; mkdir -p $D
 rsync -a /tmp/ot/lowrisc_dv_uart_sim_0.1/sim-vcs/src /tmp/ot/lowrisc_dv_uart_sim_0.1/sim-vcs/lowrisc_dv_uart_sim_0.1.eda.yml $D/
-rsync -a <fvutils>/uvm-1.2/src/ $D/uvm-1.2/
 ```
 
 `opentitan-uart.f` was written from the `.eda.yml`: each include file's directory as
-`+incdir+`, each other file in order, `--top tb`.
+`+incdir+`, each other file in order, `--top tb`. Snapshots made before P1.7 also hold a
+copy of UVM 1.2 in `uvm-1.2/`, which the list no longer reads.

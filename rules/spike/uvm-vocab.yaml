@@ -8,6 +8,9 @@ sv-rules:
     is(c, base): derives_from(c, "uvm_pkg::" + base)
     # The class a node is in.
     cls(n): enclosing(n, Class)
+    # Class c registers itself with the factory: it declares its own
+    # `type_id`, as the utils macros do. An inherited one creates the base.
+    registered(c): c.members.exists(m, m.name == "type_id")
     # The common phases, as methods of uvm_component.
     PHASES: >-
       ["build_phase", "connect_phase", "end_of_elaboration_phase",

@@ -7,8 +7,8 @@
 // slang is right by IEEE 1800-2017 11.4.12.2; VCS and Xcelium accept a byte in a
 // string concatenation, and OpenTitan has 4.
 -Wno-string-int-concat
-+incdir+../../packages/opentitan-uart/uvm-1.2
-../../packages/opentitan-uart/uvm-1.2/uvm_pkg.sv
++incdir+../../packages/uvm-1.2/src
+../../packages/uvm-1.2/src/uvm_pkg.sv
 +incdir+../../packages/opentitan-uart/src/lowrisc_dv_dv_fcov_macros_0
 +incdir+../../packages/opentitan-uart/src/lowrisc_dv_dv_macros_0
 ../../packages/opentitan-uart/src/lowrisc_dv_pins_if_0/pins_if.sv

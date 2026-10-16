@@ -6,9 +6,10 @@ prints what each set decided, as Markdown.
 
     scripts/ctx_trial.py [--svcheck BIN] [--raw DIR] [CORPUS ...]
 
-CORPUS is a `tests/corpora/<name>.f` (default: the three of the trial). For
-each corpus and set it prints the labels on each package and definition (a
-class's are summed into its package, Q-CX3) with where they came from, how
+CORPUS is a `tests/corpora/<name>.f` (default: the three of the trial and
+P1.7's positive corpus). For each corpus and set it prints the labels on
+each package and definition (a class's are summed into its package, Q-CX3)
+with where they came from, how
 the two sets differ, the notes where a weaker source disagreed (Q-CX4), the
 units with more than one carrier (Q-CX5), and the three rules' findings.
 `--raw` keeps svcheck's JSON output there.
@@ -22,7 +23,7 @@ import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CORPORA = ["uvm-tb-proto", "fw-wb-dma", "opentitan-uart"]
+CORPORA = ["uvm-tb-proto", "fw-wb-dma", "opentitan-uart", "ctx-positive"]
 # Relative to ROOT, where svcheck runs, so evidence names them that way.
 RULES = "rules/trial/contexts.yaml"
 SETS = {

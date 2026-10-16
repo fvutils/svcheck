@@ -49,10 +49,17 @@ namespace host {
 namespace rf = svcheck::ast::reflect;
 
 /**
- * Installs the syntax schema in the engine. Call once, before any rule is
- * loaded (Reflect.h install()); a second call does nothing.
+ * The syntax schema's own tables, with its own ids (SyntaxNode is class 1),
+ * and its location hooks. Schema.cpp installs them after the semantic
+ * layer's and calls setSyntaxBases() with where they start.
  */
-void installSyntaxSchema();
+const rf::Schema &syntaxSchema();
+
+/** Where the syntax tables start in the installed schema (Schema.cpp). */
+void setSyntaxBases(uint16_t cls, uint16_t field, uint16_t enm, uint16_t st);
+
+/** Whether `n` is a syntax node (its class is in the syntax tables). */
+bool isSyntaxNode(const rf::Node &n);
 
 /** The node for a syntax node; a null node for nullptr. */
 rf::Node syntaxNode(const slang::syntax::SyntaxNode *n);
@@ -68,6 +75,15 @@ public:
 
     /** The id of the file a buffer belongs to, assigned on first use. */
     int32_t fileid(slang::BufferID buffer);
+
+    /**
+     * The same, naming the file `name` when this assigns its id: for a
+     * buffer made from text, which has no path.
+     */
+    int32_t fileid(slang::BufferID buffer, const std::string &name);
+
+    /** The path of the file whose text `loc` is in, macro expansions mapped to their use. */
+    std::string pathOf(slang::SourceLocation loc);
 
     const std::vector<std::string> &paths() const { return m_paths; }
 

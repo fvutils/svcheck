@@ -32,9 +32,23 @@ namespace syntax {
 
 namespace rf = svcheck::ast::reflect;
 
-/** The struct and enum indexes of the schema's own tables (Syntax.cpp). */
+/**
+ * The struct and enum indexes in the syntax schema's own tables (Syntax.cpp),
+ * which the generated tables use. The installed schema puts the syntax
+ * tables after the semantic layer's (Schema.cpp), so a value made at run
+ * time adds that layer's counts (Bases).
+ */
 constexpr uint16_t TokenStruct = 0;
 constexpr uint16_t TokenKindEnum = 0;
+
+/** Where the syntax tables start in the installed schema. */
+struct Bases {
+    uint16_t    cls = 0;        // added to a class id
+    uint16_t    field = 0;      // to a field index
+    uint16_t    enm = 0;        // to an enum index
+    uint16_t    st = 0;         // to a struct index
+};
+extern Bases bases;
 
 /** The generated tables. */
 extern const uint16_t NumClasses;

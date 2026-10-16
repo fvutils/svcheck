@@ -15,17 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * The SV parser behind the engine's node hooks (svcheck-plan P1.2): a
- * source text is parsed alone with slang, as a whole file named
- * `snippet.sv`. Its root, a CompilationUnit, is the hooks' `node`.
+ * How the engine's test hooks make trees of SV source text (snippet.sv).
  */
 #pragma once
+#include <string>
 #include "LintTestHooks.h"
+#include "Schema.h"
 
 namespace svcheck {
 namespace host {
 
+/** The syntax tree of the source alone (P1.2). */
 lint::HookParser syntaxHookParser();
+
+/**
+ * The source compiled and elaborated, for a semantic layer (P1.3): its
+ * roots are the layer's root, then the syntax tree's. When `uvmDir` is set
+ * (UVM's `src` directory) and the source mentions `uvm_`, uvm_pkg is
+ * compiled with it, parsed once and kept; its code is library code. A
+ * source with errors is refused, with the first one.
+ */
+lint::HookParser semanticHookParser(SemanticLayer layer, const std::string &uvmDir);
 
 }
 }

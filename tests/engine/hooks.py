@@ -16,9 +16,17 @@ from svcheck import native_path
 
 
 class EngineHooks:
-    def __init__(self):
+    def __init__(self, semantic=None, uvm=None):
+        """`semantic`: "model" or "slang" for a semantic layer, whose node hooks
+        compile their source (svcheck-plan P1.3), against uvm_pkg from `uvm`
+        (UVM's src directory) when the source mentions `uvm_`."""
+        args = [native_path(), "--engine-test-hooks"]
+        if semantic:
+            args.append("--semantic=" + semantic)
+        if uvm:
+            args.append("--uvm=" + uvm)
         self._proc = subprocess.Popen(
-            [native_path(), "--engine-test-hooks"],
+            args,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
             encoding="utf-8", errors="surrogateescape", bufsize=1)
 

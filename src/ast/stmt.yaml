@@ -1,0 +1,176 @@
+#****************************************************************************
+#* stmt.yaml -- statements (user code only).
+#****************************************************************************
+enums:
+- CaseCondition:
+    doc: How a case compares its items.
+    values:
+    - Normal: "`case`"
+    - WildcardXOrZ: "`casex`"
+    - WildcardJustZ: "`casez`"
+    - Inside: "`case ... inside`"
+
+- CaseCheck:
+    doc: A case's uniqueness qualifier.
+    values:
+    - NoCheck: "none"
+    - Unique: "`unique`"
+    - Unique0: "`unique0`"
+    - Priority: "`priority`"
+
+- AssertKind:
+    doc: An immediate assertion's kind.
+    values:
+    - Assert: "`assert`"
+    - Assume: "`assume`"
+    - Cover: "`cover`"
+
+classes:
+- Stmt:
+    super: SemNode
+    doc: A statement.
+
+- Block:
+    super: Stmt
+    doc: A `begin ... end` or `fork ... join` block, or a subroutine's statement list.
+    data:
+    - stmts:
+        type: list<UP<Stmt>>
+        is_ctor: false
+
+- ExprStmt:
+    super: Stmt
+    doc: An expression evaluated for its effect (a call, an assignment).
+    data:
+    - expr:
+        type: UP<Expr>
+        is_ctor: false
+
+- VarDecl:
+    super: Stmt
+    doc: A local variable declaration.
+    data:
+    - var:
+        type: UP<Variable>
+        is_ctor: false
+
+- If:
+    super: Stmt
+    doc: |
+        An `if`.
+
+        Attributes:
+            cond: the condition
+            ifTrue: the statement when it holds
+            ifFalse: the `else` statement, or null
+    data:
+    - cond:
+        type: UP<Expr>
+        is_ctor: false
+    - ifTrue:
+        type: UP<Stmt>
+        is_ctor: false
+    - ifFalse:
+        type: UP<Stmt>
+        is_ctor: false
+
+- Case:
+    super: Stmt
+    doc: |
+        A `case`, `casex`, `casez` or `case ... inside`.
+
+        Attributes:
+            check: unique, unique0, priority or none
+            condition: how items compare
+            expr: the expression compared
+            items: the items, in order
+            defaultCase: the `default` statement, or null
+    data:
+    - check:
+        type: CaseCheck
+        is_ctor: false
+    - condition:
+        type: CaseCondition
+        is_ctor: false
+    - expr:
+        type: UP<Expr>
+        is_ctor: false
+    - items:
+        type: list<UP<CaseItem>>
+        is_ctor: false
+    - defaultCase:
+        type: UP<Stmt>
+        is_ctor: false
+
+- CaseItem:
+    super: SemNode
+    doc: One item of a Case.
+    data:
+    - exprs:
+        type: list<UP<Expr>>
+        is_ctor: false
+    - body:
+        type: UP<Stmt>
+        is_ctor: false
+
+- Loop:
+    super: Stmt
+    doc: |
+        A loop: `for`, `foreach`, `while`, `do ... while`, `repeat`, `forever`.
+
+        Attributes:
+            slangKind: slang's statement kind (`ForLoop`, `ForeachLoop`, ...)
+            exprs: its control expressions (condition, steps, count)
+            body: its body
+    data:
+    - slangKind:
+        type: string
+        is_ctor: false
+    - exprs:
+        type: list<UP<Expr>>
+        is_ctor: false
+    - body:
+        type: UP<Stmt>
+        is_ctor: false
+
+- Return:
+    super: Stmt
+    doc: A `return`, with its value or null.
+    data:
+    - expr:
+        type: UP<Expr>
+        is_ctor: false
+
+- ImmediateAssert:
+    super: Stmt
+    doc: An immediate `assert`, `assume` or `cover`.
+    data:
+    - kind:
+        type: AssertKind
+        is_ctor: false
+    - cond:
+        type: UP<Expr>
+        is_ctor: false
+    - pass:
+        type: UP<Stmt>
+        is_ctor: false
+    - fail:
+        type: UP<Stmt>
+        is_ctor: false
+
+- OpaqueStmt:
+    super: Stmt
+    doc: |
+        A statement the model does not curate: slang's statement kind, and
+        its statements and expressions, so that what is inside it is still
+        walked.
+    data:
+    - slangKind:
+        type: string
+        is_ctor: false
+    - stmts:
+        type: list<UP<Stmt>>
+        is_ctor: false
+    - exprs:
+        type: list<UP<Expr>>
+        is_ctor: false

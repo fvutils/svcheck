@@ -1,0 +1,53 @@
+# The 4 UVM rules of svcheck-plan P1.3 (sv-uvm-rules-assessment §4), against
+# slang's own AST through a thin accessor table (src/host/SlangSchema.cpp).
+# For Q-SC5: set against uvm-model.yaml.
+sv-rules:
+  version: 1
+  defaults:
+    tier: suspicious
+  define:
+    is(c, base): derives_from(c, "uvm_pkg::" + base)
+    PHASES: >-
+      ["build_phase", "connect_phase", "end_of_elaboration_phase",
+       "start_of_simulation_phase", "run_phase", "extract_phase", "check_phase",
+       "report_phase", "final_phase"]
+  rules:
+    - id: UVM001
+      name: unregistered-uvm-class
+      summary: A UVM object or component class is not registered with the factory
+      message: "'${node.name}' is a UVM class but is not registered with the factory"
+      match: { kind: ClassType }
+      where: >-
+        !node.inLibrary && !node.isAbstract && is(node, "uvm_object") &&
+        !node.members.exists(m, m.name == "type_id" && m.symbolKind != "TransparentMember")
+
+    - id: UVM010
+      name: uvm-object-new
+      summary: A UVM object or component is constructed with new() instead of the factory
+      message: "${node.typeName} is constructed with new(); use type_id::create"
+      match: { kind: AstNewClassExpression }
+      where: >-
+        is(node.type, "uvm_object") && !is(node.type, "uvm_port_base") &&
+        enclosing(node, SubroutineSymbol).name != "create"
+
+    - id: UVM020
+      name: unchecked-randomize
+      summary: The result of randomize() is ignored
+      message: randomize() result is not checked
+      match: { kind: CallExpression }
+      let:
+        p: parent(node)
+      where: >-
+        node.subroutineName == "randomize" &&
+        (p.isa(AstExpressionStatement) || (p.isa(ConversionExpression) && p.typeName == "void") ||
+         ancestors(node).exists(a, a.isa(ImmediateAssertionStatement)))
+
+    - id: UVM030
+      name: phase-missing-super
+      summary: An overridden phase method does not call the parent's implementation
+      message: "${node.name} overrides ${node.override.name} but does not call it"
+      match: { kind: SubroutineSymbol }
+      where: >-
+        node.name in PHASES && is(enclosing(node, ClassType), "uvm_component") &&
+        node.override != null && !node.override.inLibrary &&
+        !descendants(node, CallExpression).exists(c, c.subroutine == node.override)

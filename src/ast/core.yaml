@@ -1,0 +1,67 @@
+#****************************************************************************
+#* core.yaml -- the curated SV model's root classes (svcheck-design §3.6;
+#* svcheck-plan P1.3). Namespace svcheck::sem.
+#*
+#* The model is lowered from slang's semantic model (src/lower). User code is
+#* lowered in full; library code (uvm_pkg, VIP) as declarations only: no
+#* subroutine bodies. What the model does not curate is an Opaque node, so
+#* nothing is dropped silently.
+#****************************************************************************
+structs:
+- Location:
+    doc: |
+        Where a node is: the run's file id and the 1-based line and column of
+        its first character, with macro expansions mapped to where the macro
+        is used (S-3). `extent` is the length when it ends on the same line,
+        else 0. All -1 when the node has no location.
+    data:
+    - fileid:
+        type: int32_t
+        init: -1
+    - lineno:
+        type: int32_t
+        init: -1
+    - linepos:
+        type: int32_t
+        init: -1
+    - extent:
+        type: int32_t
+        init: 0
+
+classes:
+- SemNode:
+    doc: |
+        The root of every curated node.
+    data:
+    - location:
+        type: Location
+        is_ctor: false
+        doc: Where the node is.
+
+- Design:
+    super: SemNode
+    doc: |
+        One compilation, lowered: the root the rules walk.
+
+        Attributes:
+            packages: every package, user and library, in compilation order
+            definitions: the modules, interfaces and programs
+            items: declarations outside any package or definition (`$unit`)
+            units: the context units (sv-contexts.md); empty until classify runs
+            deps: the dependency edges between units; empty until classify runs
+    data:
+    - packages:
+        type: list<UP<Package>>
+        is_ctor: false
+    - definitions:
+        type: list<UP<Definition>>
+        is_ctor: false
+    - items:
+        type: list<UP<Decl>>
+        is_ctor: false
+    - units:
+        type: list<UP<Unit>>
+        is_ctor: false
+    - deps:
+        type: list<UP<UnitDep>>
+        is_ctor: false

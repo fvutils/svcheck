@@ -1,0 +1,49 @@
+#****************************************************************************
+#* unit.yaml -- context units (sv-contexts.md; svcheck-plan R-6). Declared in
+#* P1.3; the classify stage that fills them comes in P1.4.
+#****************************************************************************
+enums:
+- UnitDepKind:
+    doc: What a UnitDep comes from.
+    values:
+    - Import: "a package import"
+    - TypeRef: "a reference to a type declared in the other unit"
+    - Include: "an `include` of the other unit's file"
+    - HierRef: "a hierarchical reference"
+    - VirtualInterface: "a virtual interface of the other unit's interface"
+
+classes:
+- Unit:
+    super: SemNode
+    doc: |
+        A context unit: one or more carriers (packages, definitions) with
+        their labels (sv-contexts.md §2).
+
+        Attributes:
+            name: the unit's name (`apb` in `agent(apb)`)
+            labels: its labels, on every axis
+            carriers: the packages and definitions it is made of
+    data:
+    - name:
+        type: string
+        is_ctor: false
+    - labels:
+        type: list<string>
+        is_ctor: false
+    - carriers:
+        type: list<P<Decl>>
+        is_ctor: false
+
+- UnitDep:
+    super: SemNode
+    doc: A dependency of one unit on another (sv-contexts.md §4.2).
+    data:
+    - kind:
+        type: UnitDepKind
+        is_ctor: false
+    - from:
+        type: P<Unit>
+        is_ctor: false
+    - to:
+        type: P<Unit>
+        is_ctor: false

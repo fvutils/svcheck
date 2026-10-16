@@ -36,6 +36,8 @@ add_subdirectory(${PACKAGES_DIR}/slang ${CMAKE_BINARY_DIR}/slang EXCLUDE_FROM_AL
 #*****************************************************************************
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_subdirectory(src/engine)
+add_subdirectory(src/ast)
+add_subdirectory(src/lower)
 add_subdirectory(src/host)
 
 #*****************************************************************************

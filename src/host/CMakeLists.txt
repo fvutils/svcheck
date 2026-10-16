@@ -23,6 +23,8 @@ add_custom_command(
 file(GLOB _host_src CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 add_library(svcheck_host STATIC ${_host_src} "${_schema_cpp}")
-target_include_directories(svcheck_host PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(svcheck_host PUBLIC svcheck_engine slang::slang)
+target_include_directories(svcheck_host
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+  PRIVATE "${SVCHECK_SEM_IMPL_DIR}")
+target_link_libraries(svcheck_host PUBLIC svcheck_engine svcheck_sem svcheck_lower slang::slang)
 set_target_properties(svcheck_host PROPERTIES POSITION_INDEPENDENT_CODE ON)

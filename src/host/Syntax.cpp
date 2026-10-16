@@ -30,6 +30,8 @@ namespace host {
 
 namespace syntax {
 
+Bases bases;
+
 namespace {
 
 Sources *s_sources = nullptr;
@@ -46,7 +48,7 @@ bool tokenLocation(const slang::parsing::Token &t, ast::Location &loc) {
 rf::Value tokText(const void *st) { return rf::Value::ofString(tok(st).valueText()); }
 rf::Value tokRaw(const void *st) { return rf::Value::ofString(tok(st).rawText()); }
 rf::Value tokKind(const void *st) {
-    return rf::Value::ofEnum(static_cast<int64_t>(tok(st).kind), TokenKindEnum);
+    return rf::Value::ofEnum(static_cast<int64_t>(tok(st).kind), bases.enm + TokenKindEnum);
 }
 rf::Value tokMissing(const void *st) { return rf::Value::ofBool(tok(st).isMissing()); }
 rf::Value tokLine(const void *st) {
@@ -63,7 +65,7 @@ rf::Value tokCol(const void *st) {
 const rf::StructFieldInfo tokenFields[] = {
     {"text", rf::FieldType::String, 0, &tokText},
     {"raw", rf::FieldType::String, 0, &tokRaw},
-    {"kind", rf::FieldType::Enum, TokenKindEnum, &tokKind},
+    {"kind", rf::FieldType::Enum, TokenKindEnum, &tokKind},     // shifted on install
     {"missing", rf::FieldType::Bool, 0, &tokMissing},
     {"line", rf::FieldType::I32, 0, &tokLine},
     {"col", rf::FieldType::I32, 0, &tokCol},
@@ -149,18 +151,20 @@ bool nameLocation(const rf::Node &n, ast::Location &loc) {
     loc = ast::Location();
     rf::Node at = n;
     // Two steps at most: a method's declaration, then the function's prototype.
-    for (int step=0; step<3 && at && at.kind < s_nameField.size(); step++) {
-        if (s_nameField[at.kind] >= 0) {
-            rf::Value v = fields[s_nameField[at.kind]].get(at.ptr, at.kind);
+    // The tables here are the syntax schema's own: ids less bases.cls.
+    for (int step=0; step<3 && isSyntaxNode(at); step++) {
+        uint16_t k = at.kind - bases.cls;
+        if (s_nameField[k] >= 0) {
+            rf::Value v = fields[s_nameField[k]].get(at.ptr, at.kind);
             if (v.kind == rf::Value::Kind::Struct) {
                 return tokenLocation(tok(v.st), loc);
             }
             return v.kind == rf::Value::Kind::Node && location(v.n, loc);
         }
-        if (s_viaField[at.kind] < 0) {
+        if (s_viaField[k] < 0) {
             return false;
         }
-        at = fields[s_viaField[at.kind]].get(at.ptr, at.kind).n;
+        at = fields[s_viaField[k]].get(at.ptr, at.kind).n;
     }
     return false;
 }
@@ -175,42 +179,51 @@ rf::Value tokenValue(const slang::parsing::Token &t) {
     if (!t) {
         return rf::Value();
     }
-    return rf::Value::ofStruct(&t, TokenStruct);
+    return rf::Value::ofStruct(&t, bases.st + TokenStruct);
 }
 
 }
 
-void installSyntaxSchema() {
-    static bool done = false;
-    if (done) {
-        return;
-    }
-    done = true;
-    static rf::EnumInfo enums[1];
-    enums[0].name = "TokenKind";
-    enums[0].flags = false;
-    enums[0].numValues = static_cast<uint16_t>(syntax::tokenKindNames().size());
-    enums[0].values = syntax::tokenKindNames().data();
-    syntax::buildNameFields();
+const rf::Schema &syntaxSchema() {
+    static const rf::Schema s = [] {
+        static rf::EnumInfo enums[1];
+        enums[0].name = "TokenKind";
+        enums[0].flags = false;
+        enums[0].numValues = static_cast<uint16_t>(syntax::tokenKindNames().size());
+        enums[0].values = syntax::tokenKindNames().data();
+        syntax::buildNameFields();
 
-    rf::Schema s;
-    s.numClasses = syntax::NumClasses;
-    s.classes = syntax::classes;
-    s.fields = syntax::fields;
-    s.numFields = syntax::numFields;
-    s.enums = enums;
-    s.numEnums = 1;
-    s.structs = syntax::structs;
-    s.numStructs = static_cast<uint16_t>(std::size(syntax::structs));
-    s.location = &syntax::location;
-    s.nameLocation = &syntax::nameLocation;
-    rf::install(s);
+        rf::Schema r;
+        r.numClasses = syntax::NumClasses;
+        r.classes = syntax::classes;
+        r.fields = syntax::fields;
+        r.numFields = syntax::numFields;
+        r.enums = enums;
+        r.numEnums = 1;
+        r.structs = syntax::structs;
+        r.numStructs = static_cast<uint16_t>(std::size(syntax::structs));
+        r.location = &syntax::location;
+        r.nameLocation = &syntax::nameLocation;
+        return r;
+    }();
+    return s;
+}
+
+void setSyntaxBases(uint16_t cls, uint16_t field, uint16_t enm, uint16_t st) {
+    syntax::bases.cls = cls;
+    syntax::bases.field = field;
+    syntax::bases.enm = enm;
+    syntax::bases.st = st;
+}
+
+bool isSyntaxNode(const rf::Node &n) {
+    return n && n.kind > syntax::bases.cls && n.kind <= syntax::bases.cls + syntax::NumClasses;
 }
 
 rf::Node syntaxNode(const slang::syntax::SyntaxNode *n) {
     rf::Node r;
     if (n) {
-        r.kind = syntax::classOf(n->kind);
+        r.kind = syntax::bases.cls + syntax::classOf(n->kind);
         r.ptr = const_cast<slang::syntax::SyntaxNode *>(n);
     }
     return r;
@@ -221,11 +234,18 @@ void setSources(Sources *s) {
 }
 
 int32_t Sources::fileid(slang::BufferID buffer) {
+    return fileid(buffer, "");
+}
+
+int32_t Sources::fileid(slang::BufferID buffer, const std::string &name) {
     auto it = m_ids.find(buffer.getId());
     if (it != m_ids.end()) {
         return it->second;
     }
-    std::string path = m_sm.getFullPath(buffer).string();
+    std::string path = name;
+    if (path.empty()) {
+        path = m_sm.getFullPath(buffer).string();
+    }
     if (path.empty()) {
         path = std::string(m_sm.getRawFileName(buffer));
     }
@@ -233,6 +253,11 @@ int32_t Sources::fileid(slang::BufferID buffer) {
     m_paths.push_back(path);
     m_ids.emplace(buffer.getId(), id);
     return id;
+}
+
+std::string Sources::pathOf(slang::SourceLocation loc) {
+    slang::SourceLocation e = m_sm.getFullyExpandedLoc(loc);
+    return e.valid() ? m_paths[fileid(e.buffer())] : std::string();
 }
 
 bool Sources::locate(slang::SourceRange range, ast::Location &loc) {

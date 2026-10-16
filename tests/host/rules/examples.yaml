@@ -1,0 +1,78 @@
+# The examples the 4 UVM rules of svcheck-plan P1.3 run on, shared by both
+# semantic layers' rule files (uvm-model.yaml, uvm-slang.yaml), so that
+# Q-SC5 compares the rules on the same code. A `// expect: ID` comment marks
+# the line a finding must be on; a line without one must have none.
+UVM001:
+  - |
+    import uvm_pkg::*; `include "uvm_macros.svh"
+    class my_item extends uvm_sequence_item;   // expect: UVM001
+      function new(string name = ""); super.new(name); endfunction
+    endclass
+  - |
+    import uvm_pkg::*; `include "uvm_macros.svh"
+    class my_item extends uvm_sequence_item;
+      `uvm_object_utils(my_item)
+      function new(string name = ""); super.new(name); endfunction
+    endclass
+    virtual class my_base extends uvm_component;
+      function new(string name, uvm_component parent); super.new(name, parent); endfunction
+    endclass
+    class plain;
+    endclass
+UVM010:
+  - |
+    import uvm_pkg::*; `include "uvm_macros.svh"
+    class my_item extends uvm_sequence_item;
+      `uvm_object_utils(my_item)
+      function new(string name = ""); super.new(name); endfunction
+    endclass
+    class my_test extends uvm_test;
+      `uvm_component_utils(my_test)
+      function new(string name, uvm_component parent); super.new(name, parent); endfunction
+      function void build_phase(uvm_phase phase);
+        my_item a = new("a");                   // expect: UVM010
+        my_item b;
+        uvm_analysis_port #(my_item) ap = new("ap", this);
+        b = my_item::type_id::create("b");
+      endfunction
+    endclass
+UVM020:
+  - |
+    import uvm_pkg::*; `include "uvm_macros.svh"
+    class my_item extends uvm_sequence_item;
+      `uvm_object_utils(my_item)
+      rand int x;
+      function new(string name = ""); super.new(name); endfunction
+    endclass
+    class my_seq extends uvm_sequence #(my_item);
+      `uvm_object_utils(my_seq)
+      function new(string name = ""); super.new(name); endfunction
+      task body();
+        my_item it = my_item::type_id::create("it");
+        it.randomize();                          // expect: UVM020
+        void'(it.randomize());                   // expect: UVM020
+        assert(it.randomize());                  // expect: UVM020
+        if (!it.randomize()) `uvm_error("SEQ", "randomize failed")
+      endtask
+    endclass
+UVM030:
+  - |
+    import uvm_pkg::*; `include "uvm_macros.svh"
+    class base_drv extends uvm_component;
+      `uvm_component_utils(base_drv)
+      function new(string name, uvm_component parent); super.new(name, parent); endfunction
+      function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+      endfunction
+      function void connect_phase(uvm_phase phase);
+      endfunction
+    endclass
+    class my_drv extends base_drv;
+      `uvm_component_utils(my_drv)
+      function new(string name, uvm_component parent); super.new(name, parent); endfunction
+      function void build_phase(uvm_phase phase);  // expect: UVM030
+      endfunction
+      function void connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+      endfunction
+    endclass

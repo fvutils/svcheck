@@ -1,0 +1,136 @@
+#****************************************************************************
+#* expr.yaml -- expressions (user code only).
+#****************************************************************************
+classes:
+- Expr:
+    super: SemNode
+    doc: |
+        An expression.
+
+        Attributes:
+            typeName: its type, as slang prints it
+            typeClass: its type's class, when it is a class handle
+    data:
+    - typeName:
+        type: string
+        is_ctor: false
+    - typeClass:
+        type: P<Class>
+        is_ctor: false
+
+- Call:
+    super: Expr
+    doc: |
+        A call of a subroutine, a built-in method (`randomize`) or a system
+        task or function.
+
+        Attributes:
+            name: the subroutine's name
+            subroutine: the subroutine called, or null for a built-in or system one
+            isSystem: a built-in method or system subroutine (`randomize`, `$display`)
+            isSuper: called through `super.`
+            receiver: the object a method is called on (`obj` in `obj.m()`), or null
+            args: the arguments, in order
+    data:
+    - name:
+        type: string
+        is_ctor: false
+    - subroutine:
+        type: P<Subroutine>
+        is_ctor: false
+    - isSystem:
+        type: bool
+        is_ctor: false
+        init: false
+    - isSuper:
+        type: bool
+        is_ctor: false
+        init: false
+    - receiver:
+        type: UP<Expr>
+        is_ctor: false
+    - args:
+        type: list<UP<Expr>>
+        is_ctor: false
+
+- NewClass:
+    super: Expr
+    doc: |
+        `new(...)` of a class: `typeClass` is the class constructed.
+    data:
+    - args:
+        type: list<UP<Expr>>
+        is_ctor: false
+
+- Assign:
+    super: Expr
+    doc: An assignment, blocking or not.
+    data:
+    - lhs:
+        type: UP<Expr>
+        is_ctor: false
+    - rhs:
+        type: UP<Expr>
+        is_ctor: false
+    - isNonBlocking:
+        type: bool
+        is_ctor: false
+        init: false
+
+- NamedValue:
+    super: Expr
+    doc: A reference to a variable or other value by name; `decl` is it, when lowered.
+    data:
+    - name:
+        type: string
+        is_ctor: false
+    - decl:
+        type: P<Decl>
+        is_ctor: false
+
+- MemberAccess:
+    super: Expr
+    doc: "`value.member`; `decl` is the member, when lowered."
+    data:
+    - value:
+        type: UP<Expr>
+        is_ctor: false
+    - member:
+        type: string
+        is_ctor: false
+    - decl:
+        type: P<Decl>
+        is_ctor: false
+
+- Literal:
+    super: Expr
+    doc: A literal, as written.
+    data:
+    - text:
+        type: string
+        is_ctor: false
+
+- Conversion:
+    super: Expr
+    doc: A cast, written (`void'(x)`, `int'(x)`) or implicit; `typeName` is the target type.
+    data:
+    - operand:
+        type: UP<Expr>
+        is_ctor: false
+    - isImplicit:
+        type: bool
+        is_ctor: false
+        init: false
+
+- OpaqueExpr:
+    super: Expr
+    doc: |
+        An expression the model does not curate: slang's expression kind, and
+        its operands, so that what is inside it is still walked.
+    data:
+    - slangKind:
+        type: string
+        is_ctor: false
+    - operands:
+        type: list<UP<Expr>>
+        is_ctor: false

@@ -1,0 +1,231 @@
+#****************************************************************************
+#* decl.yaml -- declarations: packages, definitions, classes, members.
+#****************************************************************************
+enums:
+- DefinitionKind:
+    doc: What a Definition is.
+    values:
+    - Module: "`module`"
+    - Interface: "`interface`"
+    - Program: "`program`"
+
+- SubroutineKind:
+    doc: A function or a task.
+    values:
+    - Function: "`function`"
+    - Task: "`task`"
+
+classes:
+- Decl:
+    super: SemNode
+    doc: |
+        A named declaration.
+
+        Attributes:
+            name: the declared name
+            qname: the name qualified by its package or definition (`uvm_pkg::uvm_object`)
+            inLibrary: declared in library code (uvm_pkg, or a configured VIP); its subroutines have no bodies
+            carrier: the package or definition the declaration is in, however deeply; null in `$unit`. A file `include`d into a package is in that package (sv-contexts.md §2.2)
+    data:
+    - name:
+        type: string
+        is_ctor: false
+    - qname:
+        type: string
+        is_ctor: false
+    - inLibrary:
+        type: bool
+        is_ctor: false
+        init: false
+    - carrier:
+        type: P<Decl>
+        is_ctor: false
+
+- Package:
+    super: Decl
+    doc: |
+        A package: a context carrier (sv-contexts.md §2.2).
+
+        Attributes:
+            imports: the packages it imports (`import p::*;` or `import p::x;`), each once
+            files: the files its text comes from: its own, then each file `include`d into it
+            items: its declarations
+    data:
+    - imports:
+        type: list<P<Package>>
+        is_ctor: false
+    - files:
+        type: list<string>
+        is_ctor: false
+    - items:
+        type: list<UP<Decl>>
+        is_ctor: false
+
+- Definition:
+    super: Decl
+    doc: |
+        A module, interface or program definition (not an instance): a context
+        carrier.
+
+        Attributes:
+            kind: module, interface or program
+            imports: the packages it imports
+            files: the files its text comes from
+            items: its declarations: variables, subroutines, classes
+    data:
+    - kind:
+        type: DefinitionKind
+        is_ctor: false
+    - imports:
+        type: list<P<Package>>
+        is_ctor: false
+    - files:
+        type: list<string>
+        is_ctor: false
+    - items:
+        type: list<UP<Decl>>
+        is_ctor: false
+
+- Class:
+    super: Decl
+    doc: |
+        A class declaration. A parameterised class is one Class, its generic
+        body; each specialisation of it refers to this node (S-2).
+
+        Attributes:
+            base: the class it extends, or null
+            supers: every class it derives from, nearest first
+            isAbstract: declared `virtual class`
+            isInterface: an `interface class`
+            params: the names of its parameters, value and type; empty when it has none
+            members: its own members, in declaration order
+    data:
+    - base:
+        type: P<Class>
+        is_ctor: false
+    - supers:
+        type: list<P<Class>>
+        is_ctor: false
+    - isAbstract:
+        type: bool
+        is_ctor: false
+        init: false
+    - isInterface:
+        type: bool
+        is_ctor: false
+        init: false
+    - params:
+        type: list<string>
+        is_ctor: false
+    - members:
+        type: list<UP<Decl>>
+        is_ctor: false
+
+- Typedef:
+    super: Decl
+    doc: |
+        A `typedef`.
+
+        Attributes:
+            typeName: the aliased type, as slang prints it
+            typeClass: the aliased type's class, when it is one (a specialisation's generic class)
+    data:
+    - typeName:
+        type: string
+        is_ctor: false
+    - typeClass:
+        type: P<Class>
+        is_ctor: false
+
+- Variable:
+    super: Decl
+    doc: |
+        A variable: a class property, a package or module variable, a local
+        or a subroutine argument.
+
+        Attributes:
+            typeName: its type, as slang prints it
+            typeClass: its type's class, when it is a class handle
+            vifDefinition: the interface, when its type is a virtual interface
+            isRand: `rand` or `randc`
+            isStatic: `static`
+            isConst: `const`
+            init: its initializer, or null
+    data:
+    - typeName:
+        type: string
+        is_ctor: false
+    - typeClass:
+        type: P<Class>
+        is_ctor: false
+    - vifDefinition:
+        type: P<Definition>
+        is_ctor: false
+    - isRand:
+        type: bool
+        is_ctor: false
+        init: false
+    - isStatic:
+        type: bool
+        is_ctor: false
+        init: false
+    - isConst:
+        type: bool
+        is_ctor: false
+        init: false
+    - init:
+        type: UP<Expr>
+        is_ctor: false
+
+- Subroutine:
+    super: Decl
+    doc: |
+        A function or task, with its body for user code.
+
+        Attributes:
+            kind: function or task
+            isVirtual: virtual, declared so or inherited
+            isPure: `pure virtual`
+            isStatic: `static`
+            overrides: the base-class method it overrides, or null
+            returnTypeName: the return type, as slang prints it; "void" for a task
+            args: its formal arguments
+            body: its body, or null (library code, a prototype)
+    data:
+    - kind:
+        type: SubroutineKind
+        is_ctor: false
+    - isVirtual:
+        type: bool
+        is_ctor: false
+        init: false
+    - isPure:
+        type: bool
+        is_ctor: false
+        init: false
+    - isStatic:
+        type: bool
+        is_ctor: false
+        init: false
+    - overrides:
+        type: P<Subroutine>
+        is_ctor: false
+    - returnTypeName:
+        type: string
+        is_ctor: false
+    - args:
+        type: list<UP<Variable>>
+        is_ctor: false
+    - body:
+        type: UP<Stmt>
+        is_ctor: false
+
+- OpaqueDecl:
+    super: Decl
+    doc: |
+        A declaration the model does not curate (a constraint, a covergroup,
+        a parameter, ...): slang's symbol kind, and its name.
+    data:
+    - slangKind:
+        type: string
+        is_ctor: false

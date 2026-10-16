@@ -18,6 +18,8 @@
 
 #include "HookParser.h"
 #include "LintTestHooks.h"
+#include "Schema.h"
+#include "SvLib.h"
 #include "Syntax.h"
 
 #include "slang/ast/Compilation.h"
@@ -32,11 +34,34 @@ static double seconds(Clock::time_point a, Clock::time_point b) {
     return std::chrono::duration<double>(b - a).count();
 }
 
-static int serveTestHooks() {
-    // Before any hook: the engine indexes the schema on first use.
-    svcheck::host::installSyntaxSchema();
+// --engine-test-hooks [--semantic=none|model|slang] [--uvm=DIR]: with a
+// semantic layer (P1.3), the node hooks compile their source, against
+// uvm_pkg from DIR (UVM's src directory) when it mentions `uvm_`.
+static int serveTestHooks(int argc, char** argv) {
+    using svcheck::host::SemanticLayer;
+    SemanticLayer layer = SemanticLayer::None;
+    std::string uvmDir;
+    for (int i = 2; i < argc; i++) {
+        std::string a = argv[i];
+        if (a.rfind("--semantic=", 0) == 0 &&
+            svcheck::host::semanticLayerOf(a.substr(11), layer))
+            continue;
+        if (a.rfind("--uvm=", 0) == 0) {
+            uvmDir = a.substr(6);
+            continue;
+        }
+        std::fprintf(stderr, "svcheck --engine-test-hooks: unknown option %s\n", a.c_str());
+        return 2;
+    }
+    // Before any hook: the engine indexes the schema, and builds the
+    // function registry, on first use.
+    svcheck::host::installSchema(layer);
+    svcheck::lint::cel::setHostLib(&svcheck::host::registerSvLib);
     svcheck::lint::LintTestHooks hooks;
-    hooks.setParser(svcheck::host::syntaxHookParser());
+    if (layer == SemanticLayer::None)
+        hooks.setParser(svcheck::host::syntaxHookParser());
+    else
+        hooks.setParser(svcheck::host::semanticHookParser(layer, uvmDir));
     std::string line;
     while (std::getline(std::cin, line)) {
         std::cout << hooks.dispatch(line) << '\n' << std::flush;
@@ -45,8 +70,8 @@ static int serveTestHooks() {
 }
 
 int main(int argc, char** argv) {
-    if (argc == 2 && std::strcmp(argv[1], "--engine-test-hooks") == 0)
-        return serveTestHooks();
+    if (argc >= 2 && std::strcmp(argv[1], "--engine-test-hooks") == 0)
+        return serveTestHooks(argc, argv);
 
     driver::Driver driver;
     driver.addStandardArgs();

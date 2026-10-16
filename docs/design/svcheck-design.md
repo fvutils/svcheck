@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft, 2026-10-15. Direction agreed in discussion. Built so far: the bootstrap, the engine fork and the syntax schema (svcheck-plan P0, P1.1, P1.2). |
+| **Status** | Draft, 2026-10-15. Direction agreed in discussion. Built so far: the bootstrap, the engine fork, the syntax schema and both semantic layers for Q-SC5 (svcheck-plan P0, P1.1–P1.3). |
 | **Home** | `svcheck/docs/design/`, with its SV companions (moved from pssparser 2026-10-15, §13). |
 | **What** | `svcheck` checks SystemVerilog, and UVM testbenches first, against declarative rules (`sv-rules`: YAML plus CEL), built on slang, with its own rule engine modelled on pssparser's. |
 | **Supersedes** | Nothing. Consolidates the SV material in `sv-lint-survey.md`, `sv-lint-demand.md`, `sv-uvm-rules-assessment.md`, `sv-uvm-elaboration-checks.md` and `model-query-database.md` into one design; those stay as the detailed record. |
@@ -164,6 +164,7 @@ namespace `pssp` became `svcheck`, the codes `PSSP2xx` became `SVCHK2xx`, and th
 | `src/engine/include/svcheck/` | `src/include/pssp/lint/`, `IMarker.h`, `src/Marker.h` | `ILintEngine` as above; `Marker` is header-only; `ast/Location.h` is written by hand |
 | `src/engine/schema/Reflect.*` | the interface of pyastbuilder `gen-reflect`'s generated `Reflect.h` | the tables are installed by the host at run time (C9.1), not compiled in. A string value is a view, not a `std::string` (P1.2: slang's tokens hold views) |
 | `src/engine/{cel,rules,catalog}/*.py` | the same paths | paths and names only |
+| `src/host/SvLib.cpp`: `isa` and the navigation group (`parent`, `ancestors`, `enclosing`, `children`, `descendants`) | `src/lint/lib/PssLib.cpp` | library name `sv`; P1.3 |
 | `scripts/cel_differential.py` | `scripts/cel_differential.py` | drives `svcheck --engine-test-hooks` |
 | `tests/engine/test_{cel_*,regex,yaml*,rule_loader}.py`, `tests/data/{cel-conformance,sv-rules}/` | `tests/python/lintcore/`, `tests/data/{cel-conformance,pss-rules}/` | the root key and namespaces are renamed. P1.2 re-targeted the tests that named PSS kinds or parsed PSS at the SV syntax schema and SV snippets; `tests/engine/needs_schema.txt` holds the few that still wait |
 

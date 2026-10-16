@@ -498,6 +498,13 @@ private:
 
     //* Links.
 
+    static void addInterface(sem::Class *cls, sem::IClass *i) {
+        std::vector<sem::IClass *> &l = cls->getInterfaces();
+        if (i && std::find(l.begin(), l.end(), i) == l.end()) {
+            l.push_back(i);
+        }
+    }
+
     void links() {
         for (auto &[ct, cls] : m_classes) {
             const sa::Type *base = ct->getBaseClass();
@@ -514,6 +521,18 @@ private:
             std::unordered_set<sem::IClass *> seen{cls};
             for (sem::IClass *b = cls->getBase(); b && seen.insert(b).second; b = b->getBase()) {
                 cls->getSupers().push_back(b);
+            }
+            // slang's list holds the interfaces extended by those implemented,
+            // but not those a base class implements: added below.
+            for (const sa::Type *i : sym->getImplementedInterfaces()) {
+                addInterface(cls, i->isClass() ? classNode(*i) : nullptr);
+            }
+        }
+        for (auto &[sym, cls] : m_classes) {
+            for (sem::IClass *b : cls->getSupers()) {
+                for (sem::IClass *i : b->getInterfaces()) {
+                    addInterface(cls, i);
+                }
             }
         }
         for (auto &[scope, n] : m_imports) {

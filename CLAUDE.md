@@ -49,6 +49,14 @@ rule scopes in `src/host/Lint.cpp`). `applies_to` on rules is applied by the run
 labels the classify stage leaves on `run::Context`. The engine hooks hold whole engines by id
 (`factory.mkLintEngine()` in `tests/engine/conftest.py`).
 
+P1.6 added the spike's 10 rules, in `rules/spike/` (provisional IDs; `uvm.yaml` reads
+`uvm-vocab.yaml` through `uses:`), tested by `tests/host/test_spike_rules.py` (examples, predicate
+length, a Verible fixture). `scripts/verible_equiv.py -- <svcheck file args>` diffs the
+Verible-equivalent rules against Verible (`packages/verible`, from ivpm), and
+`scripts/mk_filelist.py` writes a `-f` list for a source tree that has none. The lint JSON lists
+the compilation's user files (`compilation.files`). Findings in a file with a syntax error, or in
+library code, are not shown; this works per file, `--single-unit` included.
+
 ## Build and test
 
 ```sh

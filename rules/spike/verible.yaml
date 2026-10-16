@@ -1,0 +1,116 @@
+# Three of Verible's lint rules as data (svcheck-plan P1.6; sv-lint-survey §3,
+# group B). Each rule's `name` is Verible's, which scripts/verible_equiv.py
+# uses to pair the two tools' findings. All three read the syntax tree only, so
+# they run per file, as Verible does, even where the compilation fails. Like
+# Verible, they check the code as written: what a macro expands to is not
+# checked (`macro_of(node) == ""`); Verible sees only the macro's call.
+#
+# Reference: Verible v0.0-4296-g0f262651, the build ivpm fetches (packages/verible).
+# IDs are provisional (spike rules; renamed or dropped at P2.0).
+sv-rules:
+  version: 1
+  defaults:
+    tier: style
+  rules:
+    - id: VBL001
+      name: case-missing-default
+      summary: A case statement has no default item and is not unique or unique0
+      message: >-
+        case statement has no default item; add one, or qualify the case as unique or unique0
+      doc: |
+        Verible's case-missing-default. `unique` and `unique0` exempt a case,
+        as in Verible; `priority` does not. A generate `case` and a `randcase`
+        are other kinds, and are not checked.
+      match: { kind: CaseStatement }
+      where: >-
+        macro_of(node) == "" &&
+        (node.uniqueOrPriority == null ||
+         !(node.uniqueOrPriority.text in ["unique", "unique0"])) &&
+        !node.items.exists(i, i.isa(DefaultCaseItem))
+      examples:
+        - code: |
+            module m(input logic [1:0] s, output logic y);
+              always_comb begin
+                case (s)                     // expect: VBL001
+                  2'd0: y = 0;
+                endcase
+                unique case (s)
+                  2'd0: y = 1;
+                endcase
+                unique0 case (s)
+                  2'd0: y = 1;
+                endcase
+                priority case (s)            // expect: VBL001
+                  2'd0: y = 1;
+                endcase
+                case (s)
+                  2'd0: y = 0;
+                  default: y = 1;
+                endcase
+              end
+            endmodule
+
+    - id: VBL002
+      name: explicit-function-lifetime
+      summary: A function outside a class does not declare its lifetime
+      message: >-
+        function '${type(node.prototype.name) == IdentifierName ?
+        node.prototype.name.identifier.text : ""}' does not declare its lifetime;
+        write 'function automatic' or 'function static'
+      doc: |
+        Verible's explicit-function-lifetime. A function in a module, interface,
+        program or package is static unless declared otherwise, unlike a class
+        method. Class methods, and out-of-line definitions of them
+        (`function c::f`), are exempt.
+      match: { kind: FunctionDeclaration }
+      where: >-
+        macro_of(node) == "" &&
+        node.prototype.lifetime == null && node.prototype.name.isa(IdentifierName) &&
+        !ancestors(node).exists(a, a.isa(ClassDeclaration))
+      examples:
+        - code: |
+            package p;
+              function int f(int a); return a; endfunction   // expect: VBL002
+              function automatic int g(int a); return a; endfunction
+              class c;
+                function int h(); return 0; endfunction
+                extern function int k();
+              endclass
+              function int c::k(); return 1; endfunction
+            endpackage
+
+    - id: VBL003
+      name: invalid-system-task-function
+      summary: A system task or function that is not in the LRM, or is deprecated
+      message: >-
+        '${node.systemIdentifier.text}' is not allowed${node.systemIdentifier.text in INSTEAD
+        ? "; use " + INSTEAD[node.systemIdentifier.text] : ""}
+      doc: |
+        Verible's invalid-system-task-function: `$psprintf`, `$random`,
+        `$srandom` and the `$dist_*` functions. The list is an option; the
+        message names Verible's replacement for each.
+      options:
+        forbidden:
+          type: string-list
+          default: [$psprintf, $random, $srandom, $dist_chi_square, $dist_erlang,
+                    $dist_exponential, $dist_normal, $dist_poisson, $dist_t, $dist_uniform]
+          help: The system names to report
+      define:
+        INSTEAD: >-
+          {"$psprintf": "$sformatf", "$random": "$urandom",
+           "$srandom": "process::self().srandom()", "$dist_chi_square": "$urandom",
+           "$dist_erlang": "$urandom", "$dist_exponential": "$urandom",
+           "$dist_normal": "$urandom", "$dist_poisson": "$urandom", "$dist_t": "$urandom",
+           "$dist_uniform": "$urandom"}
+      match: { kind: SystemName }
+      where: macro_of(node) == "" && node.systemIdentifier.text in options.forbidden
+      examples:
+        - code: |
+            module m;
+              initial begin
+                int x;
+                x = $random;                                 // expect: VBL003
+                x = $urandom;
+                $display("%s", $psprintf("%0d", x));        // expect: VBL003
+              end
+            endmodule

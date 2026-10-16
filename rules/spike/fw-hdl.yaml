@@ -1,0 +1,152 @@
+# Three of fw-hdl's restrictions as data (svcheck-plan P1.6; sv-lint-survey
+# §1.3, FWH001-FWH005), against fw-hdl's current API (featherweight-hdl/fw-hdl,
+# docs/methodology/components.md and synthesis.md). IDs are the survey's,
+# provisional until P2.0.
+#
+# FWH003 (try_get on a port that is not fw_get_nb_if) and FWH004 (an export
+# connected to a port) are not here: slang rejects both. `try_get` is not a
+# method of fw_get_if, and fw_export::connect takes only an fw_export.
+#
+# The examples declare a stub fw_hdl_pkg with the names the rules read, so
+# they compile without fw-hdl.
+sv-rules:
+  version: 1
+  defaults:
+    tier: restriction
+  define:
+    is_fw(c, name): derives_from(c, "fw_hdl_pkg::" + name)
+  rules:
+    - id: FWH001
+      name: forgot-add-runnable
+      tier: correctness
+      summary: A runnable class never registers itself with add_runnable(this)
+      message: >-
+        '${node.name}' implements fw_runnable, but no constructor in its class chain calls
+        add_runnable(this); its run() will never be forked
+      doc: |
+        A runnable is not detected automatically (fw_runnable.svh): it registers
+        with its component through add_runnable(this), usually in its
+        constructor. Without that it builds and connects, then does nothing,
+        which looks exactly like an idle model. A base class's constructor
+        counts; so does any library base that is runnable, since a library
+        constructor has no body to look into.
+      define:
+        registers(k): >-
+          k.members.exists(m, m.name == "new" && descendants(m, Call).exists(c,
+            c.name == "add_runnable" && c.args.size() == 1 && is_this(c.args[0])))
+        # `this`, as written or converted to the argument's type (fw_runnable).
+        is_this(e): this_ref(e) || (e.isa(Conversion) && this_ref(e.operand))
+        this_ref(e): e.isa(NamedValue) && e.name == "this"
+      match: { kind: Class }
+      where: >-
+        !node.inLibrary && !node.isAbstract && !node.isInterface && is_fw(node, "fw_runnable") &&
+        !([node] + node.supers).exists(k,
+          registers(k) || (k.inLibrary && is_fw(k, "fw_runnable")))
+      examples:
+        - files:
+            fw_hdl_pkg.sv: &fw_hdl_pkg |
+              package fw_hdl_pkg;
+                interface class fw_runnable; pure virtual task run(); endclass
+                class fw_component;
+                  function new(string name, fw_component parent); endfunction
+                  function void add_runnable(fw_runnable r); endfunction
+                endclass
+                class fw_port #(type T);
+                  T t;
+                  function new(string name = "", fw_component parent = null); endfunction
+                endclass
+                interface class fw_put_if #(type T); pure virtual task put(T v); endclass
+                interface class fw_get_if #(type T); pure virtual task get(output T v); endclass
+              endpackage
+            a.sv: |
+              import fw_hdl_pkg::*;
+              class idle extends fw_component implements fw_runnable;   // expect: FWH001
+                function new(string name, fw_component parent); super.new(name, parent); endfunction
+                virtual task run(); endtask
+              endclass
+              class busy extends fw_component implements fw_runnable;
+                function new(string name, fw_component parent);
+                  super.new(name, parent);
+                  add_runnable(this);
+                endfunction
+                virtual task run(); endtask
+              endclass
+              class busier extends busy;
+                function new(string name, fw_component parent); super.new(name, parent); endfunction
+                virtual task run(); endtask
+              endclass
+              class structural extends fw_component;
+                function new(string name, fw_component parent); super.new(name, parent); endfunction
+              endclass
+
+    - id: FWH002
+      name: channel-op-outside-run
+      summary: A channel operation outside run()
+      message: >-
+        ${node.name}() on a port in ${enclosing(node, Subroutine).name}(); channel
+        operations belong in run()
+      doc: |
+        A port's operations (`port.t.get`, `put`, `try_get`) are the run phase's:
+        in build or connect the port is not resolved yet, and the synthesis flow
+        lowers only run() to a proc. A helper task that run() calls is reported
+        too: the flow rejects calls to other tasks.
+      define:
+        port_t(e): e.isa(MemberAccess) && e.member == "t" && is_fw(type_of(e.value), "fw_port")
+      match: { kind: Call }
+      where: >-
+        node.name in ["get", "put", "try_get"] && node.receiver != null && port_t(node.receiver) &&
+        !in_library(node) && enclosing(node, Subroutine).name != "run"
+      examples:
+        - files:
+            fw_hdl_pkg.sv: *fw_hdl_pkg
+            a.sv: |
+              import fw_hdl_pkg::*;
+              class blk extends fw_component implements fw_runnable;
+                fw_port #(fw_get_if #(int)) in;
+                fw_port #(fw_put_if #(int)) out;
+                function new(string name, fw_component parent);
+                  super.new(name, parent);
+                  add_runnable(this);
+                endfunction
+                virtual task run();
+                  int v;
+                  in.t.get(v);
+                  out.t.put(v);
+                endtask
+                task send(int v);
+                  out.t.put(v);                                         // expect: FWH002
+                endtask
+                task get(output int v); v = 0; endtask
+                task drain(); int v; get(v); endtask
+              endclass
+
+    - id: FWH005
+      name: four-state-in-static-subset
+      family: decl
+      summary: A 4-state vector in a component
+      message: >-
+        '${node.name}' is ${node.type.name}; the static subset is 2-state: use bit
+      doc: |
+        fw-hdl's static subset is 2-state: `logic` wider than 1 bit is rejected
+        (synthesis.md). A 1-bit `logic` is accepted.
+      match: { kind: Variable }
+      where: >-
+        !in_library(node) && is_fw(enclosing(node, Class), "fw_component") &&
+        node.type.isFourState && node.type.bitWidth > 1
+      examples:
+        - files:
+            fw_hdl_pkg.sv: *fw_hdl_pkg
+            a.sv: |
+              import fw_hdl_pkg::*;
+              class blk extends fw_component;
+                logic [7:0] state;                                     // expect: FWH005
+                logic       flag;
+                bit [7:0]   count;
+                function new(string name, fw_component parent); super.new(name, parent); endfunction
+                function void f(logic [3:0] a);                        // expect: FWH005
+                  logic [1:0] t;                                       // expect: FWH005
+                endfunction
+              endclass
+              class not_a_component;
+                logic [7:0] x;
+              endclass

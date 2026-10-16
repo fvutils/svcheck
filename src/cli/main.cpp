@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -51,7 +52,8 @@ static int serveTestHooks(int argc, char** argv) {
             svcheck::host::semanticLayerOf(a.substr(11), layer))
             continue;
         if (a.rfind("--uvm=", 0) == 0) {
-            uvmDir = a.substr(6);
+            // Absolute: library code is found by comparing absolute paths.
+            uvmDir = std::filesystem::absolute(a.substr(6)).lexically_normal().string();
             continue;
         }
         std::fprintf(stderr, "svcheck --engine-test-hooks: unknown option %s\n", a.c_str());

@@ -100,6 +100,7 @@ classes:
         Attributes:
             base: the class it extends, or null
             supers: every class it derives from, nearest first
+            interfaces: the interface classes it implements, or an interface class extends, with those they extend, and those its bases implement
             isAbstract: declared `virtual class`
             isInterface: an `interface class`
             params: the names of its parameters, value and type; empty when it has none
@@ -109,6 +110,9 @@ classes:
         type: P<Class>
         is_ctor: false
     - supers:
+        type: list<P<Class>>
+        is_ctor: false
+    - interfaces:
         type: list<P<Class>>
         is_ctor: false
     - isAbstract:

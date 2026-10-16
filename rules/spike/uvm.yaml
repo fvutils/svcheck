@@ -1,0 +1,160 @@
+# Four UVM rules (svcheck-plan P1.6; sv-uvm-rules-assessment §4), against the
+# curated model. IDs are the assessment's, provisional until P2.0.
+# tests/host/rules/ keeps a minimal copy of each predicate on both semantic
+# layers for Q-SC5; these are the full rules.
+sv-rules:
+  version: 1
+  uses: [uvm-vocab.yaml]
+  defaults:
+    tier: suspicious
+  rules:
+    - id: UVM001
+      name: unregistered-uvm-class
+      summary: A UVM object or component class is not registered with the factory
+      message: >-
+        '${node.name}' is a ${is(node, "uvm_component") ? "uvm_component" : "uvm_object"}
+        but is not registered; type_id::create and factory overrides cannot see it
+      doc: |
+        Add `uvm_component_utils(T) or `uvm_object_utils(T) (`_param_utils for a
+        parameterised class). The rule looks for the `type_id` the macros declare,
+        so a hand-written registration or a house wrapper macro also satisfies it.
+        Only the class's own members count: `type_id` is inherited from a
+        registered base, which `member()` would find. An abstract (`virtual`)
+        class is exempt.
+      options:
+        exempt_bases:
+          type: string-list
+          default: []
+          help: Classes whose subclasses need not be registered (a config base, per Easier UVM)
+      match: { kind: Class }
+      where: >-
+        !node.inLibrary && !node.isAbstract && is(node, "uvm_object") &&
+        !node.members.exists(m, m.name == "type_id") &&
+        !options.exempt_bases.exists(b, derives_from(node, b))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;   // expect: UVM001
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_cmp extends uvm_component;        // expect: UVM001
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_param_item #(int W = 8) extends uvm_sequence_item;
+              `uvm_object_param_utils(my_param_item #(W))
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            virtual class my_base extends uvm_component;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class plain;
+            endclass
+
+    - id: UVM010
+      name: uvm-object-new
+      summary: A UVM object or component is constructed with new() instead of the factory
+      message: >-
+        ${node.type.name} is constructed with new(); use
+        ${node.type.name}::type_id::create(...) so factory overrides apply
+      doc: |
+        TLM ports and exports (uvm_port_base) are built with new() by
+        convention, and a class's own `create` method is where new() belongs.
+      match: { kind: NewClass }
+      where: >-
+        !in_library(node) && is(node.type.classDecl, "uvm_object") &&
+        !is(node.type.classDecl, "uvm_port_base") &&
+        enclosing(node, Subroutine).name != "create"
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                my_item a = new("a");                   // expect: UVM010
+                my_item b;
+                uvm_analysis_port #(my_item) ap = new("ap", this);
+                b = my_item::type_id::create("b");
+              endfunction
+            endclass
+
+    - id: UVM020
+      name: unchecked-randomize
+      summary: The result of randomize() is ignored
+      message: >-
+        randomize() ${discarded(node) ? "result is discarded" : "is checked only by an assertion"};
+        a constraint failure goes unnoticed${discarded(node) ? "" :
+        " when assertions are off"}
+      doc: |
+        A randomize() that fails leaves the object unchanged and returns 0.
+        Ignoring the result, or checking it only with `assert`, which a
+        simulator may turn off, hides the failure.
+      match: { kind: Call }
+      where: >-
+        node.name == "randomize" && !in_library(node) &&
+        (discarded(node) || ancestors(node).exists(a, a.isa(ImmediateAssert)))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              rand int x;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_seq extends uvm_sequence #(my_item);
+              `uvm_object_utils(my_seq)
+              function new(string name = ""); super.new(name); endfunction
+              task body();
+                my_item it = my_item::type_id::create("it");
+                it.randomize();                          // expect: UVM020
+                void'(it.randomize());                   // expect: UVM020
+                assert(it.randomize());                  // expect: UVM020
+                if (!it.randomize()) `uvm_error("SEQ", "randomize failed")
+              endtask
+            endclass
+
+    - id: UVM030
+      name: phase-missing-super
+      summary: An overridden phase method does not call the parent's implementation
+      message: >-
+        ${node.name} overrides ${node.overrides.qname} but never calls
+        super.${node.name}(); the parent's ${node.name} is skipped
+      doc: |
+        Only an override of user code is checked: uvm_component's own phase
+        methods are empty, so skipping them is harmless.
+      match: { kind: Subroutine }
+      where: >-
+        node.name in PHASES && is(cls(node), "uvm_component") &&
+        node.overrides != null && !node.overrides.inLibrary &&
+        !descendants(node, Call).exists(c, c.subroutine == node.overrides)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class base_drv extends uvm_component;
+              `uvm_component_utils(base_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+              endfunction
+              function void connect_phase(uvm_phase phase);
+              endfunction
+            endclass
+            class my_drv extends base_drv;
+              `uvm_component_utils(my_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);  // expect: UVM030
+              endfunction
+              function void connect_phase(uvm_phase phase);
+                super.connect_phase(phase);
+              endfunction
+            endclass

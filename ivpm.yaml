@@ -50,6 +50,12 @@ package:
     # Apache-2.0.
     - name: cel-python
       src: pypi
+    # Verible's linter, the reference for the Verible-equivalent rules
+    # (scripts/verible_equiv.py, tests/host/test_verible_equiv.py; skipped
+    # when absent). A static Linux x86_64 build. Test-only. Apache-2.0.
+    - name: verible
+      url: https://github.com/chipsalliance/verible/releases/download/v0.0-4296-g0f262651/verible-v0.0-4296-g0f262651-linux-static-x86_64.tar.gz
+      type: raw
     - name: pytest
       src: pypi
     - name: ninja

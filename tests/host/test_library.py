@@ -67,6 +67,27 @@ def test_members_hide_by_name(model):
         "p::b::y", "p::b::f", "p::a::x"]
 
 
+IFACES = ("interface class i; endclass\n"
+          "interface class j extends i; endclass\n"
+          "class a implements j; endclass\n"
+          "class b extends a; endclass\n"
+          "class c; b h; endclass\n")
+
+
+def test_interfaces_are_flattened_up_the_hierarchy(model):
+    # P1.6: an interface class implemented by a base, or extended by one
+    # implemented, is among a class's interfaces; derives_from follows them.
+    assert _eval(model, IFACES, 'node.items[2].interfaces.map(k, k.name)') == ["j", "i"]
+    assert _eval(model, IFACES, 'node.items[3].interfaces.map(k, k.name)') == ["j", "i"]
+    assert _eval(model, IFACES, 'node.items[1].interfaces.map(k, k.name)') == ["i"]
+    assert _eval(model, IFACES, 'derives_from(node.items[3], "i")') is True
+
+
+def test_derives_from_a_type_asks_of_its_class(model):
+    assert _eval(model, IFACES, 'derives_from(type_of(node.items[4].members[0]), "a")') is True
+    assert _eval(model, IFACES, 'derives_from(type_of(node.items[4].members[0]), "c")') is False
+
+
 def test_owner(model):
     assert _eval(model, CLASSES, 'owner(%s.members[1]).qname' % B) == "p::b"
     assert _eval(model, CLASSES, 'owner(%s).name' % B) == "p"

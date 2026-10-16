@@ -23,7 +23,8 @@
  * library function above level L0, matches or tests a semantic-layer kind,
  * or has `applies_to` (contexts are classified on the model). When the
  * compilation has errors, those rules are **not run**, each reported once;
- * the rest run on the syntax trees of the files that parsed cleanly.
+ * the rest run on the syntax trees, and their findings are shown only in
+ * files without a syntax error.
  */
 #pragma once
 #include <memory>
@@ -76,14 +77,29 @@ public:
     /** The compilation's errors, which slang reported. */
     uint32_t errors() const { return m_errors; }
 
-    /** The files with syntax errors, which no rule runs on. */
+    /**
+     * The user files with syntax errors, as absolute paths: their findings
+     * are not shown. A tree with no other user file is not linted.
+     */
     const std::vector<std::string> &unparsed() const { return m_unparsed; }
+
+    /**
+     * Whether a finding in file `path` is shown: not when the file has a
+     * syntax error, nor when it is library code (S-6).
+     */
+    bool shows(const std::string &path) const;
 
     /**
      * Each file's path, by fileid: the fileids the findings carry. It grows
      * as the run locates nodes in files it has not seen (an `include`d file).
      */
     const std::vector<std::string> &paths() const;
+
+    /**
+     * Every user file the compilation read, as an absolute path, sorted:
+     * the command line's and those they `include`; not library code.
+     */
+    const std::vector<std::string> &files() const { return m_files; }
 
     /** The library directories, as absolute paths. */
     const std::vector<std::string> &libraryDirs() const { return m_libraryDirs; }
@@ -96,6 +112,7 @@ private:
     SvContext                                   *m_sv = nullptr;
     uint32_t                                    m_errors = 0;
     std::vector<std::string>                    m_unparsed;
+    std::vector<std::string>                    m_files;
     std::vector<std::string>                    m_libraryDirs;
 };
 

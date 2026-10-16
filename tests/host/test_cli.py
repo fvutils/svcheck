@@ -140,7 +140,8 @@ def test_json(tb):
     doc = json.loads(r.stdout)
     assert [(f["code"], f["file"], f["line"], f["col"]) for f in doc["findings"]] == [
         ("ACME001", "agent/apb_driver.svh", 5, 5), ("ACME001", "agent/apb_driver.svh", 6, 5)]
-    assert doc["compilation"] == {"errors": 0, "unparsed": []}
+    assert doc["compilation"] == {"errors": 0, "unparsed": [], "files": [
+        "agent/apb_agent_pkg.sv", "agent/apb_driver.svh", "env_pkg.sv"]}
     stats = {s["id"]: s for s in doc["rules"]}
     # The env's calls (its own and its macros') are outside the agent.
     assert stats["ACME001"]["findings"] == 2 and stats["ACME001"]["outside"] >= 2
@@ -179,6 +180,20 @@ def test_a_file_with_syntax_errors_is_not_linted(tb):
     doc = json.loads(r.stdout)
     assert doc["compilation"]["unparsed"] == ["bad.sv"]
     assert [f["code"] for f in doc["findings"]] == ["SVCHK231"]
+
+
+def test_single_unit_lints_each_file_that_parses(tb):
+    # --single-unit makes one syntax tree of every file, uvm_pkg's first:
+    # the user's files are still linted, and a syntax error hides only its
+    # own file's findings.
+    (tb / "bad.sv").write_text("package bad_x; int x = ; endpackage\n")
+    (tb / "other.sv").write_text("package other; endpackage\n")
+    r = svcheck(tb, "--single-unit", "-f", "tb.f", "bad.sv", "other.sv", "--rules", "r.yaml",
+                "--format", "json")
+    doc = json.loads(r.stdout)
+    assert doc["compilation"]["unparsed"] == ["bad.sv"]
+    assert [(f["code"], f["file"]) for f in doc["findings"]] == [
+        ("SVCHK231", None), ("ACME002", "other.sv")]
 
 
 def test_applies_to_with_no_classifiers_is_not_run(tb):

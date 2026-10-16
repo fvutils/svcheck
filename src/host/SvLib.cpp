@@ -213,16 +213,26 @@ Value derivesFromImpl(CallArgs &c) {
     if (installedLayer() != SemanticLayer::Model) {
         return Value::boolean(false);
     }
-    auto *cls = dynamic_cast<sem::IClass *>(sem::reflect::asSemNode(n));
+    // A class, or a type: a class handle's class.
+    sem::ISemNode *s = sem::reflect::asSemNode(n);
+    if (auto *t = dynamic_cast<sem::ITypeRef *>(s)) {
+        s = t->getClassDecl();
+    }
+    auto *cls = dynamic_cast<sem::IClass *>(s);
     if (!cls) {
         return Value::boolean(false);
     }
-    c.steps = 1 + cls->getSupers().size();
+    c.steps = 1 + cls->getSupers().size() + cls->getInterfaces().size();
     if (classIs(cls, name)) {
         return Value::boolean(true);
     }
     for (const sem::IClass *b : cls->getSupers()) {
         if (classIs(b, name)) {
+            return Value::boolean(true);
+        }
+    }
+    for (const sem::IClass *i : cls->getInterfaces()) {
+        if (classIs(i, name)) {
             return Value::boolean(true);
         }
     }
@@ -508,10 +518,11 @@ void registerSvLib(cel::FunctionRegistry &r) {
     r.group("Classes");
     r.add("derives_from_node_string", "derives_from(node, string) -> bool", &derivesFromImpl,
         C::Custom,
-        "Whether a class is the one named or derives from it: "
-        "`derives_from(c, \"uvm_object\")`. The name is plain, or qualified by its "
-        "package (`uvm_pkg::uvm_object`). False for a node that is not a class, and for "
-        "null. One step per class in the chain.")
+        "Whether a class is the one named or derives from it, through `extends` or "
+        "`implements`: `derives_from(c, \"uvm_object\")`. The name is plain, or qualified "
+        "by its package (`uvm_pkg::uvm_object`). A type (TypeRef) is its class, so "
+        "`derives_from(type_of(e), ...)` asks of an expression's class. False for a node "
+        "that is neither, and for null. One step per class in the chain.")
         .nullable = true;
 
     r.group("Preprocessor");

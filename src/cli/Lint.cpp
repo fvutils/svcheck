@@ -149,6 +149,10 @@ void writeJson(const std::vector<Finding> &found, const host::LintCompilation &l
     for (const std::string &u : lc.unparsed()) {
         w.value(shown(u));
     }
+    w.endArray().key("files").beginArray();
+    for (const std::string &f : lc.files()) {
+        w.value(shown(f));
+    }
     w.endArray().endObject();
     w.key("rules").beginArray();
     if (const lint::yaml::Node *stats = result->get("stats")) {
@@ -352,7 +356,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     host::LintCompilation lc(driver, opts.layer, opts.libraryDirs);
     (void)driver.reportDiagnostics(/*quiet*/ true);
     for (const std::string &u : lc.unparsed()) {
-        std::fprintf(stderr, "svcheck: %s has syntax errors; no rule ran on it\n",
+        std::fprintf(stderr, "svcheck: %s has syntax errors; its findings are not shown\n",
             shown(u).c_str());
     }
 
@@ -407,6 +411,9 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
             f.extent = std::max<int64_t>(num(m.get(), "extent"), 0);
         } else {
             f.line = 0;
+        }
+        if (!f.file.empty() && !lc.shows(f.file)) {
+            continue;
         }
         found.push_back(std::move(f));
     }

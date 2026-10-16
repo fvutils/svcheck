@@ -27,6 +27,7 @@
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
 #include "slang/driver/Driver.h"
+#include "slang/parsing/Preprocessor.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/text/SourceManager.h"
 
@@ -91,25 +92,70 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
         }
     }
 
+    // Every source file read: each tree's own, and those they include.
+    auto addFile = [&](slang::BufferID buf) {
+        std::string path = driver.sourceManager.getFullPath(buf).string();
+        if (!path.empty()) {
+            path = absolute(path);
+            if (!under(path, m_libraryDirs)) {
+                m_files.push_back(path);
+            }
+        }
+    };
+    for (const auto &t : driver.syntaxTrees) {
+        for (slang::BufferID buf : t->getSourceBufferIds()) {
+            addFile(buf);
+        }
+        for (const slang::parsing::IncludeMetadata &inc : t->getIncludeDirectives()) {
+            if (inc.buffer.id) {
+                addFile(inc.buffer.id);
+            }
+        }
+    }
+    std::sort(m_files.begin(), m_files.end());
+    m_files.erase(std::unique(m_files.begin(), m_files.end()), m_files.end());
+
     p.sources.reset(new Sources(driver.sourceManager));
     setSources(p.sources.get());
     // The user's files, in command-line order; a library's are not linted.
+    // A tree is linted when it has a user file without a syntax error: with
+    // --single-unit one tree holds every file, the library's too. Findings
+    // in a file with a syntax error, or in library code, are not shown
+    // (shows()).
     std::vector<const slang::syntax::SyntaxTree *> trees;
     for (const auto &t : driver.syntaxTrees) {
-        slang::BufferID buf = t->root().getFirstToken().location().buffer();
-        std::string path = absolute(driver.sourceManager.getFullPath(buf).string());
-        if (under(path, m_libraryDirs)) {
+        std::vector<std::string> mine;
+        for (slang::BufferID buf : t->getSourceBufferIds()) {
+            std::string path = absolute(driver.sourceManager.getFullPath(buf).string());
+            if (!under(path, m_libraryDirs)) {
+                p.sources->fileid(buf);
+                mine.push_back(path);
+            }
+        }
+        if (mine.empty()) {
             continue;
         }
-        p.sources->fileid(buf);
-        bool clean = true;
         for (const slang::Diagnostic &d : t->diagnostics()) {
-            clean &= !d.isError();
+            if (!d.isError()) {
+                continue;
+            }
+            // An error with no place spoils every user file of the tree.
+            slang::SourceLocation loc = driver.sourceManager.getFullyOriginalLoc(d.location);
+            std::vector<std::string> bad = mine;
+            if (loc.valid()) {
+                bad = {absolute(driver.sourceManager.getFullPath(loc.buffer()).string())};
+            }
+            for (const std::string &path : bad) {
+                if (!under(path, m_libraryDirs) && std::find(m_unparsed.begin(),
+                        m_unparsed.end(), path) == m_unparsed.end()) {
+                    m_unparsed.push_back(path);
+                }
+            }
         }
-        if (clean) {
+        if (std::any_of(mine.begin(), mine.end(), [this](const std::string &f) {
+                return std::find(m_unparsed.begin(), m_unparsed.end(), f) == m_unparsed.end();
+            })) {
             trees.push_back(t.get());
-        } else {
-            m_unparsed.push_back(driver.sourceManager.getFullPath(buf).string());
         }
     }
 
@@ -141,6 +187,12 @@ LintCompilation::~LintCompilation() {
     m_context.reset();
     setSources(nullptr);
     setSlangSources(nullptr);
+}
+
+bool LintCompilation::shows(const std::string &path) const {
+    std::string a = absolute(path);
+    return !under(a, m_libraryDirs)
+        && std::find(m_unparsed.begin(), m_unparsed.end(), a) == m_unparsed.end();
 }
 
 const std::vector<std::string> &LintCompilation::paths() const {

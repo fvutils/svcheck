@@ -1,0 +1,50 @@
+# Classifier set 1 of the contexts trial (svcheck-plan P1.6b): content only.
+# A unit's kind comes from what its classes derive from, and an interface
+# joins an agent whose package fetches it from config_db (Q-CX5's starting
+# point). Library code is not classified (P1-21, item 1).
+#
+# A class that another package derives from is a base, not a unit: its
+# package is `base-lib` (OpenTitan's dv_lib and cip_lib, which hold
+# dv_base_env and dv_base_test). The trial's first cut lacked this, and
+# OpenTitan's base libraries came out env + test (svcheck-plan P1-34).
+sv-rules:
+  version: 1
+  uses: [../spike/uvm-vocab.yaml]
+  define:
+    is_config_db(t): >-
+      t != null && t.classDecl != null && t.classDecl.qname == "uvm_pkg::uvm_config_db"
+    # Another package derives from class c.
+    based(c): subclasses(c).exists(s, s.carrier != c.carrier)
+    holds(p, base): classes(p).exists(c, !based(c) && is(c, base))
+  contexts:
+    # Classes: the innermost carriers, so an in-context rule reads a class's
+    # own kind in a mixed package (Q-CX3).
+    - { label: agent, axis: unit, carrier: Class,
+        when: '!carrier.inLibrary && !based(carrier) && is(carrier, "uvm_agent")' }
+    - { label: env, axis: unit, carrier: Class,
+        when: '!carrier.inLibrary && !based(carrier) && is(carrier, "uvm_env")' }
+    - { label: test, axis: unit, carrier: Class,
+        when: '!carrier.inLibrary && !based(carrier) && is(carrier, "uvm_test")' }
+    # Packages, on the same evidence, so that content and convention meet on
+    # one carrier and a disagreement is noted (Q-CX4).
+    - label: agent
+      axis: unit
+      carrier: Package
+      when: '!carrier.inLibrary && holds(carrier, "uvm_agent")'
+      joins: >-
+        calls_in(carrier).filter(c, c.name == "get" && is_config_db(c.classType)
+          && c.classType.args.size() > 0 && c.classType.args[0].isVirtualInterface)
+        .map(c, c.classType.args[0].ifaceDecl)
+    - { label: env, axis: unit, carrier: Package,
+        when: '!carrier.inLibrary && holds(carrier, "uvm_env")' }
+    - { label: test, axis: unit, carrier: Package,
+        when: '!carrier.inLibrary && holds(carrier, "uvm_test")' }
+    - { label: base-lib, axis: unit, carrier: Package,
+        when: '!carrier.inLibrary && classes(carrier).exists(c, based(c) && is(c, "uvm_component"))' }
+    # A module that starts UVM.
+    - label: tb-top
+      axis: unit
+      carrier: Definition
+      when: >-
+        !carrier.inLibrary && carrier.kind == DefinitionKind.Module &&
+        calls_in(carrier).exists(c, c.name == "run_test")

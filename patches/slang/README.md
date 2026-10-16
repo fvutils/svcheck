@@ -9,6 +9,7 @@ patches are still needed.
 | ID | Issue | Patch | Repro | Upstream | Fixed upstream in |
 |---|---|---|---|---|---|
 | SL-1 | False "cyclic dependency" when a virtual interface type is compared with a cached duplicate instance's interface ([SL-1-param-cycle.md](SL-1-param-cycle.md)) | `0001-hasSameType-elaborate-bodies-first.patch` | `tests/host/slang/sl1-param-cycle.sv` | not reported | — (still in v12.0) |
+| SL-2 | "expected class property name" for an inherited property as a `randomize()` argument (§18.11 asks only for a property of the object). Found in OpenTitan's UART DV (P1.6b) | `0002-randomize-inherited-properties.patch` | `tests/host/slang/sl2-randomize-inherited.sv` | not reported | — |
 
 ## Adding one
 

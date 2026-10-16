@@ -57,6 +57,13 @@ Verible-equivalent rules against Verible (`packages/verible`, from ivpm), and
 the compilation's user files (`compilation.files`). Findings in a file with a syntax error, or in
 library code, are not shown; this works per file, `--single-unit` included.
 
+P1.6b ran the contexts trial: `rules/trial/` (three CTX rules; `contexts.yaml` uses the content
+classifier set, `classify-convention.yaml` adds the weak one as a second `--rules`), run by
+`scripts/ctx_trial.py` on `tests/corpora/*.f`. Those lists name local snapshots in `packages/`
+(not ivpm deps; how to rebuild them, and their fixes, in `tests/corpora/README.md`). Results:
+`docs/design/sv-contexts-trial.md`. The model has `Process` (procedural blocks), and the library
+`subclasses(c)`.
+
 ## Build and test
 
 ```sh

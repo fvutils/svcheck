@@ -33,6 +33,7 @@
 #include <unordered_map>
 #include <vector>
 #include "run/Context.h"
+#include "svcheck/sem/IClass.h"
 #include "svcheck/sem/IDesign.h"
 #include "svcheck/sem/IUnit.h"
 
@@ -53,6 +54,12 @@ public:
      */
     sem::IUnit *contextOf(const ast::reflect::Node &n, const std::string &axis) const;
 
+    /**
+     * The classes whose base is `c`, in declaration order (user and library
+     * code). The index is built on the first call.
+     */
+    const std::vector<sem::IClass *> &subclassesOf(const sem::IClass *c) const;
+
     /** The model, whose units and dependencies applyContexts() made. */
     sem::IDesign *design() const { return m_design; }
 
@@ -61,6 +68,8 @@ private:
     std::unordered_map<const sem::ISemNode *, sem::IUnit *>              m_unitOf;
     // The axes each carrier has a label on: the model's Unit keeps labels only.
     std::unordered_map<const sem::ISemNode *, std::set<std::string>>     m_axes;
+    mutable std::unordered_map<const sem::IClass *, std::vector<sem::IClass *>> m_subclasses;
+    mutable bool                                                        m_subclassesBuilt = false;
 };
 
 }

@@ -1,0 +1,166 @@
+From ae3d64f3fe55edce08d340c222e528875b5cb9fe Mon Sep 17 00:00:00 2001
+From: Matthew Ballance <matt.ballance@gmail.com>
+Date: Fri, 16 Oct 2026 17:06:03 +0000
+Subject: [PATCH 1/2] Fixes so the UVM build compiles under slang (svcheck
+ P1.6b)
+
+- env: import fw_proto_wb_spl_pkg, which now holds wb_proto_client_export
+- tests: import pssc_reg_pkg and wb_dma_c_pkg; export passes on only the
+  names the exporter references (IEEE 1800-2017 26.6)
+- spl-rtl bridges: override arguments 'we' and 'err' as logic, as in
+  wb_proto_if (8.20)
+- fw-hdl: forward-declare an interface class with 'typedef interface class' (6.18)
+---
+ packages/fw-hdl/src/fw_event_set.svh | 2 +-
+ src/spl-rtl/wb_dma_spl_bridges.svh   | 4 ++--
+ tests/uvm/env/wb_dma_env_pkg.sv      | 3 ++-
+ tests/uvm/tests/wb_dma_tests_pkg.sv  | 4 ++++
+ 4 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/packages/fw-hdl/src/fw_event_set.svh b/packages/fw-hdl/src/fw_event_set.svh
+index 6794ecb..6a1e647 100644
+--- a/packages/fw-hdl/src/fw_event_set.svh
++++ b/packages/fw-hdl/src/fw_event_set.svh
+@@ -1,5 +1,5 @@
+ 
+-typedef class fw_awaitable_if;   // forward: add() wires a source's production in
++typedef interface class fw_awaitable_if;   // forward: add() wires a source's production in
+ typedef class fw_component;      // forward: an optional owner, for the debug context
+ 
+ // fw_event_set -- the MONITOR side: a list of event sources you wait on.
+diff --git a/src/spl-rtl/wb_dma_spl_bridges.svh b/src/spl-rtl/wb_dma_spl_bridges.svh
+index 8c7fc62..e81b295 100644
+--- a/src/spl-rtl/wb_dma_spl_bridges.svh
++++ b/src/spl-rtl/wb_dma_spl_bridges.svh
+@@ -26,8 +26,8 @@ class wb_mem_initiator_bridge
+     endfunction
+ 
+     virtual task access(input  logic [31:0] adr, input logic [31:0] dat_w,
+-                        input  logic [3:0]  sel, input bit          we,
+-                        output logic [31:0] dat_r, output bit        err);
++                        input  logic [3:0]  sel, input logic        we,
++                        output logic [31:0] dat_r, output logic      err);
+         vif.request(adr, dat_w, sel, we);
+         vif.response(dat_r, err);
+     endtask
+diff --git a/tests/uvm/env/wb_dma_env_pkg.sv b/tests/uvm/env/wb_dma_env_pkg.sv
+index 1827b2e..cdced6b 100644
+--- a/tests/uvm/env/wb_dma_env_pkg.sv
++++ b/tests/uvm/env/wb_dma_env_pkg.sv
+@@ -37,7 +37,8 @@ package wb_dma_env_pkg;
+     import uvm_pkg::*;
+     import fw_hdl_pkg::*;
+     import fw_std_pkg::*;
+-    import fw_proto_wb_pkg::*;      // wb_proto_if + xtor bridges + wb_mem_* adapters
++    import fw_proto_wb_pkg::*;      // wb_proto_if + xtor bridges
++    import fw_proto_wb_spl_pkg::*;  // wb_mem_* adapters, wb_proto_client_export
+     import wb_dma_spl_pkg::*;       // wb_dma engine + wb_dma_csr_t / _sz_t
+     import fwvip_wb_pkg::*;         // fwvip_wb initiator/target/monitor agents
+     import fwvip_gpio_pkg::*;       // fwvip_gpio_monitor + fwvip_gpio_transaction
+diff --git a/tests/uvm/tests/wb_dma_tests_pkg.sv b/tests/uvm/tests/wb_dma_tests_pkg.sv
+index 83b8bc5..e89e576 100644
+--- a/tests/uvm/tests/wb_dma_tests_pkg.sv
++++ b/tests/uvm/tests/wb_dma_tests_pkg.sv
+@@ -14,6 +14,10 @@
+ package wb_dma_tests_pkg;
+     import uvm_pkg::*;
+     import wb_dma_env_pkg::*;
++    // export in wb_dma_env_pkg passes on only the names it references itself
++    // (IEEE 1800-2017 26.6), so import the enum and register packages here.
++    import pssc_reg_pkg::*;
++    import wb_dma_c_pkg::*;
+ 
+     localparam logic [31:0] SRC_BASE = 32'h0000_0000;
+     localparam logic [31:0] DST_BASE = 32'h0000_4000;
+-- 
+2.43.0
+
+
+From e292fef7d5cc6ce4ed2493aedfec16a0a6a2b8fd Mon Sep 17 00:00:00 2001
+From: Matthew Ballance <matt.ballance@gmail.com>
+Date: Fri, 16 Oct 2026 17:06:37 +0000
+Subject: [PATCH 2/2] Override argument names match the base methods' (IEEE
+ 1800-2017 8.20)
+
+---
+ packages/fw-hdl/src/fw_reg_block.svh     | 20 ++++++++++----------
+ tests/uvm/env/wb_dma_pss_mem_adapter.svh | 12 ++++++------
+ 2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/packages/fw-hdl/src/fw_reg_block.svh b/packages/fw-hdl/src/fw_reg_block.svh
+index a130c8d..9221392 100644
+--- a/packages/fw-hdl/src/fw_reg_block.svh
++++ b/packages/fw-hdl/src/fw_reg_block.svh
+@@ -136,36 +136,36 @@ class fw_reg_block #(int W = 32)
+     // an address decode has no rejected candidates worth enumerating, and
+     // walking every register per access would cost far more than the event is
+     // worth.
+-    virtual function bit [W-1:0] read_val(input int unsigned a);
+-        fw_reg_val_if #(W) e = lookup(a);
++    virtual function bit [W-1:0] read_val(input int unsigned offset);
++        fw_reg_val_if #(W) e = lookup(offset);
+         if (e == null) begin
+             `fw_ev_notice_at(m_dbg, FW_SEV_WARN, m_sid_miss)
+-                `fw_field_hex("addr", a)
++                `fw_field_hex("addr", offset)
+                 `fw_field_as("write", 0)
+             `fw_ev_end
+             return '0;
+         end
+         read_val = e.sw_read();
+         `fw_ev_decision_at(m_dbg, m_sid_decode)
+-            `fw_dec_winner(a)
+-            `fw_field_hex("addr", a)
++            `fw_dec_winner(offset)
++            `fw_field_hex("addr", offset)
+             `fw_field_hex("data", read_val)
+             `fw_field_as("write", 0)
+         `fw_ev_end
+     endfunction
+ 
+-    virtual task write_val(input int unsigned a, input bit [W-1:0] v);
+-        fw_reg_val_if #(W) e = lookup(a);
++    virtual task write_val(input int unsigned offset, input bit [W-1:0] v);
++        fw_reg_val_if #(W) e = lookup(offset);
+         if (e == null) begin
+             `fw_ev_notice_at(m_dbg, FW_SEV_WARN, m_sid_miss)
+-                `fw_field_hex("addr", a)
++                `fw_field_hex("addr", offset)
+                 `fw_field_as("write", 1)
+             `fw_ev_end
+             return;
+         end
+         `fw_ev_decision_at(m_dbg, m_sid_decode)
+-            `fw_dec_winner(a)
+-            `fw_field_hex("addr", a)
++            `fw_dec_winner(offset)
++            `fw_field_hex("addr", offset)
+             `fw_field_hex("data", v)
+             `fw_field_as("write", 1)
+         `fw_ev_end
+diff --git a/tests/uvm/env/wb_dma_pss_mem_adapter.svh b/tests/uvm/env/wb_dma_pss_mem_adapter.svh
+index 5e1d0e5..744b88d 100644
+--- a/tests/uvm/env/wb_dma_pss_mem_adapter.svh
++++ b/tests/uvm/env/wb_dma_pss_mem_adapter.svh
+@@ -97,12 +97,12 @@ class wb_dma_pss_mem_adapter implements wb_dma_c_import_if;
+         note_hooks(32'(addr), data);
+     endtask
+ 
+-    virtual task write8 (addr_handle_t a, bit [7:0]  d); unsupported("write8");  endtask
+-    virtual task read8  (addr_handle_t a, output bit [7:0]  d); unsupported("read8");  d = '0; endtask
+-    virtual task write16(addr_handle_t a, bit [15:0] d); unsupported("write16"); endtask
+-    virtual task read16 (addr_handle_t a, output bit [15:0] d); unsupported("read16"); d = '0; endtask
+-    virtual task write64(addr_handle_t a, bit [63:0] d); unsupported("write64"); endtask
+-    virtual task read64 (addr_handle_t a, output bit [63:0] d); unsupported("read64"); d = '0; endtask
++    virtual task write8 (addr_handle_t addr, bit [7:0]  data); unsupported("write8");  endtask
++    virtual task read8  (addr_handle_t addr, output bit [7:0]  data); unsupported("read8");  data = '0; endtask
++    virtual task write16(addr_handle_t addr, bit [15:0] data); unsupported("write16"); endtask
++    virtual task read16 (addr_handle_t addr, output bit [15:0] data); unsupported("read16"); data = '0; endtask
++    virtual task write64(addr_handle_t addr, bit [63:0] data); unsupported("write64"); endtask
++    virtual task read64 (addr_handle_t addr, output bit [63:0] data); unsupported("read64"); data = '0; endtask
+ 
+     // ---- the blocking seam ------------------------------------------------
+     //
+-- 
+2.43.0
+

@@ -442,6 +442,17 @@ Value contextOf(CallArgs &c, const std::string &axis) {
     return semValue(ctx->contextOf(toNode(c[0]), axis));
 }
 
+Value subclassesImpl(CallArgs &c) {
+    auto *ctx = dynamic_cast<const SvContext *>(c.host);
+    auto *cls = dynamic_cast<sem::IClass *>(semOf(c[0]));
+    if (!ctx || !cls) {
+        return Value::mkList({});
+    }
+    const std::vector<sem::IClass *> &subs = ctx->subclassesOf(cls);
+    c.steps = 1 + subs.size();
+    return semList(std::vector<sem::ISemNode *>(subs.begin(), subs.end()));
+}
+
 Value contextImpl(CallArgs &c) {
     return contextOf(c, "");
 }
@@ -597,6 +608,12 @@ void registerSvLib(cel::FunctionRegistry &r) {
         "`context(node)`, but the innermost carrier with a label on the axis named: "
         "`context(node, \"unit\")`. An agent class in a mixed package answers with the "
         "class's unit, not the package's (Q-CX3).")
+        .nullable = true;
+    r.add("subclasses_node", "subclasses(node) -> list(Class)", &subclassesImpl, C::Custom,
+        "The classes whose base is the class given, in declaration order, user and library "
+        "code: `subclasses(c).exists(s, s.carrier != c.carrier)` says another package "
+        "derives from `c` (a base library's class, svcheck-plan P1.6b). Empty for a node "
+        "that is not a class. One step per class returned.")
         .nullable = true;
     r.add("calls_in_node", "calls_in(node) -> list(Call)", &callsInImpl, C::Custom,
         "The calls in a carrier's code, or in any node's subtree, in pre-order: "

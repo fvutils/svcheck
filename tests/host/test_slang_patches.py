@@ -17,6 +17,8 @@ REPROS = os.path.join(HERE, "slang")
 @pytest.mark.parametrize("repro, args", [
     # SL-1: false "cyclic dependency" on a cached duplicate instance's interface.
     ("sl1-param-cycle.sv", ["--top", "top"]),
+    # SL-2: an inherited property as a randomize() argument.
+    ("sl2-randomize-inherited.sv", []),
 ])
 def test_repro_compiles(repro, args):
     r = subprocess.run([native_path(), os.path.join(REPROS, repro)] + args,

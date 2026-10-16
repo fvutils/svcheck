@@ -1,0 +1,43 @@
+# Classifier set 2 of the contexts trial (svcheck-plan P1.6b): content plus
+# convention. Loaded beside contexts.yaml, which brings set 1's classifiers,
+# it adds weak ones from names and directories
+# in the styles of sv-contexts.md §1 (lowRISC `_agent_pkg`, CORE-V `uvma_`,
+# UVMF `hvl_top`, a directory named `env`). Content outranks a convention
+# that disagrees with it, which is noted (Q-CX4); a convention alone labels
+# the carrier.
+sv-rules:
+  version: 1
+  define:
+    # The directory of a carrier's own file.
+    dir(c): 'c.files.size() > 0 ? c.files[0] : ""'
+  contexts:
+    # Package names.
+    - { label: agent, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("(_agent_pkg$|^uvma_)")' }
+    - { label: env, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("(_env_pkg$|^uvme_)")' }
+    - { label: test, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("(_tests?_pkg$|^uvmt_)")' }
+    # Package directories.
+    - { label: agent, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && dir(carrier).matches("/[a-z0-9_]*agents?/[^/]*$")' }
+    - { label: env, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && dir(carrier).matches("/env/[^/]*$")' }
+    - { label: test, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && dir(carrier).matches("/tests?/[^/]*$")' }
+    # Class names.
+    - { label: agent, axis: unit, carrier: Class, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_agent$")' }
+    - { label: env, axis: unit, carrier: Class, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_env$")' }
+    - { label: test, axis: unit, carrier: Class, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_test$")' }
+    # Top modules.
+    - label: tb-top
+      axis: unit
+      carrier: Definition
+      strength: weak
+      when: >-
+        !carrier.inLibrary && carrier.kind == DefinitionKind.Module &&
+        carrier.name.matches("^(tb|tb_top|hvl_top|.*_hvl_top|hvl_top_.*)$")
+  rules: []

@@ -107,6 +107,10 @@ void SvContext::applyContexts(const std::vector<ContextLabel> &labels) {
         }
         std::vector<sem::IDecl *> &carriers = u->getCarriers();
         if (std::find(carriers.begin(), carriers.end(), decl) == carriers.end()) {
+            // A unit is where its first carrier is, so a finding on it has a place.
+            if (carriers.empty()) {
+                u->setLocation(decl->getLocation());
+            }
             carriers.push_back(decl);
         }
         std::vector<std::string> &ls = u->getLabels();
@@ -141,11 +145,35 @@ void SvContext::applyContexts(const std::vector<ContextLabel> &labels) {
                 sem::UnitDep *e = new sem::UnitDep();
                 e->setKind(sem::UnitDepKind::Import);
                 e->setFrom(u.get());
+                e->setLocation(c->getLocation());   // the importing carrier
                 e->setTo(it->second);
                 m_design->getDeps().push_back(sem::IUnitDepUP(e));
             }
         }
     }
+}
+
+const std::vector<sem::IClass *> &SvContext::subclassesOf(const sem::IClass *c) const {
+    if (!m_subclassesBuilt) {
+        std::vector<sem::IDecl *> decls;
+        for (const sem::IPackageUP &p : m_design->getPackages()) {
+            carriersIn(p->getItems(), decls);
+        }
+        for (const sem::IDefinitionUP &d : m_design->getDefinitions()) {
+            carriersIn(d->getItems(), decls);
+        }
+        carriersIn(m_design->getItems(), decls);
+        for (sem::IDecl *d : decls) {
+            auto *k = dynamic_cast<sem::IClass *>(d);
+            if (k && k->getBase()) {
+                m_subclasses[k->getBase()].push_back(k);
+            }
+        }
+        m_subclassesBuilt = true;
+    }
+    static const std::vector<sem::IClass *> none;
+    auto it = m_subclasses.find(c);
+    return it == m_subclasses.end() ? none : it->second;
 }
 
 sem::IUnit *SvContext::contextOf(const rf::Node &n, const std::string &axis) const {

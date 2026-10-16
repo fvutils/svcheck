@@ -1,0 +1,139 @@
+# The contexts trial's three rules (svcheck-plan P1.6b, R-6; sv-contexts.md §4),
+# one of each shape. Experimental, IDs provisional. They read the unit axis.
+# Set 1, content only, is classify-content.yaml, which this file uses; set 2
+# adds classify-convention.yaml's weak classifiers, loaded beside it:
+#
+#   svcheck --rules rules/trial/contexts.yaml -F tests/corpora/<corpus>.f
+#   svcheck --rules rules/trial/contexts.yaml \
+#           --rules rules/trial/classify-convention.yaml -F tests/corpora/<corpus>.f
+#
+# scripts/ctx_trial.py runs both on the corpora.
+sv-rules:
+  version: 1
+  uses: [classify-content.yaml]
+  define:
+    # The unit kinds the classifier sets name (axis `unit`).
+    UNIT_KINDS: '["agent", "env", "test", "tb-top"]'
+    kinds(u): u.labels.filter(l, l in UNIT_KINDS)
+    # The kinds as text, "agent, env" (at most the 4 of UNIT_KINDS).
+    kinds_text(u): list_text(kinds(u))
+    list_text(k): >-
+      k.size() == 0 ? "" : k[0] + (k.size() > 1 ? ", " + k[1] : "")
+        + (k.size() > 2 ? ", " + k[2] : "") + (k.size() > 3 ? ", " + k[3] : "")
+  defaults:
+    tier: suspicious
+  rules:
+    # In-context (sv-contexts.md §4.1).
+    - id: CTX001
+      name: objection-in-agent
+      summary: An agent raises or drops a phase objection
+      message: >-
+        ${node.name}() in agent ${context(node, "unit").name}; an agent cannot know
+        when the test is done, so objections belong to the test or its sequences
+      doc: |
+        Methodology guides (Mentor, Verification Academy) keep objections out of
+        agents: an agent is reused under tests it does not know. A default
+        sequence that raises one is the usual exception, which this trial rule
+        does not yet make.
+      applies_to: { unit: agent }
+      match: { kind: Call }
+      where: >-
+        node.name in ["raise_objection", "drop_objection"] && !in_library(node)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package a_agent_pkg;
+              import uvm_pkg::*;
+              class a_drv extends uvm_driver;
+                `uvm_component_utils(a_drv)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  phase.raise_objection(this);           // expect: CTX001
+                  phase.drop_objection(this);            // expect: CTX001
+                endtask
+              endclass
+              class a_agent extends uvm_agent;
+                `uvm_component_utils(a_agent)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+            package a_test_pkg;
+              import uvm_pkg::*;
+              class a_test extends uvm_test;
+                `uvm_component_utils(a_test)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  phase.raise_objection(this);
+                  phase.drop_objection(this);
+                endtask
+              endclass
+            endpackage
+
+    # Unit structure (sv-contexts.md §4.3; Q-CX3: a carrier's labels are the
+    # sum of its contents').
+    - id: CTX002
+      name: mixed-unit-kinds
+      summary: One package holds more than one kind of unit
+      message: >-
+        package ${node.name} holds ${kinds_text(node)} content; a reusable
+        testbench keeps each in its own package
+      doc: |
+        A package that holds an agent and an env (or a test) cannot be reused
+        without the rest. Small and generated testbenches often put everything
+        in one tb_pkg.
+      match: { kind: Unit }
+      where: >-
+        node.carriers.exists(c, c.isa(Package) && !c.inLibrary) && kinds(node).size() > 1
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package tb_pkg;                              // expect: CTX002
+              import uvm_pkg::*;
+              class my_agent extends uvm_agent;
+                `uvm_component_utils(my_agent)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+              class my_env extends uvm_env;
+                `uvm_component_utils(my_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+            package b_env_pkg;
+              import uvm_pkg::*;
+              class b_env extends uvm_env;
+                `uvm_component_utils(b_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+
+    # Boundary (sv-contexts.md §4.2).
+    - id: CTX003
+      name: agent-depends-upward
+      summary: An agent imports an env or test package
+      message: >-
+        agent ${node.from.name} imports ${node.to.name}
+        (${kinds_text(node.to)}); an agent must not depend on what uses it
+      doc: |
+        Layering runs test → env → agent. An agent that imports an env or test
+        package cannot be reused without them.
+      match: { kind: UnitDep }
+      where: >-
+        "agent" in node.from.labels && ("env" in node.to.labels || "test" in node.to.labels)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package c_env_pkg;
+              import uvm_pkg::*;
+              class c_env extends uvm_env;
+                `uvm_component_utils(c_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+            package c_agent_pkg;                         // expect: CTX003
+              import uvm_pkg::*;
+              import c_env_pkg::*;
+              class c_agent extends uvm_agent;
+                `uvm_component_utils(c_agent)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage

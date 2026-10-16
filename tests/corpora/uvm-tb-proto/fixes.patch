@@ -1,0 +1,63 @@
+From 69eb51b0fa4156b793df5778c054a8f6d78eb658 Mon Sep 17 00:00:00 2001
+From: Matthew Ballance <matt.ballance@gmail.com>
+Date: Fri, 16 Oct 2026 17:07:28 +0000
+Subject: [PATCH] Fixes so the generated bench compiles against the fwvip APIs
+ (svcheck P1.6b)
+
+- hdl top: the fwvip interfaces' ports are clock and reset
+- base sequence: fwvip_wb_transaction's fields are we, adr and dat
+---
+ out/env/spi_ctl_base_seq.svh | 12 ++++++------
+ out/tb/spi_ctl_hdl_top.sv    |  6 +++---
+ 2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/out/env/spi_ctl_base_seq.svh b/out/env/spi_ctl_base_seq.svh
+index 21f86d1..10813be 100644
+--- a/out/env/spi_ctl_base_seq.svh
++++ b/out/env/spi_ctl_base_seq.svh
+@@ -10,19 +10,19 @@ class spi_ctl_base_seq extends uvm_sequence #(fwvip_wb_transaction);
+     task reg_write(logic [31:0] addr, logic [31:0] data);
+         fwvip_wb_transaction t = fwvip_wb_transaction::type_id::create("t");
+         start_item(t);
+-        t.write = 1'b1;
+-        t.addr  = addr;
+-        t.data  = data;
++        t.we    = 1'b1;
++        t.adr   = addr;
++        t.dat   = data;
+         finish_item(t);
+     endtask
+ 
+     task reg_read(logic [31:0] addr, output logic [31:0] data);
+         fwvip_wb_transaction t = fwvip_wb_transaction::type_id::create("t");
+         start_item(t);
+-        t.write = 1'b0;
+-        t.addr  = addr;
++        t.we    = 1'b0;
++        t.adr   = addr;
+         finish_item(t);
+-        data = t.data;
++        data = t.dat;
+     endtask
+ 
+     // Read-modify-write of a single field.
+diff --git a/out/tb/spi_ctl_hdl_top.sv b/out/tb/spi_ctl_hdl_top.sv
+index 3a09929..4fcb3e5 100644
+--- a/out/tb/spi_ctl_hdl_top.sv
++++ b/out/tb/spi_ctl_hdl_top.sv
+@@ -19,9 +19,9 @@ module spi_ctl_hdl_top;
+     logic        irq;
+ 
+     // ---- VIP interfaces --------------------------------------------------
+-    fwvip_wb_initiator_if  u_reg_if(.clk(clk), .rst(rst));
+-    fwvip_spi_target_if u_m_spi_tgt_if(.clk(clk), .rst(rst));
+-    fwvip_spi_monitor_if u_m_spi_mon_if(.clk(clk), .rst(rst));
++    fwvip_wb_initiator_if  u_reg_if(.clock(clk), .reset(rst));
++    fwvip_spi_target_if u_m_spi_tgt_if(.clock(clk), .reset(rst));
++    fwvip_spi_monitor_if u_m_spi_mon_if(.clock(clk), .reset(rst));
+ 
+     // ---- DUT -------------------------------------------------------------
+     //@@ hdl_dut_inst :: Instance the spi_ctl DUT and wire it up. Connect
+-- 
+2.43.0
+

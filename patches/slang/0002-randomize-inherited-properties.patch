@@ -1,0 +1,36 @@
+slang: accept inherited properties as randomize() arguments
+
+"expected class property name" on legal code: this.randomize(d), or
+randomize(d), where d is a rand property the class inherits. IEEE
+1800-2017 18.11 asks only that each argument be a property of the
+object; slang required it to be declared in the class itself.
+
+Local issue SL-2 (patches/slang/README.md). Not reported upstream yet.
+Present in v11.0. Applies to v11.0.
+
+--- a/source/ast/builtins/MiscSystemFuncs.cpp
++++ b/source/ast/builtins/MiscSystemFuncs.cpp
+@@ -156,8 +156,22 @@
+                 return comp.getErrorType();
+             }
+ 
++            // A property of the object: the class's own, or one it inherits
++            // (IEEE 1800-2017 18.11).
+             auto sym = arg->getSymbolReference();
+-            if (!sym || sym->kind != SymbolKind::ClassProperty || sym->getParentScope() != ct) {
++            bool isProperty = false;
++            if (sym && sym->kind == SymbolKind::ClassProperty) {
++                for (auto c = &ct->asSymbol().as<ClassType>(); c;) {
++                    if (sym->getParentScope() == c) {
++                        isProperty = true;
++                        break;
++                    }
++                    auto base = c->getBaseClass();
++                    c = base && base->isClass() ? &base->getCanonicalType().as<ClassType>()
++                                                : nullptr;
++                }
++            }
++            if (!isProperty) {
+                 context.addDiag(diag::ExpectedClassPropertyName, arg->sourceRange);
+                 return comp.getErrorType();
+             }

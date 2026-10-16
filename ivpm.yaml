@@ -27,6 +27,7 @@ package:
         the same as the `default` dep-set's.
       patches:
       - patches/slang/0001-hasSameType-elaborate-bodies-first.patch
+      - patches/slang/0002-randomize-inherited-properties.patch
     # slang's CMake fetches fmt with FetchContent at configure time
     # (external/CMakeLists.txt). Supplying the same tag here and pointing
     # FETCHCONTENT_SOURCE_DIR_FMT at it keeps the configure offline
@@ -73,6 +74,7 @@ package:
       type: raw
       patches:
       - patches/slang/0001-hasSameType-elaborate-bodies-first.patch
+      - patches/slang/0002-randomize-inherited-properties.patch
     - name: fmt
       url: https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz
       type: raw

@@ -40,6 +40,7 @@
 #include "Class.h"
 #include "Conversion.h"
 #include "Definition.h"
+#include "Process.h"
 #include "Design.h"
 #include "ExprStmt.h"
 #include "If.h"
@@ -74,6 +75,7 @@
 #include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/AttributeSymbol.h"
+#include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/ClassSymbols.h"
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
@@ -177,6 +179,12 @@ public:
             const sa::Statement &body = sym->getBody();
             if (body.kind != sa::StatementKind::Invalid) {
                 sub->setBody(lowerStmt(body));
+            }
+        }
+        for (auto &[sym, proc] : m_procBodies) {
+            const sa::Statement &body = sym->getBody();
+            if (body.kind != sa::StatementKind::Invalid) {
+                proc->setBody(lowerStmt(body));
             }
         }
         for (auto &[sym, var] : m_inits) {
@@ -368,6 +376,8 @@ private:
             m_typedefs.emplace_back(&t, n);
             return n;
         }
+        case sa::SymbolKind::ProceduralBlock:
+            return declProcess(m.as<sa::ProceduralBlockSymbol>(), carrier, prefix);
         case sa::SymbolKind::WildcardImport:
         case sa::SymbolKind::ExplicitImport:
         case sa::SymbolKind::TransparentMember:
@@ -469,6 +479,26 @@ private:
         m_subs[&s] = n;
         if (!library(s) && !s.flags.has(sa::MethodFlags::Pure)) {
             m_bodies.emplace_back(&s, n);
+        }
+        return n;
+    }
+
+    sem::IDecl *declProcess(const sa::ProceduralBlockSymbol &b, sem::IDecl *carrier,
+            const std::string &prefix) {
+        sem::Process *n = new sem::Process();
+        setDecl(n, b, carrier, prefix);
+        switch (b.procedureKind) {
+        case sa::ProceduralBlockKind::Initial: n->setKind(sem::ProcessKind::Initial); break;
+        case sa::ProceduralBlockKind::Final: n->setKind(sem::ProcessKind::Final); break;
+        case sa::ProceduralBlockKind::Always: n->setKind(sem::ProcessKind::Always); break;
+        case sa::ProceduralBlockKind::AlwaysComb: n->setKind(sem::ProcessKind::AlwaysComb); break;
+        case sa::ProceduralBlockKind::AlwaysFF: n->setKind(sem::ProcessKind::AlwaysFF); break;
+        case sa::ProceduralBlockKind::AlwaysLatch:
+            n->setKind(sem::ProcessKind::AlwaysLatch);
+            break;
+        }
+        if (!library(b)) {
+            m_procBodies.emplace_back(&b, n);
         }
         return n;
     }
@@ -985,6 +1015,7 @@ private:
     std::vector<std::pair<const sa::ClassType *, sem::Class *>>     m_classes;
     std::unordered_map<const sa::SubroutineSymbol *, sem::Subroutine *>  m_subs;
     std::vector<std::pair<const sa::SubroutineSymbol *, sem::Subroutine *>>  m_bodies;
+    std::vector<std::pair<const sa::ProceduralBlockSymbol *, sem::Process *>>  m_procBodies;
     std::vector<std::pair<const sa::VariableSymbol *, sem::Variable *>>  m_inits;
     std::vector<std::pair<const sa::Type *, sem::Typedef *>>        m_typedefs;
     std::vector<std::pair<const sa::Type *, sem::Variable *>>       m_vars;

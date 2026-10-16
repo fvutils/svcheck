@@ -103,6 +103,40 @@ class EngineHooks:
         run as src/engine/run/Examples.h does; a result per example."""
         return self._call("lintExamples", name, text, rules is None, list(rules or []))
 
+    def mk_lint_engine(self):
+        """A whole LintEngine in the server (P1.5), as pssparser's
+        `factory.mkLintEngine()`."""
+        return EngineProxy(self, self._call("engineNew")["id"])
+
+
+class EngineProxy:
+    """A LintEngine held by the hooks server, with the method names of
+    pssparser's Cython LintEngine (python/core.pyx)."""
+
+    def __init__(self, hooks, ident):
+        self._hooks = hooks
+        self._id = ident
+
+    @property
+    def rule_format_version(self):
+        return self._hooks._call("engineInfo", self._id)["format_version"]
+
+    def num_rule_sets(self):
+        return self._hooks._call("engineInfo", self._id)["rule_sets"]
+
+    def load_rules(self, name, text, builtin=False):
+        return self._hooks._call("engineLoadRules", self._id, name, text, bool(builtin))["loaded"]
+
+    def rules(self):
+        return self._hooks._call("engineRules", self._id)
+
+    def rule_diagnostics(self):
+        return self._hooks._call("engineDiagnostics", self._id)
+
+    def run(self, source, request=None):
+        """LintEngine::run over `source` (SV text), with `request`."""
+        return self._hooks._call("engineRun", self._id, source, json.dumps(request or {}))
+
 
 def check_examples(hooks, name, text, rules=None):
     """Runs the examples of rule file `name`, raising AssertionError that lists

@@ -23,6 +23,7 @@
 #include "pipeline/Selection.h"
 #include "rules/Rule.h"
 #include "rules/RuleLoader.h"
+#include "run/Classify.h"
 #include "run/Runner.h"
 
 namespace svcheck {
@@ -84,6 +85,14 @@ public:
 
     /** The loaded files' `contexts:` classifiers, in load order, each once. */
     std::vector<const rules::Classifier *> classifiers() const;
+
+    /**
+     * The classify stage (run/Classify.h) over `roots`, which it indexes in
+     * `ctx`: once per context, so run() does not repeat it. Nothing when
+     * no classifiers are loaded.
+     */
+    run::Contexts classify(const std::vector<ast::reflect::Node> &roots, run::Context &ctx,
+        uint64_t maxSteps=1000000);
 
     /** How the files a rule file's `uses:` names are read; none by default. */
     void setReader(rules::FileReader reader) { m_reader = std::move(reader); }

@@ -1258,8 +1258,92 @@ std::string LintTestHooks::dispatch(const std::string &requestJson) {
             enabled.push_back(n->s);
         }
         return lintExamples(str(0), str(1), a[2]->b, enabled);
+    } else if (o == "engineNew" && fits("")) {
+        return engineNew();
+    } else if (o == "engineLoadRules" && fits("issb")) {
+        return engineLoadRules(a[0]->i, str(1), str(2), a[3]->b);
+    } else if (o == "engineRules" && fits("i")) {
+        return engineRules(a[0]->i);
+    } else if (o == "engineDiagnostics" && fits("i")) {
+        return engineDiagnostics(a[0]->i);
+    } else if (o == "engineInfo" && fits("i")) {
+        return engineInfo(a[0]->i);
+    } else if (o == "engineRun" && fits("iss")) {
+        return engineRun(a[0]->i, str(1), str(2));
     }
     return refuse("no hook '" + o + "' taking these arguments");
+}
+
+LintEngine *LintTestHooks::engine(int64_t id) {
+    return (id >= 0 && static_cast<size_t>(id) < m_engines.size()) ? m_engines[id].get()
+        : nullptr;
+}
+
+namespace {
+
+std::string noEngine(int64_t id) {
+    JsonWriter w;
+    w.beginObject().kv("ok", false).kv("error", "no engine " + std::to_string(id)).endObject();
+    return w.str();
+}
+
+}
+
+std::string LintTestHooks::engineNew() {
+    m_engines.emplace_back(new LintEngine());
+    m_engines.back()->setReader(rules::diskReader());
+    JsonWriter w;
+    w.beginObject().kv("id", static_cast<int64_t>(m_engines.size() - 1)).endObject();
+    return w.str();
+}
+
+std::string LintTestHooks::engineLoadRules(int64_t id, const std::string &name,
+        const std::string &text, bool builtin) {
+    LintEngine *e = engine(id);
+    if (!e) {
+        return noEngine(id);
+    }
+    LintSource src;
+    src.name = name;
+    src.text = text;
+    JsonWriter w;
+    w.beginObject().kv("loaded", e->loadRules(src, builtin) != nullptr).endObject();
+    return w.str();
+}
+
+std::string LintTestHooks::engineRules(int64_t id) {
+    LintEngine *e = engine(id);
+    return e ? e->rulesJson() : noEngine(id);
+}
+
+std::string LintTestHooks::engineDiagnostics(int64_t id) {
+    LintEngine *e = engine(id);
+    return e ? e->diagnosticsJson() : noEngine(id);
+}
+
+std::string LintTestHooks::engineInfo(int64_t id) {
+    LintEngine *e = engine(id);
+    if (!e) {
+        return noEngine(id);
+    }
+    JsonWriter w;
+    w.beginObject().kv("format_version", static_cast<int64_t>(e->ruleFormatVersion()));
+    w.kv("rule_sets", static_cast<int64_t>(e->numRuleSets())).endObject();
+    return w.str();
+}
+
+std::string LintTestHooks::engineRun(int64_t id, const std::string &source,
+        const std::string &request) {
+    LintEngine *e = engine(id);
+    if (!e) {
+        return noEngine(id);
+    }
+    HookTrees t;
+    std::string result;
+    if (!parse(source, t, result)) {
+        return result;
+    }
+    return e->run(t.roots, request, t.context.get());
 }
 
 }

@@ -1,0 +1,26 @@
+slang: elaborate both instance bodies before comparing their parameters
+
+A false "cyclic dependency found when determining value of 'W'" on legal
+code: comparing a virtual interface type with a cached duplicate instance's
+interface reads a derived parameter, whose lookup elaborates the body,
+which resolves the port types, which need the same parameter.
+
+Local issue SL-1 (patches/slang/README.md). Not reported upstream yet.
+Present in v11.0 and v12.0. Applies to v11.0.
+
+--- a/source/ast/symbols/InstanceSymbols.cpp
++++ b/source/ast/symbols/InstanceSymbols.cpp
+@@ -1140,6 +1140,13 @@
+     if (&definition != &other.definition)
+         return false;
+ 
++    // Elaborate both bodies before reading their parameters. A parameter's
++    // initializer looks names up in its body, and the first lookup into an
++    // unelaborated body runs finishElaboration(), which resolves port types and
++    // so may need the very parameter being evaluated: a false cycle.
++    ensureElaborated();
++    other.ensureElaborated();
++
+     auto getSym = std::views::transform([](auto& paramBase) { return &paramBase->symbol; });
+     return ParameterSymbolBase::allMatching(parameters | getSym, other.parameters | getSym);
+ }

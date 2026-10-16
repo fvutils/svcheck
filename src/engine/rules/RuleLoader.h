@@ -69,6 +69,7 @@ enum class FieldType {
     Cel,            // one CEL expression
     Options,        // name -> option spec
     Match,          // the structural selector
+    AppliesTo,      // axis -> label or labels (contexts)
     Defines,        // helper head -> CEL
     Lets,           // name -> CEL, in order
     Examples,       // a list of examples

@@ -710,6 +710,40 @@ private:
         return ok;
     }
 
+    // `applies_to:` {axis: label | [label, ...]}. Labels are the pack's
+    // vocabulary (Q-CX2), so only their form is checked here.
+    bool loadAppliesTo(const Node *n, Rule &r) {
+        if (n->kind != NK::Map || n->members.empty()) {
+            diag(code::FieldInvalid, n->mark, "'applies_to' must be a mapping of axis to label "
+                "or list of labels, as { unit: agent }, not " + what(n));
+            return false;
+        }
+        bool ok = true;
+        for (const Node::Member &m : n->members) {
+            std::vector<std::string> labels;
+            const Node *v = m.value.get();
+            if (v->kind == NK::String && !v->s.empty()) {
+                labels.push_back(v->s);
+            } else if (v->kind == NK::Seq && !v->items.empty()) {
+                for (const yaml::NodeUP &i : v->items) {
+                    if (i->kind != NK::String || i->s.empty()) {
+                        diag(code::FieldInvalid, i->mark, "'applies_to." + m.key + "' must "
+                            "list labels, but this item is " + what(i.get()));
+                        ok = false;
+                    } else {
+                        labels.push_back(i->s);
+                    }
+                }
+            } else {
+                diag(code::FieldInvalid, v->mark, "'applies_to." + m.key + "' must be a label "
+                    "or a non-empty list of labels, not " + what(v));
+                ok = false;
+            }
+            r.m_appliesTo.emplace_back(m.key, std::move(labels));
+        }
+        return ok;
+    }
+
     void setScalar(Rule &r, const std::string &name, const Node *v) {
         auto list = [v]() {
             std::vector<std::string> l;
@@ -1608,6 +1642,9 @@ void Loader::loadRule(const Node *n, size_t index, RuleSet &set) {
         failed = true;
     }
     r->m_nodeType = nodeT;
+    if (val.count("applies_to")) {
+        failed |= !loadAppliesTo(val["applies_to"], *r);
+    }
 
     cel::CheckEnv env;
     env.vars.emplace_back("node", nodeT);
@@ -1922,6 +1959,8 @@ const std::vector<FieldSpec> &ruleFields() {
             "Declared options, read as options.<name>"},
         {"match", FieldType::Match, Need::Required, false, {},
             "The node kinds the rule runs on, and ancestor tests"},
+        {"applies_to", FieldType::AppliesTo, Need::Optional, true, {},
+            "The contexts the rule runs in, as {axis: label or [labels]} (experimental)"},
         {"define", FieldType::Defines, Need::Optional, false, {},
             "Rule-local helpers"},
         {"let", FieldType::Lets, Need::Optional, false, {},

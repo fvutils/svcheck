@@ -7,6 +7,9 @@
 // P1.1: `svcheck --engine-test-hooks` serves the rule engine's test hooks
 // (LintTestHooks::dispatch), one JSON request per stdin line and one JSON
 // reply per stdout line, for tests/engine. Not a user option.
+//
+// P1.5: `--rules FILE` lints the compilation with the rules of FILE
+// (Lint.h); `--contexts` prints its units instead.
 
 #include <chrono>
 #include <cstdio>
@@ -17,6 +20,7 @@
 #include <string>
 
 #include "HookParser.h"
+#include "Lint.h"
 #include "LintTestHooks.h"
 #include "Schema.h"
 #include "SvLib.h"
@@ -83,6 +87,22 @@ int main(int argc, char** argv) {
     driver.cmdLine.add("--dump-diags", dumpDiags,
                        "Compile, then print slang's diagnostic counts and timing");
 
+    svcheck::cli::LintOptions lint;
+    std::optional<std::string> format, semantic;
+    std::optional<bool> contexts;
+    driver.cmdLine.add("--rules", lint.rules,
+                       "Check the sources with the rules of this sv-rules file (repeatable)",
+                       "<file>");
+    driver.cmdLine.add("--format", format, "How findings are written: text (default), json "
+                       "or sarif", "<format>");
+    driver.cmdLine.add("--semantic", semantic, "The semantic layer rules see: model (default), "
+                       "slang or none", "<layer>");
+    driver.cmdLine.add("--library-dir", lint.libraryDirs, "Code under this directory is "
+                       "library code: not checked, and in_library() (uvm_pkg's always is)",
+                       "<dir>");
+    driver.cmdLine.add("--contexts", contexts, "Print each unit the rules' classifiers find, "
+                       "with its labels and their evidence, instead of findings");
+
     if (!driver.parseCommandLine(argc, argv))
         return 1;
 
@@ -96,6 +116,29 @@ int main(int argc, char** argv) {
         std::printf("svcheck %s (slang %d.%d.%d)\n", SVCHECK_VERSION, VersionInfo::getMajor(),
                     VersionInfo::getMinor(), VersionInfo::getPatch());
         return 0;
+    }
+
+    if (format) {
+        if (!svcheck::cli::isFormat(*format)) {
+            std::fprintf(stderr, "svcheck: unknown --format '%s' (text, json, sarif)\n",
+                         format->c_str());
+            return 2;
+        }
+        lint.format = *format;
+    }
+    if (semantic && !svcheck::host::semanticLayerOf(*semantic, lint.layer)) {
+        std::fprintf(stderr, "svcheck: unknown --semantic '%s' (model, slang, none)\n",
+                     semantic->c_str());
+        return 2;
+    }
+    lint.contexts = contexts == true;
+    if (!lint.rules.empty() || lint.contexts) {
+        if (lint.rules.empty()) {
+            std::fprintf(stderr, "svcheck: --contexts needs --rules: the classifiers are in "
+                         "the rule files\n");
+            return 2;
+        }
+        return svcheck::cli::runLint(driver, lint);
     }
 
     if (!driver.processOptions())

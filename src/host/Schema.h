@@ -51,5 +51,8 @@ void installSchema(SemanticLayer layer);
 /** The layer installed; None before installSchema(). */
 SemanticLayer installedLayer();
 
+/** Whether class `kind` of the merged schema is the semantic layer's. */
+bool isSemanticClass(uint16_t kind);
+
 }
 }

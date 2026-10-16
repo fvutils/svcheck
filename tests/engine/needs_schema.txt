@@ -2,11 +2,6 @@
 # against pssparser's PSS schema; P1.2 re-targeted the rest at the SV syntax
 # schema. conftest.py skips each test listed, with its group as reason.
 # One pytest node id per line; a line "## reason" starts a group.
-## drives a whole LintEngine (P1.5 hooks)
-tests/engine/test_rule_loader.py::test_a_clash_across_files_names_both
-tests/engine/test_rule_loader.py::test_builtin_and_site_files_share_one_claim_table
-tests/engine/test_rule_loader.py::test_engine_builtin_flag
-tests/engine/test_rule_loader.py::test_engine_loads_and_accumulates
 ## needs a flags enum, which neither the SV syntax schema nor the curated model has (P1.4), and has_flag
 tests/engine/test_cel_check.py::test_errors[FieldAttr.Rand + 1-0-FieldAttr.Rand is a 'FieldAttr' flag, not a number: test a flag with has_flag(x, FieldAttr.Rand)]
 tests/engine/test_cel_check.py::test_errors[int(FieldAttr.Rand)-4-FieldAttr.Rand is a 'FieldAttr' flag, not a number]

@@ -19,6 +19,6 @@ sv-rules:
       message: m
       match: { kind: BinaryExpressionSyntax }
 
-# expect: SVCHK212 error @ 6:5 'id' cannot be set in 'defaults'; only tier, family, since, status, severity, default_enabled can
+# expect: SVCHK212 error @ 6:5 'id' cannot be set in 'defaults'; only tier, family, since, status, severity, default_enabled, applies_to can
 # expect: SVCHK211 error @ 7:5 unknown key 'famly' in 'defaults'; did you mean 'family'?
 # loads: ACME001, ACME002

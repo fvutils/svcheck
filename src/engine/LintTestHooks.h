@@ -25,6 +25,12 @@
 
 namespace svcheck {
 namespace lint {
+class LintEngine;
+}
+}
+
+namespace svcheck {
+namespace lint {
 
 /**
  * The trees of a source text, which the host parses for the node hooks
@@ -84,6 +90,25 @@ public:
     std::string lintExamples(const std::string &name, const std::string &text, bool allEnabled,
         const std::vector<std::string> &enabled);
 
+    /**
+     * Whole engines (P1.5), as pssparser's `mkLintEngine()`: engineNew
+     * makes one and returns its id; the others act on one by id.
+     *
+     * - engineNew: {"id": n}.
+     * - engineLoadRules: LintEngine::loadRules; {"loaded": bool}.
+     * - engineRules, engineDiagnostics: rulesJson(), diagnosticsJson().
+     * - engineInfo: {"format_version", "rule_sets"}.
+     * - engineRun: LintEngine::run over the trees the host's parser makes
+     *   of `source`, with their context, and `request` (JSON).
+     */
+    std::string engineNew();
+    std::string engineLoadRules(int64_t id, const std::string &name, const std::string &text,
+        bool builtin);
+    std::string engineRules(int64_t id);
+    std::string engineDiagnostics(int64_t id);
+    std::string engineInfo(int64_t id);
+    std::string engineRun(int64_t id, const std::string &source, const std::string &request);
+
     /** The host's parser for the node hooks. */
     void setParser(HookParser parser) { m_parser = std::move(parser); }
 
@@ -102,8 +127,11 @@ public:
 private:
     bool parse(const std::string &source, HookTrees &out, std::string &result);
 
+    LintEngine *engine(int64_t id);
+
     HookParser          m_parser;
     run::Compiler       m_compiler;
+    std::vector<std::unique_ptr<LintEngine>>    m_engines;
 };
 
 }

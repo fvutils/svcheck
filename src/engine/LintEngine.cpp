@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <algorithm>
 #include <cstdlib>
 #include <map>
 #include <memory>
@@ -120,6 +121,22 @@ std::vector<const rules::Classifier *> LintEngine::classifiers() const {
         }
     }
     return out;
+}
+
+run::Contexts LintEngine::classify(const std::vector<ast::reflect::Node> &roots,
+        run::Context &ctx, uint64_t maxSteps) {
+    if (ctx.classified()) {
+        return run::Contexts();
+    }
+    for (const ast::reflect::Node &r : roots) {
+        ctx.index(r);
+    }
+    std::vector<const rules::Classifier *> cls = classifiers();
+    if (cls.empty()) {
+        ctx.setLabels({});
+        return run::Contexts();
+    }
+    return run::classify(cls, ctx, maxSteps);
 }
 
 std::string LintEngine::rulesJson() const {
@@ -823,7 +840,11 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
             }
         }
     }
-    // The host's file names, as {"<fileid>": "<path>"}, for file_of (C6.9).
+    // The host's file names, as {"<fileid>": "<path>"}, for file_of (C6.9);
+    // none given: the ones the host's context already has.
+    if (ctx && !req->get("files")) {
+        opts.fileNames = ctx->filePaths();
+    }
     if (const yaml::Node *fs = req->get("files")) {
         if (fs->kind != NK::Map) {
             problems.push_back("files: not an object of fileid to path");
@@ -865,6 +886,29 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
         on.swap(runnable);
     }
 
+    // Rules the host says cannot run (design §3.3: the compilation they
+    // need has errors), as {"<id>": "<reason>"}: each is reported once.
+    std::vector<std::pair<const rules::Rule *, std::string>> notRun;
+    auto drop = [&](const rules::Rule *r, const std::string &why) {
+        notRun.emplace_back(r, why);
+        on.erase(std::find(on.begin(), on.end(), r));
+    };
+    if (const yaml::Node *nr = req->get("not_run")) {
+        if (nr->kind != NK::Map) {
+            problems.push_back("not_run: not an object of rule ID to reason");
+        } else {
+            for (const yaml::Node::Member &m : nr->members) {
+                auto it = byId.find(m.key);
+                if (it == byId.end() || m.value->kind != NK::String) {
+                    problems.push_back("not_run: '" + m.key + "' is not a loaded rule's ID "
+                        "with a reason");
+                } else if (std::find(on.begin(), on.end(), it->second) != on.end()) {
+                    drop(it->second, m.value->s);
+                }
+            }
+        }
+    }
+
     uint32_t gateErrors = 0;
     if (const yaml::Node *g = req->get("gate_errors")) {
         if (g->kind == NK::Int && g->i >= 0) {
@@ -874,15 +918,35 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
         }
     }
 
-    run::Runner runner(on, opts);
     std::unique_ptr<IMarker> skipped;
     if (gateErrors && !on.empty()) {
         skipped.reset(run::Runner::skippedMarker(gateErrors));
     } else if (!gateErrors) {
         // Every file first: navigation may cross from one file to another.
+        // The context is classified before the runner is made, since what
+        // it finds decides which rules can run.
+        opts.context->setFiles(opts.fileNames, opts.baseDir);
         for (const ast::reflect::Node &r : roots) {
-            runner.index(r);
+            opts.context->index(r);
         }
+        classify(roots, *opts.context, opts.maxSteps);
+        // A rule whose applies_to names an axis no carrier has a label on
+        // would run nowhere: unknown is reported, not guessed (sv-contexts §3.2).
+        std::vector<std::pair<const rules::Rule *, std::string>> unknown;
+        for (const rules::Rule *r : on) {
+            for (const auto &a : r->m_appliesTo) {
+                if (!opts.context->hasAxis(a.first)) {
+                    unknown.emplace_back(r, a.first);
+                    break;
+                }
+            }
+        }
+        for (const auto &u : unknown) {
+            drop(u.first, "no unit has a context on axis '" + u.second + "'");
+        }
+    }
+    run::Runner runner(on, opts);
+    if (!gateErrors) {
         for (const ast::reflect::Node &r : roots) {
             runner.run(r);
         }
@@ -893,6 +957,10 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
     w.key("markers").beginArray();
     if (skipped) {
         markerJson(w, *skipped);
+    }
+    for (const auto &n : notRun) {
+        std::unique_ptr<IMarker> m(run::Runner::notRunMarker(*n.first, n.second));
+        markerJson(w, *m);
     }
     for (const run::Finding &f : runner.findings()) {
         std::unique_ptr<IMarker> m(run::Runner::toMarker(f));
@@ -913,6 +981,7 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
         w.beginObject();
         w.kv("id", on[i]->m_id).kv("matches", s.matches).kv("findings", s.findings);
         w.kv("steps", s.steps).kv("ns", s.ns).kv("errors", s.errors);
+        w.kv("outside", s.outside).kv("unknown", s.unknown);
         w.endObject();
     }
     w.endArray();

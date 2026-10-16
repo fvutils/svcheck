@@ -294,7 +294,7 @@ def test_engine_builtin_flag(factory):
     with open(os.path.join(FIXTURES, "builtin-requirements.yaml"), encoding="utf-8") as fp:
         text = fp.read()
     assert e.load_rules("b.yaml", text, builtin=True)
-    assert [r["id"] for r in e.rules()] == ["LINT903"]
+    assert [r["id"] for r in e.rules()] == ["SVCHK903"]
     assert len(e.rule_diagnostics()) == 4
 
 
@@ -330,7 +330,7 @@ def test_builtin_and_site_files_share_one_claim_table(factory):
     e = factory.mkLintEngine()
     text = open(os.path.join(FIXTURES, "ids-builtin.yaml"), encoding="utf-8").read()
     assert e.load_rules("builtin.yaml", text, builtin=True)
-    assert e.load_rules("site.yaml", _ONE % ("ACME001", "plain-lint"))
-    assert [r["id"] for r in e.rules()] == ["LINT950"]
+    assert e.load_rules("site.yaml", _ONE % ("ACME001", "plain-svchk"))
+    assert [r["id"] for r in e.rules()] == ["SVCHK950"]
     [d] = e.rule_diagnostics()[2:]
     assert d["code"] == "SVCHK217" and d["related"]["file"] == "builtin.yaml"

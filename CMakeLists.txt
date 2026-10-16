@@ -57,7 +57,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
              ${CMAKE_SOURCE_DIR}/python/svcheck/__version__.py)
 
 add_executable(svcheck
-  src/cli/main.cpp)
+  src/cli/main.cpp
+  src/cli/Lint.cpp)
 target_compile_definitions(svcheck PRIVATE SVCHECK_VERSION="${SVCHECK_VERSION}")
 target_link_libraries(svcheck PRIVATE svcheck_host)
 

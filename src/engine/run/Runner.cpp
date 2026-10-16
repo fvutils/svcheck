@@ -96,6 +96,23 @@ void Runner::match(const rules::Rule &r, const rf::Node &n) {
     if (m_file[idx].failed || (m_fileRules && !m_fileRules->on.count(&r))) {
         return;
     }
+    // applies_to is selection, not part of the predicate: a node outside
+    // the rule's contexts is not evaluated. Each axis must fit.
+    for (const auto &a : r.m_appliesTo) {
+        const std::set<std::string> *labels = m_ctx->labelsAt(n, a.first);
+        if (!labels) {
+            m_stats[idx].unknown++;
+            return;
+        }
+        bool fits = false;
+        for (const std::string &l : a.second) {
+            fits |= labels->count(l) != 0;
+        }
+        if (!fits) {
+            m_stats[idx].outside++;
+            return;
+        }
+    }
     auto t0 = std::chrono::steady_clock::now();
     uint64_t index0 = m_ctx->indexNs();
     m_ctx->setCurrent(&r, n);
@@ -436,6 +453,11 @@ std::vector<RuleNote> Runner::notes() {
 
 IMarker *Runner::toMarker(const RuleNote &n) {
     return new Marker(n.message, MarkerSeverityE::Info, n.loc, n.code);
+}
+
+IMarker *Runner::notRunMarker(const rules::Rule &r, const std::string &why) {
+    return new Marker("rule " + r.m_id + " (" + r.m_name + ") not run: " + why,
+        MarkerSeverityE::Info, ast::Location(), "SVCHK231");
 }
 
 IMarker *Runner::skippedMarker(uint32_t nErrors) {

@@ -43,6 +43,12 @@ P1.4 added, all in the engine unless named:
 The library functions over the model (`src/host/SvLib.cpp`) are registered only when the model
 is the layer installed.
 
+P1.5 added the lint CLI: `svcheck --rules r.yaml -f tb.f [--format text|json|sarif]
+[--contexts] [--library-dir DIR]` (`src/cli/Lint.cpp`; the host's compilation, library code and
+rule scopes in `src/host/Lint.cpp`). `applies_to` on rules is applied by the runner from the
+labels the classify stage leaves on `run::Context`. The engine hooks hold whole engines by id
+(`factory.mkLintEngine()` in `tests/engine/conftest.py`).
+
 ## Build and test
 
 ```sh
@@ -61,7 +67,12 @@ everything. Build with `packages/python/bin/ninja -C build` instead.
 - The CMake configure must stay offline: slang's FetchContent deps are supplied from
   `packages/` (`FETCHCONTENT_SOURCE_DIR_*`, `FETCHCONTENT_FULLY_DISCONNECTED`). A new slang
   FetchContent dep needs an ivpm entry, not network access.
-- When bumping slang, bump `fmt` in `ivpm.yaml` to slang's `external/CMakeLists.txt` tag.
+- When bumping slang, bump `fmt` in `ivpm.yaml` to slang's `external/CMakeLists.txt` tag, and
+  re-check the local patches (`patches/slang/README.md`, "Bumping slang").
+- slang issues are tracked locally, not upstream: each in `patches/slang/` with a patch that ivpm
+  applies to the slang archive (`patches:` on both `slang` entries in `ivpm.yaml`) and a repro
+  that `tests/host/test_slang_patches.py` compiles. After `ivpm update` changes slang's sources,
+  rebuild. Instance caching stays on; the patches make it safe.
 - The version lives only in `python/svcheck/__version__.py` (`BASE` + `SUFFIX`); CMake reads it.
   A release is a `v<BASE>` tag; CI stamps `SUFFIX` on branch builds.
 

@@ -183,5 +183,9 @@ SemanticLayer installedLayer() {
     return s_layer;
 }
 
+bool isSemanticClass(uint16_t kind) {
+    return s_first && kind >= 1 && kind <= s_first->numClasses;
+}
+
 }
 }

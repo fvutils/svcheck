@@ -481,6 +481,22 @@
    "summary": "Lint did not run because the model has errors",
    "detail": "Lint rules run only on a model that parsed, linked and passed the semantic checks without an error, since a rule on a broken model would report noise.  The message gives the number of errors.  Fix them, and lint runs.",
    "lrm": []
+  },
+  {
+   "id": "SVCHK231",
+   "name": "rule-not-run",
+   "tier": "tool",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "info",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A lint rule was not run: what it needs is not there",
+   "detail": "A rule runs only where the facts it needs exist (svcheck-design §3.3): one that needs the compilation does not run when the compilation has errors, and one with ``applies_to`` does not run when no carrier has a context on its axis.  It is reported once, with the reason, and never run on partial facts.  Fix the compilation, or classify the units (``contexts:``), and it runs.",
+   "lrm": []
   }
  ],
  "patterns": [

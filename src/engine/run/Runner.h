@@ -102,6 +102,10 @@ struct RuleStats {
     uint64_t            steps = 0;          // across files
     uint64_t            ns = 0;             // evaluation time, across files
     uint64_t            errors = 0;         // failures: at most one per file
+    // Matches skipped for `applies_to` (sv-contexts.md §4.1): the node's
+    // context has other labels (outside), or none on the axis (unknown).
+    uint64_t            outside = 0;
+    uint64_t            unknown = 0;
     // The first failure: where it arose ("let", "where", "report", "message") and
     // the error value's message, at node `errorNode`.
     std::string         errorIn;
@@ -203,6 +207,12 @@ public:
      * ("lint skipped: N errors"). The caller owns it.
      */
     static IMarker *skippedMarker(uint32_t nErrors);
+
+    /**
+     * A rule that cannot run in this run (design §3.3), reported once: a
+     * SVCHK231 info marker, "rule <id> not run: <why>". The caller owns it.
+     */
+    static IMarker *notRunMarker(const rules::Rule &r, const std::string &why);
 
     /**
      * A node as a message shows it (format §3.4): a declaration's path

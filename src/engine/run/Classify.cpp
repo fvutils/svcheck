@@ -279,7 +279,11 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
                 out.labels.push_back(l);
             }
         }
+        ctx.setLabels(out.labels);
         ctx.applyContexts(out.labels);
+    }
+    if (!ctx.classified()) {
+        ctx.setLabels(out.labels);
     }
     return out;
 }

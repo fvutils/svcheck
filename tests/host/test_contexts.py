@@ -322,3 +322,132 @@ def test_the_attribute_form_of_a_tag(model):
     unit = [l for l in _labels(r) if l[2] == "unit" and l[1] in (2, 23)]
     assert unit == [("Package", 23, "unit", "env", "lone", "Declared"),
                     ("Definition", 2, "unit", "agent", "bus", "Declared")]
+
+
+# applies_to (svcheck-plan P1.5; sv-contexts.md §4.1): selection by the
+# context of a node's innermost labelled carrier (Q-CX3).
+
+def _applies(rid, labels):
+    return ("    - id: %s\n"
+            "      name: r-%s\n"
+            "      tier: suspicious\n"
+            "      summary: s\n"
+            "      message: \"${node.name}\"\n"
+            "      applies_to: { unit: %s }\n"
+            "      match: { kind: Call }\n" % (rid, rid.lower(), labels))
+
+
+# An agent package and an env package, each with a run_phase that calls.
+UNITS = """\
+package a_agent_pkg;
+  import uvm_pkg::*;
+  class a_agent extends uvm_agent;
+    function new(string name, uvm_component parent); super.new(name, parent); endfunction
+    task run_phase(uvm_phase phase);
+      phase.raise_objection(this);
+    endtask
+  endclass
+endpackage
+package e_env_pkg;
+  import uvm_pkg::*;
+  class e_env extends uvm_env;
+    function new(string name, uvm_component parent); super.new(name, parent); endfunction
+    task run_phase(uvm_phase phase);
+      phase.raise_objection(this);
+    endtask
+  endclass
+endpackage
+"""
+
+
+def test_applies_to_runs_a_rule_only_in_its_contexts(model):
+    calls = {}
+    for rid, labels in (("ACME010", "agent"), ("ACME011", "env"),
+                        ("ACME012", "[agent, env]"), ("ACME013", "test")):
+        r = _run(model, _applies(rid, labels), UNITS)
+        calls[rid] = [f["line"] for f in r["findings"]]
+    assert calls == {"ACME010": [6], "ACME011": [15], "ACME012": [6, 15], "ACME013": []}
+    (s,) = [s for s in r["stats"] if s["rule"] == "ACME013"]
+    assert s["matches"] == 0
+
+
+# One package holding an agent class and an env class (sv-contexts.md §3.4):
+# the package is {agent, env}; each class keeps its own label.
+MIXED = UNITS.replace("endpackage\npackage e_env_pkg;\n  import uvm_pkg::*;\n", "")
+
+CLASS_VOCAB = """\
+  define:
+    is(c, base): derives_from(c, "uvm_pkg::" + base)
+  contexts:
+    - label: agent
+      axis: unit
+      carrier: Class
+      when: '!carrier.inLibrary && is(carrier, "uvm_agent")'
+    - label: env
+      axis: unit
+      carrier: Class
+      when: '!carrier.inLibrary && is(carrier, "uvm_env")'
+    # Packages are carriers too, so they sum their classes' labels.
+    - label: agent
+      axis: unit
+      carrier: Package
+      when: 'false'
+"""
+
+
+def test_applies_to_is_decided_by_the_innermost_labelled_carrier(model):
+    r = _run(model, _applies("ACME014", "agent"), MIXED, CLASS_VOCAB)
+    assert [f["line"] for f in r["findings"]] == [6]
+    pkg = [l[3] for l in _labels(r) if l[0] == "Package"]
+    assert sorted(pkg) == ["agent", "env"]
+
+
+def test_applies_to_on_an_axis_nothing_labels_is_not_run(model):
+    e = model.mk_lint_engine()
+    assert e.load_rules("a.yaml", _file(_applies("ACME015", "agent")
+                                        .replace("unit:", "target:")))
+    r = e.run(UNITS)
+    assert r["ok"], r
+    assert [(m["code"], m["message"]) for m in r["markers"]] == [
+        ("SVCHK231", "rule ACME015 (r-acme015) not run: no unit has a context on axis "
+                     "'target'")]
+    assert r["stats"] == []
+
+
+def test_the_host_names_rules_not_run(model):
+    e = model.mk_lint_engine()
+    assert e.load_rules("a.yaml", _file(_applies("ACME017", "agent")))
+    r = e.run(SRC, {"not_run": {"ACME017": "it needs the compilation, which has 2 errors"}})
+    assert [(m["code"], m["fileid"], m["line"], m["message"]) for m in r["markers"]] == [
+        ("SVCHK231", -1, -1, "rule ACME017 (r-acme017) not run: it needs the compilation, "
+                             "which has 2 errors")]
+    assert r["stats"] == []
+    r = e.run(SRC, {"not_run": {"NOPE001": "x"}})
+    assert r["problems"] == ["not_run: 'NOPE001' is not a loaded rule's ID with a reason"]
+
+
+@pytest.mark.parametrize("value, message", [
+    ("agent", None),
+    ("[agent, env]", None),
+    ("[]", "'applies_to.unit' must be a label or a non-empty list of labels, not a list"),
+    ("[agent, 3]", "'applies_to.unit' must list labels, but this item is an integer"),
+])
+def test_applies_to_forms(model, value, message):
+    e = model.mk_lint_engine()
+    e.load_rules("a.yaml", _file(_applies("ACME018", value)))
+    errors = [d["message"] for d in e.rule_diagnostics() if d["severity"] == "error"]
+    if message is None:
+        assert errors == []
+        (rule,) = e.rules()
+        assert rule["applies_to"] == {"unit": ["agent", "env"] if "env" in value else ["agent"]}
+    else:
+        assert errors == [message]
+
+
+def test_applies_to_must_be_a_mapping(model):
+    e = model.mk_lint_engine()
+    e.load_rules("a.yaml", _file(_applies("ACME019", "agent")
+                                 .replace("applies_to: { unit: agent }", "applies_to: agent")))
+    assert [d["message"] for d in e.rule_diagnostics() if d["severity"] == "error"] == [
+        "'applies_to' must be a mapping of axis to label or list of labels, as "
+        "{ unit: agent }, not a string"]

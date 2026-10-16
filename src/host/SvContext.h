@@ -53,6 +53,9 @@ public:
      */
     sem::IUnit *contextOf(const ast::reflect::Node &n, const std::string &axis) const;
 
+    /** The model, whose units and dependencies applyContexts() made. */
+    sem::IDesign *design() const { return m_design; }
+
 private:
     sem::IDesign                                                        *m_design;
     std::unordered_map<const sem::ISemNode *, sem::IUnit *>              m_unitOf;

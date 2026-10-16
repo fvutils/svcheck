@@ -149,6 +149,9 @@ public:
     AncestorTest                m_inside;
     AncestorTest                m_notInside;
     cel::Type                   m_nodeType;         // the nearest common base of m_match
+    // `applies_to:` (sv-contexts.md §4.1; experimental): per axis, the labels
+    // a matched node's context must have one of. Empty: everywhere.
+    std::vector<std::pair<std::string, std::vector<std::string>>>  m_appliesTo;
 
     std::vector<LetBinding>     m_lets;
     cel::ExprUP                 m_where;            // null: true

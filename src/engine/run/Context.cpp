@@ -170,6 +170,33 @@ std::vector<DeclaredContext> Context::declaredContexts() const {
 
 void Context::applyContexts(const std::vector<ContextLabel> &) { }
 
+void Context::setLabels(const std::vector<ContextLabel> &labels) {
+    m_labels.clear();
+    m_axes.clear();
+    for (const ContextLabel &l : labels) {
+        m_labels[l.carrier.ptr][l.axis].insert(l.label);
+        m_axes.insert(l.axis);
+    }
+    m_classified = true;
+}
+
+const std::set<std::string> *Context::labelsAt(const rf::Node &n,
+        const std::string &axis) const {
+    if (!m_axes.count(axis)) {
+        return nullptr;
+    }
+    for (rf::Node c = n; c; c = parentOf(c)) {
+        auto it = m_labels.find(c.ptr);
+        if (it != m_labels.end()) {
+            auto a = it->second.find(axis);
+            if (a != it->second.end()) {
+                return &a->second;
+            }
+        }
+    }
+    return nullptr;
+}
+
 void Context::noteUnknownType(const std::string &path) const {
     if (m_unknownSeen.emplace(m_curRule, path).second) {
         m_unknown.push_back({m_curRule, m_curNode, path});

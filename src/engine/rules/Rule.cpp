@@ -89,6 +89,11 @@ void Rule::toJson(JsonWriter &w) const {
     ancestor(w, "not_inside", m_notInside);
     w.endObject();
     w.kv("node_type", m_nodeType.str()).kv("finding_type", m_findingType.str());
+    w.key("applies_to").beginObject();
+    for (const auto &a : m_appliesTo) {
+        strings(w, a.first, a.second);
+    }
+    w.endObject();
 
     w.key("options").beginArray();
     for (const RuleOption &o : m_options) {

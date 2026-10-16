@@ -32,6 +32,7 @@
  */
 #pragma once
 #include <cstdint>
+#include <map>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -99,6 +100,25 @@ public:
 
     /** Whether `n` is `anc` or under it. */
     bool within(const rf::Node &n, const rf::Node &anc) const;
+
+    /**
+     * The labels classify() resolved (Classify.h), which `applies_to` reads
+     * through labelsAt(); replaces any set before. classify() calls it after
+     * each axis.
+     */
+    void setLabels(const std::vector<ContextLabel> &labels);
+
+    /** Whether the run was classified: setLabels() was called. */
+    bool classified() const { return m_classified; }
+
+    /** Whether some carrier has a label on `axis`. */
+    bool hasAxis(const std::string &axis) const { return m_axes.count(axis) != 0; }
+
+    /**
+     * The labels on `axis` of the innermost carrier, `n` or above it, that
+     * has one there (Q-CX3); null when none has.
+     */
+    const std::set<std::string> *labelsAt(const rf::Node &n, const std::string &axis) const;
 
     /** The owned roots, in the order indexed. */
     const std::vector<rf::Node> &roots() const { return m_roots; }
@@ -218,6 +238,10 @@ private:
     mutable std::vector<UnknownType>                            m_unknown;
     mutable std::set<std::pair<const void *, std::string>>      m_unknownSeen;
     mutable uint64_t                                            m_indexNs = 0;
+    // setLabels(): by carrier, axis -> labels.
+    std::unordered_map<const void *, std::map<std::string, std::set<std::string>>>  m_labels;
+    std::set<std::string>                                       m_axes;
+    bool                                                        m_classified = false;
     mutable bool                                                m_timing = false;
 };
 

@@ -20,6 +20,9 @@ class _Factory:
     def _lintTestHooks(self):
         return self._hooks
 
+    def mkLintEngine(self):
+        return self._hooks.mk_lint_engine()
+
 
 @pytest.fixture(scope="session")
 def engine_hooks():

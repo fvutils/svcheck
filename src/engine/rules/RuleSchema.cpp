@@ -114,6 +114,14 @@ void fieldValue(JsonWriter &w, const FieldSpec &f) {
     case FieldType::Match:
         w.kv("$ref", "#/$defs/match");
         break;
+    case FieldType::AppliesTo:
+        w.kv("type", "object").kv("minProperties", 1).key("additionalProperties").beginObject();
+        w.key("oneOf").beginArray();
+        w.beginObject().kv("type", "string").kv("minLength", 1).endObject();
+        w.beginObject().kv("type", "array").kv("minItems", 1).key("items").beginObject()
+            .kv("type", "string").kv("minLength", 1).endObject().endObject();
+        w.endArray().endObject();
+        break;
     case FieldType::Defines:
         w.kv("$ref", "#/$defs/define");
         break;

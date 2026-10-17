@@ -29,9 +29,14 @@
  *   data for Q-CX4.
  * - **Nested carriers sum** (Q-CX3): a carrier also has the labels of the
  *   carriers inside it, as `Nested`, under its own name.
- * - **Joining** (Q-CX5, the proposed starting point): a classifier's
- *   `joins:` carriers get its label and unit name, so the host can group
- *   carriers into one unit by name.
+ * - **Joining** (Q-CX5): a classifier's `joins:` carriers get its label
+ *   and unit name, so the host can group carriers into one unit by name.
+ *   A labelled carrier inside another joins the outer one's unit, unless
+ *   the outer one is mixed (more than one label on the axis); then it
+ *   keeps its own (decided at svcheck-plan P2.0).
+ * - **Convention never selects** (Q-CX4): a label only convention gives is
+ *   kept, for `--contexts` and the consistency rules, but does not select
+ *   (ContextLabel::selects), and does not make a carrier mixed.
  *
  * The engine knows labels, axes and carriers only; the vocabulary is the
  * pack's (Q-CX2), and what a unit is, the host's.
@@ -50,12 +55,6 @@ struct Classifier;
 }
 
 namespace run {
-
-/** Something classify() reports about a carrier: a disagreement, a failed classifier. */
-struct ContextNote {
-    rf::Node        carrier;        // null: about no carrier (an unknown tag label)
-    std::string     message;
-};
 
 struct Contexts {
     std::vector<ContextLabel>   labels;     // by axis, then carrier in walk order

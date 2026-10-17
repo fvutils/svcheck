@@ -1,0 +1,56 @@
+# The corpora (svcheck-plan P2.1): what scripts/precision.py, scripts/measure.py
+# and tests/host/test_corpora.py run. README.md says where each one comes from.
+#
+#   list:      the file list here, read with -F (default <name>.f)
+#   needs:     directories under packages/ it reads; absent, the corpus is skipped
+#   source:    ivpm (the `corpora` dep-set; OpenTitan's through
+#              scripts/corpora/opentitan.py), snapshot (a local copy that is not an
+#              ivpm dependency), or repo (sources in tests/corpora)
+#   precision: whether its findings count towards a rule's precision. Not for a
+#              corpus written to make rules fire, or one that is a subset of another
+#   exception: why it does not compile without errors. Its model rules are reported
+#              not run (SVCHK231); file-scope rules still run. The test checks it
+#              still has errors, so a fix shows
+
+corpora:
+  # P1's corpora
+  - name: uvm-tb-proto
+    needs: [uvm-tb-proto]
+    source: snapshot
+  - name: fw-wb-dma
+    needs: [fw-wb-dma]
+    source: snapshot
+  - name: fwvip
+    needs: [uvm-tb-proto]
+    source: snapshot
+    precision: false   # uvm-tb-proto's VIPs alone (S-1/S-2)
+  - name: ctx-positive
+    needs: [uvm-core]
+    source: repo
+    precision: false   # written so that the context rules fire
+
+  # OpenTitan IP DV, opentitan 83fc48ed3a, UVM 1.2
+  - {name: opentitan-uart, needs: [opentitan-dv/uart, uvm-1.2], source: ivpm}
+  - {name: opentitan-aon_timer, needs: [opentitan-dv/aon_timer, uvm-1.2], source: ivpm}
+  - {name: opentitan-dma, needs: [opentitan-dv/dma, uvm-1.2], source: ivpm}
+  - {name: opentitan-rv_timer, needs: [opentitan-dv/rv_timer, uvm-1.2], source: ivpm}
+  - {name: opentitan-usbdev, needs: [opentitan-dv/usbdev, uvm-1.2], source: ivpm}
+  - {name: opentitan-adc_ctrl, needs: [opentitan-dv/adc_ctrl, uvm-1.2], source: ivpm}
+  - {name: opentitan-pattgen, needs: [opentitan-dv/pattgen, uvm-1.2], source: ivpm}
+  - {name: opentitan-hmac, needs: [opentitan-dv/hmac, uvm-1.2], source: ivpm}
+  # These ten compile with svcheck-plan P2.4b: dvsim's sim_tops and defines, and --relax-lrm
+  - {name: opentitan-aes, needs: [opentitan-dv/aes, uvm-1.2], source: ivpm}
+  - {name: opentitan-csrng, needs: [opentitan-dv/csrng, uvm-1.2], source: ivpm}
+  - {name: opentitan-edn, needs: [opentitan-dv/edn, uvm-1.2], source: ivpm}
+  - {name: opentitan-entropy_src, needs: [opentitan-dv/entropy_src, uvm-1.2], source: ivpm}
+  - {name: opentitan-i2c, needs: [opentitan-dv/i2c, uvm-1.2], source: ivpm}
+  - {name: opentitan-keymgr, needs: [opentitan-dv/keymgr, uvm-1.2], source: ivpm}
+  - {name: opentitan-kmac, needs: [opentitan-dv/kmac, uvm-1.2], source: ivpm}
+  - {name: opentitan-spi_device, needs: [opentitan-dv/spi_device, uvm-1.2], source: ivpm}
+  - {name: opentitan-spi_host, needs: [opentitan-dv/spi_host, uvm-1.2], source: ivpm}
+  - {name: opentitan-sysrst_ctrl, needs: [opentitan-dv/sysrst_ctrl, uvm-1.2], source: ivpm}
+
+  # CORE-V-VERIF, cv32e40p_v1.8.3, UVM 1.2
+  - name: core-v-cv32e40p
+    needs: [core-v-verif, cv32e40p, svlib, uvm-1.2]
+    source: ivpm

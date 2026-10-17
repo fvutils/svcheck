@@ -182,8 +182,8 @@ struct SelectionGroup {
  * TOML parsed,
  *   {"lint": {"profile", "select", "ignore", "rules-version",
  *             "rule": {name: {opt: value}},
- *             "overrides": [{"files": [glob...], "profile", "select",
- *                            "ignore", "rule"}]},
+ *             "overrides": [{"files": [glob...], "context": [label...],
+ *                            "profile", "select", "ignore", "rule"}]},
  *    "command_line": {"select", "ignore"},
  *    "severity": {selector: severity},
  *    "warnings": {"error": [selector...] | true, "no-error": [selector...],
@@ -198,8 +198,19 @@ public:
 
     const std::vector<SelectionError> &errors() const { return m_errors; }
 
-    /** The group of `path` (as the host names it; made relative to base_dir). */
-    uint32_t groupOf(const std::string &path);
+    /** A label of a node's context and its unit's name ("" for none). */
+    using ContextLabel = std::pair<std::string, std::string>;
+    /**
+     * The group of `path` (as the host names it; made relative to base_dir)
+     * and, for a node, its context: an override with `context` matches
+     * only a node with one of its labels (sv-contexts.md §5.3), and one
+     * with `files` too only in those files.
+     */
+    uint32_t groupOf(const std::string &path, const std::vector<ContextLabel> &context={});
+    /** Whether an override names a context: groups are then per node, not per file. */
+    bool hasContextOverrides() const;
+    /** Whether there are overrides at all: without, every file is in group 0. */
+    bool hasOverrides() const { return !m_overrides.empty(); }
 
     /** The directory the globs are relative to, when the input gave none. */
     void defaultBaseDir(const std::string &dir) {
@@ -245,6 +256,7 @@ private:
         std::string                 profile;
         const yaml::Node            *rule = nullptr;
         std::vector<std::string>    files;      // overrides only
+        std::vector<std::string>    contexts;   // overrides only: "label" or "label(unit)"
     };
 
     void readLayer(const yaml::Node *n, const std::string &key, Layer &l, bool isOverride);

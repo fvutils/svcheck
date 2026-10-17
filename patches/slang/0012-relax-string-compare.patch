@@ -1,0 +1,74 @@
+slang: --relax-string-compare
+
+"invalid operands to binary expression ('byte' and 'string')" (BadBinaryExpression) for a
+string compared with an integral operand, as in `s[i] == t` (a byte of one string against
+another string). IEEE 1800-2017 6.16 compares two strings, or a string with a string
+literal; VCS and Xcelium accept it. The new CompilationFlags::RelaxStringCompare (driver
+option --relax-string-compare) makes BinaryExpression::fromComponents convert the
+integral operand of a comparison with a string to a string, as string'(x) would, and then
+compare two strings. Found in OpenTitan's csrng and entropy_src DV. Applies on top of 0011
+(same enum).
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -157,9 +157,13 @@ enum class SLANG_EXPORT CompilationFlags {
+     /// Allow unpacked arrays (fixed, dynamic, queue) to be assigned without a cast when
+     /// their element types are integral with the same width and differ only in
+     /// four-statedness or signedness (e.g. a logic [7:0] queue from a bit [7:0] queue).
+-    RelaxArrayElementConversions = 1 << 23
++    RelaxArrayElementConversions = 1 << 23,
++
++    /// Allow a string to be compared with an integral operand (e.g. a byte of another
++    /// string); the integral operand is converted to a string, as by a cast.
++    RelaxStringCompare = 1 << 24
+ };
+-SLANG_BITMASK(CompilationFlags, RelaxArrayElementConversions)
++SLANG_BITMASK(CompilationFlags, RelaxStringCompare)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/expressions/OperatorExpressions.cpp
++++ b/source/ast/expressions/OperatorExpressions.cpp
+@@ -734,9 +734,28 @@ Expression& BinaryExpression::fromComponents(Expression& lhs, Expression& rhs, B
+     if (rt->isUnbounded())
+         rt = &compilation.getIntType();
+ 
++    // RelaxStringCompare: a string compared with an integral operand (a byte of another
++    // string, say) compares two strings, the integral operand converted as by string'().
++    if (OpInfo::isComparison(op) && compilation.hasFlag(CompilationFlags::RelaxStringCompare)) {
++        auto toString = [&](Expression*& operand) {
++            selfDetermined(context, operand);
++            operand = &ConversionExpression::makeImplicit(context, compilation.getStringType(),
++                                                          ConversionKind::Explicit, *operand,
++                                                          result, opRange);
++        };
++        if (lt->isString() && rt->isIntegral() && !rhs.isImplicitString()) {
++            toString(result->right_);
++            rt = result->right_->type;
++        }
++        else if (rt->isString() && lt->isIntegral() && !lhs.isImplicitString()) {
++            toString(result->left_);
++            lt = result->left_->type;
++        }
++    }
++
+     bool bothIntegral = lt->isIntegral() && rt->isIntegral();
+     bool bothNumeric = lt->isNumeric() && rt->isNumeric();
+-    bool bothStrings = lhs.isImplicitString() && rhs.isImplicitString();
++    bool bothStrings = result->left().isImplicitString() && result->right().isImplicitString();
+ 
+     auto forceFourState = [](Compilation& compilation, const Type* forceType) {
+         if (forceType->isFloating() || forceType->isFourState())
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -281,6 +281,10 @@ void Driver::addStandardArgs() {
+                 "Allow unpacked arrays whose integral element types have the same width "
+                 "(e.g. bit [7:0] vs logic [7:0]) to be assigned to each other without a cast");
+ 
++    addCompFlag(CompilationFlags::RelaxStringCompare, "--relax-string-compare",
++                "Allow a string to be compared with an integral operand, which is "
++                "converted to a string");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

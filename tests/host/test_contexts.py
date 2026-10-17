@@ -152,15 +152,38 @@ def test_units_group_their_carriers_and_imports_are_edges(model):
                     ("ACME002", "top_env_pkg -> bus_agent_pkg")]
 
 
+LONE_AGENT = """package lone_agent_pkg;
+  import uvm_pkg::*;
+  import top_env_pkg::*;
+  class lone_agent extends uvm_agent;
+    function new(string name, uvm_component parent); super.new(name, parent); endfunction
+  endclass
+"""
+
+
 def test_a_boundary_rule_on_unit_edges(model):
     # An agent must not import an env (sv-contexts.md §4.2).
-    src = SRC.replace("package lone_agent_pkg;\n",
-                      "package lone_agent_pkg;\n  import top_env_pkg::*;\n")
+    src = SRC.replace("package lone_agent_pkg;\n", LONE_AGENT)
     rules = _rule("ACME003", "UnitDep",
                   "'agent' in node.from.labels && 'env' in node.to.labels",
                   "${node.from.name} depends on ${node.to.name}")
     r = _run(model, rules, src)
     assert [f["msg"] for f in r["findings"]] == ["lone_agent_pkg depends on top_env_pkg"]
+
+
+def test_convention_alone_never_selects(model):
+    # Q-CX4 (svcheck-plan P2.4): lone_agent_pkg is an agent by its name only.
+    # The label is kept apart, in conventionLabels, and gives the unit no kind,
+    # so neither a boundary rule nor applies_to sees it.
+    src = SRC.replace("package lone_agent_pkg;\n",
+                      "package lone_agent_pkg;\n  import top_env_pkg::*;\n")
+    rules = (_rule("ACME003", "UnitDep",
+                   "'agent' in node.from.labels && 'env' in node.to.labels",
+                   "${node.from.name} depends on ${node.to.name}")
+             + _rule("ACME010", "Unit", "node.conventionLabels.size() > 0",
+                     "${node.name}: ${node.labels.size()} ${node.conventionLabels[0]}"))
+    r = _run(model, rules, src)
+    assert [f["msg"] for f in r["findings"]] == ["lone_agent_pkg: 0 agent"]
 
 
 def test_context_of_a_node_is_its_innermost_carriers_unit(model):

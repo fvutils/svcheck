@@ -15,11 +15,6 @@ sv-rules:
     # The unit kinds the classifier sets name (axis `unit`).
     UNIT_KINDS: '["agent", "env", "test", "tb-top"]'
     kinds(u): u.labels.filter(l, l in UNIT_KINDS)
-    # The kinds as text, "agent, env" (at most the 4 of UNIT_KINDS).
-    kinds_text(u): list_text(kinds(u))
-    list_text(k): >-
-      k.size() == 0 ? "" : k[0] + (k.size() > 1 ? ", " + k[1] : "")
-        + (k.size() > 2 ? ", " + k[2] : "") + (k.size() > 3 ? ", " + k[3] : "")
   defaults:
     tier: suspicious
   rules:
@@ -75,7 +70,7 @@ sv-rules:
       name: mixed-unit-kinds
       summary: One package holds more than one kind of unit
       message: >-
-        package ${node.name} holds ${kinds_text(node)} content; a reusable
+        package ${node.name} holds ${kinds(node)} content; a reusable
         testbench keeps each in its own package
       doc: |
         A package that holds an agent and an env (or a test) cannot be reused
@@ -112,7 +107,7 @@ sv-rules:
       summary: An agent imports an env or test package
       message: >-
         agent ${node.from.name} imports ${node.to.name}
-        (${kinds_text(node.to)}); an agent must not depend on what uses it
+        (${kinds(node.to)}); an agent must not depend on what uses it
       doc: |
         Layering runs test → env → agent. An agent that imports an env or test
         package cannot be reused without them.

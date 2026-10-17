@@ -1,0 +1,493 @@
+# Precision review of VBL001 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: VBL001
+findings:
+- at: core-v-verif/cv32e40p/env/uvme/cov/uvme_rv32x_hwloop_covg.sv:973
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/cv32e40p/env/uvme/uvme_cv32e40p_functions.sv:24
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/cv32e40p/env/uvme/vseq/uvme_cv32e40p_core_cntrl_fetch_toggle_seq.sv:78
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/cv32e40p/env/uvme/vseq/uvme_cv32e40p_vp_status_flags_seq.sv:90
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/cv32e40p/tb/uvmt/uvmt_cv32e40p_interrupt_assert.sv:216
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/seq/uvma_clknrst_seq_item_logger.sv:53
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/seq/uvma_clknrst_seq_item_logger.sv:114
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_drv.sv:123
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_drv.sv:132
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_if.sv:48
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_mon.sv:167
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_mon_trn_logger.sv:65
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_mon_trn_logger.sv:131
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_core_cntrl/uvma_core_cntrl_pma_region.sv:131
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/uvma_interrupt_drv.sv:142
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_mon.sv:150
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_mon.sv:160
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:99
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:104
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:109
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:143
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:148
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:153
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/obj/uvma_obi_memory_cfg.sv:267
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/obj/uvma_obi_memory_cfg.sv:287
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/obj/uvma_obi_memory_cfg.sv:323
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/obj/uvma_obi_memory_cfg.sv:352
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/seq/uvma_obi_memory_vp_cycle_counter_seq.sv:107
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/seq/uvma_obi_memory_vp_directed_slv_resp_seq.sv:93
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/seq/uvma_obi_memory_vp_sig_writer_seq.sv:98
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/uvma_obi_memory_assert.sv:213
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_rvfi/uvma_rvfi_assert.sv:118
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_agents/uvma_rvfi/uvma_rvfi_tdefs.sv:29
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_libs/uvml_logs/uvml_logs_reg_logger_cbs.sv:151
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_libs/uvml_logs/uvml_logs_reg_logger_json_cbs.sv:88
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: core-v-verif/lib/uvm_libs/uvml_mem/uvml_mem.sv:81
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/bhv/cv32e40p_instr_trace.svh:709
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/bhv/cv32e40p_instr_trace.svh:725
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/bhv/cv32e40p_instr_trace.svh:762
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/bhv/cv32e40p_instr_trace.svh:795
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/bhv/insn_trace.sv:1120
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/bhv/pipe_freeze_trace.sv:357
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_aligner.sv:102
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_alu.sv:139
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_alu.sv:153
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_alu.sv:752
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_cs_registers.sv:262
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_cs_registers.sv:636
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_cs_registers.sv:920
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_cs_registers.sv:1089
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_decoder.sv:888
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_id_stage.sv:1385
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_load_store_unit.sv:120
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_load_store_unit.sv:173
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_load_store_unit.sv:223
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_load_store_unit.sv:233
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_load_store_unit.sv:263
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_load_store_unit.sv:292
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_load_store_unit.sv:332
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_mult.sv:140
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_obi_interface.sv:132
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_prefetch_controller.sv:168
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: cv32e40p/rtl/cv32e40p_prefetch_controller.sv:227
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: fw-wb-dma/rundir/fw-wb-dma.pss.op-model-sv/wb_dma_c_pkg.sv:1630
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - fw-wb-dma
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_env_cfg.sv:199
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:467
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:603
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:598
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aon_timer_env_0.1/aon_timer_scoreboard.sv:611
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-aon_timer
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_csrng_env_0.1/seq_lib/csrng_err_vseq.sv:136
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-csrng
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_csrng_env_0.1/seq_lib/csrng_err_vseq.sv:180
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-csrng
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_csrng_env_0.1/seq_lib/csrng_intr_vseq.sv:248
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-csrng
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_kmac_env_0.1/kmac_scoreboard.sv:1551
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-kmac
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_kmac_env_0.1/kmac_scoreboard.sv:1681
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-kmac
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_spi_agent_0.1/spi_agent_cfg.sv:120
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-spi_device
+  - opentitan-spi_host
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_uart_env_0.1/seq_lib/uart_intr_vseq.sv:57
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-uart
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_uart_env_0.1/uart_scoreboard.sv:154
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-uart
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_uart_env_0.1/uart_scoreboard.sv:332
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-uart
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_uart_env_0.1/uart_scoreboard.sv:468
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - opentitan-uart
+  verdict: unreviewed
+  note: ''
+- at: svlib/svlib/src/svlib_impl_Str.svh:177
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - core-v-cv32e40p
+  verdict: unreviewed
+  note: ''
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/sv/fwvip_wb_target_core.sv:168
+  message: case statement has no default item; add one, or qualify the case as unique or unique0
+  corpora:
+  - uvm-tb-proto
+  verdict: unreviewed
+  note: ''

@@ -1,0 +1,88 @@
+slang: --relax-virtual-method-types accepts bit/logic mismatches in overrides
+
+VirtualArgTypeMismatch / VirtualReturnMismatch for an override that declares bit [7:0]
+where the superclass method has logic [7:0]. IEEE 1800-2017 8.20 asks for matching types;
+other tools accept this. The new CompilationFlags::RelaxVirtualMethodTypes (driver option
+--relax-virtual-method-types) makes SubroutineSymbol::checkVirtualMethodMatch also accept
+an argument or return type that is equivalent (6.22.2) to the superclass's, or integral
+with the same width and signedness, differing only in four-statedness. Enums, and width
+or sign differences, stay errors. Applies on top of 0007 (same enum).
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -139,9 +139,14 @@
+ 
+     /// Make `export pkg::*` (and `export *::*`) pass on every name of the imported
+     /// package, not only the names the exporting package itself references.
+-    RelaxPackageExports = 1 << 19
++    RelaxPackageExports = 1 << 19,
++
++    /// Accept a virtual method override whose return or argument type differs from the
++    /// superclass method's only in being 2-state rather than 4-state (or the reverse),
++    /// or in being equivalent rather than matching (e.g. bit [7:0] for logic [7:0]).
++    RelaxVirtualMethodTypes = 1 << 20
+ };
+-SLANG_BITMASK(CompilationFlags, RelaxPackageExports)
++SLANG_BITMASK(CompilationFlags, RelaxVirtualMethodTypes)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/symbols/SubroutineSymbols.cpp
++++ b/source/ast/symbols/SubroutineSymbols.cpp
+@@ -485,6 +485,20 @@
+     checkVirtualMethodMatch(*scope, parentMethod, *this, /* allowDerivedReturn */ true);
+ }
+ 
++// With RelaxVirtualMethodTypes, an override's type may differ from its superclass's in
++// being equivalent rather than matching, or integral with the same width and sign and
++// differing only in four-statedness (bit vs logic). Enums are left strict.
++static bool relaxedVirtualTypeMatch(const Scope& scope, const Type& a, const Type& b) {
++    if (!scope.getCompilation().hasFlag(CompilationFlags::RelaxVirtualMethodTypes))
++        return false;
++
++    if (a.isEquivalent(b))
++        return true;
++
++    return a.isIntegral() && b.isIntegral() && !a.isEnum() && !b.isEnum() &&
++           a.getBitWidth() == b.getBitWidth() && a.isSigned() == b.isSigned();
++}
++
+ void SubroutineSymbol::checkVirtualMethodMatch(const Scope& scope,
+                                                const SubroutineSymbol& parentMethod,
+                                                const SubroutineSymbol& derivedMethod,
+@@ -503,8 +517,10 @@
+     // Check that return type and arguments match what was declared in the superclass method.
+     // If the return type is a class type, it can be one that derives from the return type
+     // declared in the superclass method.
+-    if (!retType.isMatching(parentRetType) && (!allowDerivedReturn || !retType.isClass() ||
+-                                               !parentRetType.isAssignmentCompatible(retType))) {
++    if (!retType.isMatching(parentRetType) &&
++        (!allowDerivedReturn || !retType.isClass() ||
++         !parentRetType.isAssignmentCompatible(retType)) &&
++        !relaxedVirtualTypeMatch(scope, retType, parentRetType)) {
+         Diagnostic* diag;
+         auto typeSyntax = derivedMethod.declaredReturnType.getTypeSyntax();
+         if (typeSyntax)
+@@ -542,7 +558,8 @@
+         // Types must match.
+         const Type& dt = da->getType();
+         const Type& pt = pa->getType();
+-        if (!dt.isMatching(pt) && !dt.isError() && !pt.isError()) {
++        if (!dt.isMatching(pt) && !dt.isError() && !pt.isError() &&
++            !relaxedVirtualTypeMatch(scope, dt, pt)) {
+             auto& diag = scope.addDiag(diag::VirtualArgTypeMismatch, da->location);
+             diag << da->name << dt << pt;
+             diag.addNote(diag::NoteDeclarationHere, pa->location);
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -264,6 +264,10 @@
+                 "Make 'export pkg::*' re-export every name of pkg, not only the names "
+                 "the exporting package references");
+ 
++    addCompFlag(CompilationFlags::RelaxVirtualMethodTypes, "--relax-virtual-method-types",
++                "Allow virtual method overrides whose argument or return types differ from "
++                "the superclass method's only in 2-state vs 4-state (same width and sign)");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

@@ -142,6 +142,9 @@ public:
     std::vector<std::string>    m_replacedBy;
     std::string                 m_severity;         // empty: the tier's
     bool                        m_defaultEnabled = true;
+    // From a built-in file. A rule from a file the user names is in every
+    // profile but `none` (svcheck divergence log: naming the file asks for it).
+    bool                        m_builtin = false;
 
     std::vector<RuleOption>     m_options;
 

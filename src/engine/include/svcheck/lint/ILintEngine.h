@@ -116,7 +116,8 @@ public:
      *                                     enabled for its path (C7.1)
      * The result is JSON:
      *   {"ok":true,"markers":[{"severity","message","fileid","line","col",
-     *    "extent","related":[],"code"}],"stats":[{"id","matches","findings",
+     *    "extent","related":[],"code","context"?:[{"axis","label","unit"}]}],
+     *    "stats":[{"id","tier","matches","findings",
      *    "steps","ns","errors"}],"index_ns":N,"problems":["..."]}
      * `index_ns` is the time spent building the library's indexes (parent
      * links, symbol occurrences): the run's, in no rule's `ns` (C8).

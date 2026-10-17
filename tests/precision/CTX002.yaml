@@ -1,0 +1,14 @@
+# Precision review of CTX002 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: CTX002
+findings:
+- at: core-v-verif/cv32e40p/env/uvme/uvme_cv32e40p_pkg.sv:35
+  message: package uvme_cv32e40p_pkg holds agent, env content; a reusable testbench keeps each in its
+    own package
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): the env package holds the CV32E40P core-control agent, which
+    is core-specific and kept beside the env on purpose; nobody would split it'

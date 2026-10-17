@@ -4,7 +4,9 @@ tables for the plan's §6, as Markdown.
 
     scripts/measure.py [--svcheck BIN] [--runs N] [CORPUS ...]
 
-CORPUS is a `tests/corpora/<name>.f` (default: the trial's three and fwvip).
+CORPUS is a corpus of tests/corpora/corpora.yaml (default: every one that is
+present and compiles, P2.1; P1.7's tables were of uvm-tb-proto, fw-wb-dma,
+opentitan-uart and fwvip).
 Each configuration runs N times (default 5) with `--stats`; each phase's
 time is the minimum over the runs, the heap is the last run's. The tables:
 
@@ -24,8 +26,10 @@ import os
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CORPORA = ["uvm-tb-proto", "fw-wb-dma", "opentitan-uart", "fwvip"]
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "corpora"))
+import registry  # noqa: E402
+
+ROOT = registry.ROOT
 SPIKE = ["rules/spike/uvm.yaml", "rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml"]
 TRIAL = "rules/trial/contexts.yaml"
 CONVENTION = "rules/trial/classify-convention.yaml"
@@ -37,7 +41,8 @@ def run(svcheck, corpus, rules, layer="model"):
     cmd = [svcheck]
     for r in rules:
         cmd += ["--rules", r]
-    cmd += ["-F", "tests/corpora/%s.f" % corpus, "--format", "json", "--stats",
+    cmd += ["-F", os.path.relpath(registry.load([corpus])[0]["path"], ROOT), "--format", "json",
+            "--stats",
             "--semantic", layer]
     p = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
     if p.returncode not in (0, 1) or not p.stdout.strip():
@@ -64,8 +69,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--svcheck", default=os.path.join(ROOT, "python", "svcheck", "bin", "svcheck"))
     ap.add_argument("--runs", type=int, default=5)
-    ap.add_argument("corpora", nargs="*", default=CORPORA)
+    ap.add_argument("corpora", nargs="*")
     args = ap.parse_args()
+    if not args.corpora:
+        args.corpora = [c["name"] for c in registry.load() if c["present"] and not c["exception"]]
 
     phases, classify = [], []
     for c in args.corpora:

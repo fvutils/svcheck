@@ -1,0 +1,32 @@
+slang: two adjacent macro pastes paste once
+
+"macro operators may only be used within a macro definition" on code other
+tools accept: `a````b` in a macro body, which CORE-V-VERIF uses to build
+names from an argument that may be empty (`rvfi_csr_``n````idx````sfx``_if`).
+Pasting the left token with the second `` lexed as two tokens, the name and
+the ``, so the `` stayed in the expansion. Now a paste followed directly by
+another is skipped, and the second joins the left token with what follows.
+
+Local issue SL-3 (patches/slang/README.md). Not reported upstream yet.
+Present in v11.0 and on master (2026-10-16). Applies to v11.0.
+
+--- a/source/parsing/Preprocessor_macros.cpp
++++ b/source/parsing/Preprocessor_macros.cpp
+@@ -176,6 +176,17 @@
+         // Paste together previous token and next token; a macro paste on either end
+         // of the buffer or one that borders whitespace should be ignored.
+         // This isn't specified in the standard so I'm just guessing.
++        //
++        // Two pastes with nothing between them (`a````b`, or an empty argument
++        // between two pastes) paste once, as other tools do: skip this one and
++        // let the next paste join the previous token with what follows it.
++        // Pasting the next `` itself would leave it in the expansion.
++        if (index + 1 < inputTokens.size() &&
++            inputTokens[index + 1].kind == TokenKind::MacroPaste && token.trivia().empty() &&
++            inputTokens[index + 1].trivia().empty() && emptyArgTrivia.empty()) {
++            return false;
++        }
++
+         if (index == 0 || index == inputTokens.size() - 1 || !token.trivia().empty() ||
+             !inputTokens[index + 1].trivia().empty() || !emptyArgTrivia.empty()) {
+ 

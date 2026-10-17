@@ -1,0 +1,79 @@
+slang: --relax-forward-method-refs
+
+"identifier 'f' used before its declaration" (UsedBeforeDeclared) for a class method that
+returns a value, named without parentheses (`x = get_op;`) before its declaration. slang
+lets a task, a void function or a call with parentheses be used before its declaration,
+but not this form, which other tools accept. The new CompilationFlags::RelaxForwardMethodRefs
+(driver option --relax-forward-method-refs) makes Lookup::unqualifiedImpl accept a forward
+reference to a subroutine or method prototype found in a class scope. Found in OpenTitan's
+keymgr and kmac DV. Applies on top of 0012 (same enum).
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -161,9 +161,13 @@ enum class SLANG_EXPORT CompilationFlags {
+ 
+     /// Allow a string to be compared with an integral operand (e.g. a byte of another
+     /// string); the integral operand is converted to a string, as by a cast.
+-    RelaxStringCompare = 1 << 24
++    RelaxStringCompare = 1 << 24,
++
++    /// Allow a class method that returns a value to be named, without parentheses,
++    /// before its declaration.
++    RelaxForwardMethodRefs = 1 << 25
+ };
+-SLANG_BITMASK(CompilationFlags, RelaxStringCompare)
++SLANG_BITMASK(CompilationFlags, RelaxForwardMethodRefs)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/Lookup.cpp
++++ b/source/ast/Lookup.cpp
+@@ -1807,6 +1807,13 @@ bool Lookup::findAssertionLocalVar(const ASTContext& context, const NameSyntax&
+     return lookupDownward(nameParts, name, context, LookupFlags::None, result);
+ }
+ 
++// RelaxForwardMethodRefs: a method of the class being searched may be named before its
++// declaration even when it returns a value and is called without parentheses.
++static bool forwardMethodRef(const Scope& scope) {
++    return scope.asSymbol().kind == SymbolKind::ClassType &&
++           scope.getCompilation().hasFlag(CompilationFlags::RelaxForwardMethodRefs);
++}
++
+ void Lookup::unqualifiedImpl(const Scope& scope, std::string_view name, LookupLocation location,
+                              std::optional<SourceRange> sourceRange, bitmask<LookupFlags> flags,
+                              SymbolIndex outOfBlockIndex, LookupResult& result,
+@@ -1861,8 +1868,10 @@ void Lookup::unqualifiedImpl(const Scope& scope, std::string_view name, LookupLo
+ 
+                     // Also allow built-ins to always be found; they don't really
+                     // have a location since they're intrinsically defined.
++                    // RelaxForwardMethodRefs: a class's methods, whatever they return.
+                     locationGood = sub.getReturnType().isVoid() ||
+-                                   sub.flags.has(MethodFlags::BuiltIn);
++                                   sub.flags.has(MethodFlags::BuiltIn) ||
++                                   forwardMethodRef(scope);
+                     break;
+                 }
+                 case SymbolKind::MethodPrototype: {
+@@ -1874,7 +1883,8 @@ void Lookup::unqualifiedImpl(const Scope& scope, std::string_view name, LookupLo
+                     }
+ 
+                     locationGood = sub.getReturnType().isVoid() ||
+-                                   sub.flags.has(MethodFlags::BuiltIn);
++                                   sub.flags.has(MethodFlags::BuiltIn) ||
++                                   forwardMethodRef(scope);
+                     break;
+                 }
+                 case SymbolKind::Sequence:
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -285,6 +285,10 @@ void Driver::addStandardArgs() {
+                 "Allow a string to be compared with an integral operand, which is "
+                 "converted to a string");
+ 
++    addCompFlag(CompilationFlags::RelaxForwardMethodRefs, "--relax-forward-method-refs",
++                "Allow a class method that returns a value to be called without parentheses "
++                "before its declaration");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

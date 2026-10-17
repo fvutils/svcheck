@@ -1,0 +1,92 @@
+core-v-verif: fixes for slang (svcheck corpus core-v-cv32e40p)
+
+What the simulators the bench targets accept and slang 11 rejects as
+errors. Each change keeps the bench's meaning.
+
+- uvma_obi_memory drv/mon: a virtual interface variable with a modport is
+  assigned the virtual interface itself (IEEE 1800-2017 25.9: one with no
+  modport may be assigned to one with a modport), not `vif.<modport>`,
+  which slang does not take as an expression.
+- uvmt_cv32e40p_rvvi_if: the interface ports interrupt_if and debug_if
+  become an input for the one signal it reads (debug_if.debug_req). slang
+  refuses an interface with interface ports as a virtual interface, and the
+  coverage models hold this one as one.
+- uvme_rv32x_hwloop_covg: `get_coverage()` with its parentheses; slang
+  requires them on a built-in method call.
+
+The solve-before inside a foreach (uvma_interrupt_seq_item, 18.5.10) is
+left as it is; tests/corpora/core-v-cv32e40p.f downgrades it.
+
+--- a/cv32e40p/env/uvme/cov/uvme_rv32x_hwloop_covg.sv
++++ b/cv32e40p/env/uvme/cov/uvme_rv32x_hwloop_covg.sv
+@@ -442,11 +442,11 @@
+             unique case (i) \
+               0:  begin \
+                     `CG_CSR_HWLOOP(0).sample(csr_hwloop_``TYPE``); \
+-                    `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(0).get_inst_coverage(), `CG_CSR_HWLOOP(0).get_coverage), UVM_DEBUG); \
++                    `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(0).get_inst_coverage(), `CG_CSR_HWLOOP(0).get_coverage()), UVM_DEBUG); \
+                   end \
+               1:  begin \
+                     `CG_CSR_HWLOOP(1).sample(csr_hwloop_``TYPE``); \
+-                    `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(1).get_inst_coverage(), `CG_CSR_HWLOOP(1).get_coverage), UVM_DEBUG); \
++                    `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(1).get_inst_coverage(), `CG_CSR_HWLOOP(1).get_coverage()), UVM_DEBUG); \
+                   end \
+             endcase \
+           // update hwloop_stat \
+--- a/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb_ifs.sv
++++ b/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb_ifs.sv
+@@ -399,8 +399,7 @@
+   input logic [31:0]                  pc_rdata,
+   input logic [31:0]                  wa_csr_mip,
+ 
+-  uvma_interrupt_if                   interrupt_if,
+-  uvma_debug_if                       debug_if,
++  input                               debug_req,
+ 
+   // Currently only define specific csrs for current usage
+   `DEF_CSR_PORTS(lpstart0)
+@@ -434,7 +433,7 @@
+ 
+   // assign valid_irq            = csr[`CSR_MIP_ADDR] & csr[`CSR_MIE_ADDR]; // fixme: rvfi misses mip (pending rvfi fixes; workaround probe rtl signals - wa_csr_mip)
+   assign valid_irq            = wa_csr_mip & csr[`CSR_MIE_ADDR];
+-  assign dbg_req              = debug_if.debug_req;
++  assign dbg_req              = debug_req;
+   assign mie                  = csr[`CSR_MSTATUS_ADDR][3];
+   assign mip                  = csr[`CSR_MIP_ADDR];
+ 
+--- a/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb.sv
++++ b/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb.sv
+@@ -560,8 +560,7 @@
+     .insn                   (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_insn[uvme_cv32e40p_pkg::ILEN*0+:uvme_cv32e40p_pkg::ILEN]),
+     .trap                   (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_trap.trap),
+     .pc_rdata               (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_pc_rdata),
+-    .interrupt_if           (interrupt_if),
+-    .debug_if               (debug_if),
++    .debug_req              (debug_if.debug_req),
+     .wa_csr_mip             (dut_wrap.cv32e40p_tb_wrapper_i.cv32e40p_top_i.core_i.cs_registers_i.mip),
+     `PORTMAP_CSR_RVFI_2_RVVI(lpstart0)
+     `PORTMAP_CSR_RVFI_2_RVVI(lpend0)
+--- a/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_drv.sv
++++ b/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_drv.sv
+@@ -161,8 +161,8 @@
+       `uvm_fatal("CNTXT", "Context handle is null")
+    end
+    uvm_config_db#(uvma_obi_memory_cntxt_c)::set(this, "*", "cntxt", cntxt);
+-   mstr_mp = cntxt.vif.active_mstr_mp;
+-   slv_mp  = cntxt.vif.active_slv_mp ;
++   mstr_mp = cntxt.vif;
++   slv_mp  = cntxt.vif;
+ 
+    mstr_ap      = new("mstr_ap"     , this);
+    slv_ap       = new("slv_ap"      , this);
+--- a/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_mon.sv
++++ b/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_mon.sv
+@@ -129,7 +129,7 @@
+    if (cntxt == null) begin
+       `uvm_fatal("CNTXT", "Context handle is null")
+    end
+-   passive_mp = cntxt.vif.passive_mp;
++   passive_mp = cntxt.vif;
+ 
+    ap           = new("ap"          , this);
+    sequencer_ap = new("sequencer_ap", this);

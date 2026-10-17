@@ -20,9 +20,25 @@ add_custom_command(
   COMMENT "Generating the syntax schema from slang's syntax.txt"
   VERBATIM)
 
+#****************************************************************************
+#* slang's warnings as SLANG### markers (scripts/gen_slang_warnings.py;
+#* svcheck-plan P2.3, Q-UVM4): the append-only numbering in
+#* slang_warnings.txt, with slang's diagnostics.txt for tiers and summaries.
+#****************************************************************************
+set(_diag_txt "${PACKAGES_DIR}/slang/scripts/diagnostics.txt")
+set(_warn_gen "${CMAKE_SOURCE_DIR}/scripts/gen_slang_warnings.py")
+set(_warn_table "${CMAKE_CURRENT_SOURCE_DIR}/slang_warnings.txt")
+set(_warn_cpp "${CMAKE_CURRENT_BINARY_DIR}/schema/SlangWarningsTable.cpp")
+add_custom_command(
+  OUTPUT "${_warn_cpp}"
+  COMMAND "${Python3_EXECUTABLE}" "${_warn_gen}" "${_diag_txt}" "${_warn_table}" "${_warn_cpp}"
+  DEPENDS "${_diag_txt}" "${_warn_table}" "${_warn_gen}"
+  COMMENT "Generating the SLANG marker table from slang's diagnostics.txt"
+  VERBATIM)
+
 file(GLOB _host_src CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
-add_library(svcheck_host STATIC ${_host_src} "${_schema_cpp}")
+add_library(svcheck_host STATIC ${_host_src} "${_schema_cpp}" "${_warn_cpp}")
 target_include_directories(svcheck_host
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
   PRIVATE "${SVCHECK_SEM_IMPL_DIR}")

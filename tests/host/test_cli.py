@@ -268,7 +268,7 @@ def test_bad_rule_file_checks_nothing(tb):
 
 
 @pytest.mark.parametrize("args, message", [
-    (["--format", "xml"], "svcheck: unknown --format 'xml' (text, json, sarif)"),
+    (["--format", "xml"], "svcheck: unknown --format 'xml' (text, json, sarif, github)"),
     (["--semantic", "deep"], "svcheck: unknown --semantic 'deep' (model, none)"),
     (["--contexts"], "svcheck: --contexts needs --rules: the classifiers are in the rule files"),
 ])

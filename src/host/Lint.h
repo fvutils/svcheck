@@ -33,6 +33,7 @@
 #include "Reflect.h"
 #include "Schema.h"
 #include "run/Context.h"
+#include "svcheck/lint/LintRequest.h"
 
 namespace slang {
 namespace driver {
@@ -122,6 +123,30 @@ public:
     /** The library directories, as absolute paths. */
     const std::vector<std::string> &libraryDirs() const { return m_libraryDirs; }
 
+    /** A warning slang reported in user code (Q-UVM4: a SLANG### marker). */
+    struct Warning {
+        std::string     option;     // slang's option name: the marker's name
+        std::string     message;
+        std::string     file;       // as paths() names it
+        int32_t         line = 0;
+        int32_t         col = 0;
+    };
+
+    /**
+     * slang's warnings, at the severity its options give them, in files
+     * whose findings are shown (shows()); one per (option, place), sorted
+     * by place (svcheck-plan P0-1, P1-42: slang's list varies between runs).
+     */
+    const std::vector<Warning> &warnings() const { return m_warnings; }
+
+    /**
+     * Each user file's tokens, for source waivers (C9.3): its line comments
+     * with their text, its other tokens as positions; lexed as written, so
+     * a macro's use and an `include`d file's own text are seen. Files are
+     * named as paths() names them.
+     */
+    std::vector<lint::LintTokens> waiverTokens() const;
+
     const Stats &stats() const { return m_stats; }
 
 private:
@@ -134,6 +159,7 @@ private:
     std::vector<std::string>                    m_unparsed;
     std::vector<std::string>                    m_files;
     std::vector<std::string>                    m_libraryDirs;
+    std::vector<Warning>                        m_warnings;
     Stats                                       m_stats;
 };
 

@@ -27,12 +27,14 @@
 #include "SvLib.h"
 #include "Syntax.h"
 #include "reflect/Reflect.h"
+#include "svcheck/sem/IBlock.h"
 #include "svcheck/sem/ICall.h"
 #include "svcheck/sem/IClass.h"
 #include "svcheck/sem/IDefinition.h"
 #include "svcheck/sem/IMemberAccess.h"
 #include "svcheck/sem/INamedValue.h"
 #include "svcheck/sem/INewClass.h"
+#include "svcheck/sem/IOpaqueExpr.h"
 #include "svcheck/sem/IPackage.h"
 #include "svcheck/sem/ISubroutine.h"
 #include "svcheck/sem/ITypeRef.h"
@@ -448,12 +450,121 @@ Value subclassesImpl(CallArgs &c) {
     return semList(std::vector<sem::ISemNode *>(subs.begin(), subs.end()));
 }
 
+// The specialisations of a generic class: every type in the design whose
+// class is `c` and that has type arguments (svcheck-plan P2.4: the config
+// class a bench specialises with a virtual interface, fwvip style).
+Value specializationsImpl(CallArgs &c) {
+    auto *ctx = dynamic_cast<const SvContext *>(c.host);
+    auto *cls = dynamic_cast<sem::IClass *>(semOf(c[0]));
+    if (!ctx || !cls) {
+        return Value::mkList({});
+    }
+    std::vector<sem::ISemNode *> out;
+    const auto &types = ctx->design()->getTypes();
+    for (const auto &t : types) {
+        if (t->getClassDecl() == cls && !t->getArgs().empty()) {
+            out.push_back(t.get());
+        }
+    }
+    c.steps = 1 + types.size() / 64;
+    return semList(out);
+}
+
 Value contextImpl(CallArgs &c) {
     return contextOf(c, "");
 }
 
 Value contextAxisImpl(CallArgs &c) {
     return contextOf(c, c[1].s);
+}
+
+//* Access paths and statement order.
+
+// The chain of an access, root first: `cfg`, `cfg.vif`, `cfg.vif.sig` for
+// `cfg.vif.sig[0]`, which is last. Selects (`a[i]`, `a[i:j]`) are steps
+// of the chain.
+std::vector<sem::ISemNode *> accessPath(sem::IExpr *e, uint64_t &steps) {
+    std::vector<sem::ISemNode *> out;
+    while (e) {
+        steps++;
+        out.push_back(e);
+        if (auto *m = dynamic_cast<sem::IMemberAccess *>(e)) {
+            e = m->getValue();
+        } else if (auto *o = dynamic_cast<sem::IOpaqueExpr *>(e); o
+                && (o->getSlangKind() == "ElementSelect" || o->getSlangKind() == "RangeSelect")
+                && !o->getOperands().empty()) {
+            e = o->getOperands()[0].get();
+        } else {
+            e = nullptr;
+        }
+    }
+    return std::vector<sem::ISemNode *>(out.rbegin(), out.rend());
+}
+
+Value accessPathImpl(CallArgs &c) {
+    auto *e = dynamic_cast<sem::IExpr *>(semOf(c[0]));
+    return semList(accessPath(e, c.steps));
+}
+
+Value accessRootImpl(CallArgs &c) {
+    auto *e = dynamic_cast<sem::IExpr *>(semOf(c[0]));
+    std::vector<sem::ISemNode *> path = accessPath(e, c.steps);
+    return path.empty() ? Value::null() : semValue(path.front());
+}
+
+// The statements of the sequential blocks around `n`, before (nearest
+// first) or after (in order) the statement that holds `n`, up to the
+// subroutine or process. A fork's statements run alongside each other, so
+// a fork block's are skipped.
+Value siblingStmts(CallArgs &c, const char *fn, bool before) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext(fn);
+    }
+    std::vector<sem::ISemNode *> out;
+    if (!semOf(c[0])) {
+        return semList(out);
+    }
+    rf::Node child = toNode(c[0]);
+    for (rf::Node p=ctx->parentOf(child); p; child=p, p=ctx->parentOf(p)) {
+        c.steps++;
+        sem::ISemNode *ps = sem::reflect::asSemNode(p);
+        if (dynamic_cast<sem::IDecl *>(ps)) {
+            break;
+        }
+        auto *b = dynamic_cast<sem::IBlock *>(ps);
+        if (!b || b->getKind() != sem::BlockKind::Sequential) {
+            continue;
+        }
+        sem::ISemNode *held = sem::reflect::asSemNode(child);
+        const std::vector<sem::IStmtUP> &stmts = b->getStmts();
+        size_t i = 0;
+        while (i < stmts.size() && stmts[i].get() != held) {
+            i++;
+        }
+        if (i == stmts.size()) {
+            continue;
+        }
+        if (before) {
+            for (size_t j=i; j>0; j--) {
+                out.push_back(stmts[j-1].get());
+            }
+        } else {
+            for (size_t j=i+1; j<stmts.size(); j++) {
+                out.push_back(stmts[j].get());
+            }
+        }
+    }
+    c.steps += out.size();
+    return semList(out);
+}
+
+Value beforeImpl(CallArgs &c) {
+    return siblingStmts(c, "before", true);
+}
+
+Value afterImpl(CallArgs &c) {
+    return siblingStmts(c, "after", false);
 }
 
 //* Both layers.
@@ -610,10 +721,48 @@ void registerSvLib(cel::FunctionRegistry &r) {
         "derives from `c` (a base library's class, svcheck-plan P1.6b). Empty for a node "
         "that is not a class. One step per class returned.")
         .nullable = true;
+    r.add("specializations_node", "specializations(node) -> list(TypeRef)",
+        &specializationsImpl, C::Custom,
+        "The specialisations of a generic class anywhere in the design, as types with "
+        "arguments (`args`): `specializations(c).exists(t, t.args.exists(a, "
+        "a.isVirtualInterface))` says something specialises `c` with a virtual interface, "
+        "as a bench does a VIP's config class. Empty for a node that is not a class. One "
+        "step, and one per 64 types in the design.")
+        .nullable = true;
     r.add("calls_in_node", "calls_in(node) -> list(Call)", &callsInImpl, C::Custom,
         "The calls in a carrier's code, or in any node's subtree, in pre-order: "
         "`descendants(node, Call)`. Library code has no bodies, so none of its calls. One "
         "step per node visited.")
+        .nullable = true;
+
+    r.group("Accesses and statement order");
+    r.add("access_path_node", "access_path(node) -> list(Expr)", &accessPathImpl, C::Custom,
+        "The chain of an access, root first, the expression itself last: for "
+        "`cfg.vif.sig[0]`, `cfg`, `cfg.vif`, `cfg.vif.sig` and `cfg.vif.sig[0]`. Member "
+        "accesses and selects are its steps. "
+        "`access_path(a.lhs).exists(p, p.type.isVirtualInterface)` says an assignment "
+        "writes through a virtual interface, however it is reached. Empty for a node that "
+        "is not an expression. One step per element.")
+        .nullable = true;
+    r.add("access_root_node", "access_root(node) -> Expr", &accessRootImpl, C::Custom,
+        "The first element of `access_path(node)`: the variable at the root of "
+        "`a.b.c[i]` (a NamedValue, `this` included), or the expression itself when it is "
+        "not an access. `null` for a node that is not an expression.")
+        .nullable = true;
+    r.add("before_node", "before(node) -> list(Stmt)", &beforeImpl, C::Custom,
+        "The statements that run before the one holding the node, straight-line: those "
+        "earlier in its block, nearest first, then those earlier in each enclosing block, "
+        "up to the subroutine or process. Branches are not merged, and a fork's "
+        "statements are not before each other: only sequential blocks count. "
+        "`before(call).exists(s, ...)` asks whether something happened first. One step "
+        "per owner visited and per statement returned.")
+        .nullable = true;
+    r.add("after_node", "after(node) -> list(Stmt)", &afterImpl, C::Custom,
+        "The statements that run after the one holding the node, straight-line: those "
+        "later in its block, in order, then those later in each enclosing block, up to "
+        "the subroutine or process. As `before`, only sequential blocks count. "
+        "`after(run_test_call).size() > 0` says code follows `run_test()`. One step per "
+        "owner visited and per statement returned.")
         .nullable = true;
 }
 

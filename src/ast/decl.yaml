@@ -25,6 +25,16 @@ enums:
     - AlwaysFF: "`always_ff`"
     - AlwaysLatch: "`always_latch`"
 
+- ArgDirection:
+    doc: A formal argument's direction.
+    values:
+    - NotArg: "not a formal argument"
+    - In: "`input`, or no direction"
+    - Out: "`output`"
+    - InOut: "`inout`"
+    - Ref: "`ref`"
+    - ConstRef: "`const ref`"
+
 classes:
 - Decl:
     super: SemNode
@@ -35,7 +45,7 @@ classes:
             name: the declared name
             qname: the name qualified by its package or definition (`uvm_pkg::uvm_object`)
             inLibrary: declared in library code (uvm_pkg, or a configured VIP); its subroutines have no bodies
-            carrier: the package or definition the declaration is in, however deeply; null in `$unit`. A file `include`d into a package is in that package (sv-contexts.md §2.2)
+            carrier: the package or definition the declaration is in, however deeply; null in `$unit`. A file included into a package (`` `include ``) is in that package (sv-contexts.md §2.2)
             tags: the context tags in the comments before a package, definition or class (`// svcheck context: agent(apb)` gives `agent(apb)`), each as written
     data:
     - name:
@@ -62,7 +72,7 @@ classes:
 
         Attributes:
             imports: the packages it imports (`import p::*;` or `import p::x;`), each once
-            files: the files its text comes from: its own, then each file `include`d into it
+            files: the files its text comes from: its own, then each file included into it
             items: its declarations
     data:
     - imports:
@@ -85,7 +95,7 @@ classes:
             kind: module, interface or program
             imports: the packages it imports
             files: the files its text comes from
-            items: its declarations: variables, subroutines, classes
+            items: its declarations: variables, subroutines, classes, processes and generate blocks, from its first instance (generate blocks: GenBlock)
     data:
     - kind:
         type: DefinitionKind
@@ -160,7 +170,8 @@ classes:
             isRand: `rand` or `randc`
             isStatic: `static`
             isConst: `const`
-            init: its initializer, or null
+            direction: a formal argument's direction; NotArg for any other variable
+            init: its initializer, or null; a formal argument's default value (user code only)
     data:
     - type:
         type: P<TypeRef>
@@ -177,6 +188,10 @@ classes:
         type: bool
         is_ctor: false
         init: false
+    - direction:
+        type: ArgDirection
+        is_ctor: false
+        init: ArgDirection::NotArg
     - init:
         type: UP<Expr>
         is_ctor: false
@@ -194,7 +209,7 @@ classes:
             overrides: the base-class method it overrides, or null
             returnType: the return type; `void` for a task
             args: its formal arguments
-            body: its body, or null (library code, a prototype)
+            body: its statements, as a Block (one with a single statement too), or null (library code, a prototype)
     data:
     - kind:
         type: SubroutineKind
@@ -241,6 +256,37 @@ classes:
         init: ProcessKind::Initial
     - body:
         type: UP<Stmt>
+        is_ctor: false
+
+- GenBlock:
+    super: Decl
+    doc: |
+        A generate block of a module, interface or program: a branch of a
+        generate `if` or `case`, or the body of a generate `for`.
+
+        One node per block as written, as for definitions (S-1): its items
+        come from the first instance that elaborates it, so a definition
+        instantiated with several parameter sets gives each block once. A
+        `for` body is lowered once, from its first iteration. A block that
+        no instance elaborates (a branch every instance's parameters rule
+        out) is here, with `isElaborated` false and no items.
+
+        Attributes:
+            name: its label, or slang's name for an unlabelled block (`genblk1`)
+            isLoop: the body of a generate `for`
+            isElaborated: some instance elaborates it; else it has no items
+            items: its declarations: variables, processes, nested blocks
+    data:
+    - isLoop:
+        type: bool
+        is_ctor: false
+        init: false
+    - isElaborated:
+        type: bool
+        is_ctor: false
+        init: false
+    - items:
+        type: list<UP<Decl>>
         is_ctor: false
 
 - OpaqueDecl:

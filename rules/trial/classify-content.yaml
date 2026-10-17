@@ -25,16 +25,30 @@ sv-rules:
         when: '!carrier.inLibrary && !based(carrier) && is(carrier, "uvm_env")' }
     - { label: test, axis: unit, carrier: Class,
         when: '!carrier.inLibrary && !based(carrier) && is(carrier, "uvm_test")' }
+    # An agent's parts (Q-CX5, svcheck-plan P2.4): in a mixed package a
+    # class's context is what it is. A sequencer is not one: an env's virtual
+    # sequencer is a uvm_sequencer too. Nor is a scoreboard an env's: CORE-V's
+    # uvml_sb_pkg is a library of them, which became an env; in a mixed
+    # package a scoreboard's context is unknown.
+    - { label: agent, axis: unit, carrier: Class,
+        when: '!carrier.inLibrary && !based(carrier) && (is(carrier, "uvm_driver") || is(carrier, "uvm_monitor"))' }
     # Packages, on the same evidence, so that content and convention meet on
     # one carrier and a disagreement is noted (Q-CX4).
     - label: agent
       axis: unit
       carrier: Package
       when: '!carrier.inLibrary && holds(carrier, "uvm_agent")'
+      # Two content joins (Q-CX5): an interface the package fetches from
+      # config_db as a virtual interface (lowRISC), and one a class of the
+      # package is specialised with, wherever that is (fwvip's config_p
+      # classes, specialised in the tb top; svcheck-plan P2.4).
       joins: >-
         calls_in(carrier).filter(c, c.name == "get" && is_config_db(c.classType)
           && c.classType.args.size() > 0 && c.classType.args[0].isVirtualInterface)
         .map(c, c.classType.args[0].ifaceDecl)
+        + classes(carrier).map(k, specializations(k)).flatten()
+          .map(t, t.args.filter(a, a.isVirtualInterface)).flatten()
+          .map(a, a.ifaceDecl)
     - { label: env, axis: unit, carrier: Package,
         when: '!carrier.inLibrary && holds(carrier, "uvm_env")' }
     - { label: test, axis: unit, carrier: Package,

@@ -1,0 +1,94 @@
+slang: --relax-array-element-conversions
+
+"no implicit conversion from 'bit[7:0]$[$]' to 'logic[7:0]$[$]'; explicit conversion
+exists" (NoImplicitConversion) for unpacked arrays (fixed, dynamic, queue) whose element
+types differ only in four-statedness or signedness. IEEE 1800-2017 6.22.3 asks for
+equivalent element types; other tools assign these without a cast. The new
+CompilationFlags::RelaxArrayElementConversions (driver option
+--relax-array-element-conversions) makes Expression::convertAssignment accept such an
+assignment when the types are bit-stream castable and their innermost element types are
+integral, non-enum and of the same width, and inserts a bit-stream cast conversion (what
+an explicit cast would do), an output argument's copy-out included. Associative arrays
+stay strict. Applies on top of 0010 (same enum).
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -152,9 +152,14 @@ enum class SLANG_EXPORT CompilationFlags {
+     /// Allow interfaces whose bodies contain hierarchical references to objects outside
+     /// of themselves (e.g. upward references into a bind target) to be used as
+     /// virtual interfaces.
+-    AllowVirtualIfaceHierRef = 1 << 22
++    AllowVirtualIfaceHierRef = 1 << 22,
++
++    /// Allow unpacked arrays (fixed, dynamic, queue) to be assigned without a cast when
++    /// their element types are integral with the same width and differ only in
++    /// four-statedness or signedness (e.g. a logic [7:0] queue from a bit [7:0] queue).
++    RelaxArrayElementConversions = 1 << 23
+ };
+-SLANG_BITMASK(CompilationFlags, AllowVirtualIfaceHierRef)
++SLANG_BITMASK(CompilationFlags, RelaxArrayElementConversions)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/expressions/ConversionExpression.cpp
++++ b/source/ast/expressions/ConversionExpression.cpp
+@@ -106,6 +106,28 @@ bool Expression::isImplicitlyAssignableTo(Compilation& compilation, const Type&
+     return false;
+ }
+ 
++// For RelaxArrayElementConversions: both types are unpacked arrays (not associative)
++// of the same depth whose innermost element types are integral, non-enum, and of the
++// same width.
++static bool relaxedArrayElementsMatch(const Type& lt, const Type& rt) {
++    const Type* l = &lt.getCanonicalType();
++    const Type* r = &rt.getCanonicalType();
++    if (!l->isUnpackedArray() || !r->isUnpackedArray())
++        return false;
++
++    while (l->isUnpackedArray() || r->isUnpackedArray()) {
++        if (!l->isUnpackedArray() || !r->isUnpackedArray() ||
++            l->isAssociativeArray() || r->isAssociativeArray()) {
++            return false;
++        }
++        l = &l->getArrayElementType()->getCanonicalType();
++        r = &r->getArrayElementType()->getCanonicalType();
++    }
++
++    return l->isIntegral() && r->isIntegral() && !l->isEnum() && !r->isEnum() &&
++           l->getBitWidth() == r->getBitWidth();
++}
++
+ Expression& Expression::convertAssignment(const ASTContext& context, const Type& type,
+                                           Expression& expr, SourceRange assignmentRange,
+                                           Expression** lhsExpr) {
+@@ -201,6 +223,16 @@ Expression& Expression::convertAssignment(const ASTContext& context, const Type&
+             return badExpr(comp, &expr);
+         }
+ 
++        // Some tools assign such arrays without a cast; convert as a bit-stream cast would.
++        // An output argument's copy-out too.
++        if (comp.hasFlag(CompilationFlags::RelaxArrayElementConversions) &&
++            type.isBitstreamCastable(*rt) && relaxedArrayElementsMatch(type, *rt)) {
++            selfDetermined(context, result);
++            auto conv = comp.emplace<ConversionExpression>(type, ConversionKind::BitstreamCast,
++                                                           *result, result->sourceRange);
++            return *conv;
++        }
++
+         DiagCode code = diag::BadAssignment;
+         if (!context.flags.has(ASTFlags::OutputArg) &&
+             (type.isCastCompatible(*rt) || type.isBitstreamCastable(*rt))) {
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -276,6 +276,11 @@ void Driver::addStandardArgs() {
+                 "Allow interfaces containing hierarchical references to objects outside "
+                 "their body to be used as virtual interfaces");
+ 
++    addCompFlag(CompilationFlags::RelaxArrayElementConversions,
++                "--relax-array-element-conversions",
++                "Allow unpacked arrays whose integral element types have the same width "
++                "(e.g. bit [7:0] vs logic [7:0]) to be assigned to each other without a cast");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

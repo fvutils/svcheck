@@ -1,0 +1,60 @@
+slang: no parameter-dependent errors from a generic class body checked unset
+
+slang checks each generic class body once with its parameters unset (the
+"invalid specialization": for a class nothing specialises, and for every
+generic class in a package that a wildcard-import lookup force-elaborates).
+Two checks there reported errors that depend on the parameters' values, on
+code that is correct in every specialisation:
+
+    class m #(int XLEN = 32);
+      reg [7:0] mem [bit [XLEN-1:0]];
+      function void load(string f); $readmemh(f, mem); endfunction
+    endclass
+
+"'$readmemh' cannot be called with an associative array with non-integral
+index type": the index type failed to resolve, and is the error type.
+
+    class c #(int W = 32);
+      virtual ifc #(.W(W)) v;
+      function void f(virtual ifc x); v = x; endfunction
+    endclass
+
+"value of type 'virtual interface ifc#(W=32)' cannot be assigned to type
+'virtual interface ifc#(W=<unset>)'".
+
+The first now skips an index of the error type; the second reports nothing
+for two virtual interface types where nothing is instantiated.
+
+Local issue SL-5 (patches/slang/README.md). Not reported upstream yet.
+Present in v11.0 and on master (2026-10-16). Applies to v11.0.
+
+--- a/source/ast/builtins/SystemTasks.cpp
++++ b/source/ast/builtins/SystemTasks.cpp
+@@ -384,7 +384,9 @@
+         do {
+             if (t->isAssociativeArray()) {
+                 auto indexType = t->getAssociativeIndexType();
+-                if (indexType && !indexType->isIntegral()) {
++                // An index type that failed to resolve (as in a generic class
++                // body nothing specialises) has had its error reported already.
++                if (indexType && !indexType->isIntegral() && !indexType->isError()) {
+                     context.addDiag(diag::QueryOnAssociativeNonIntegral, args[1]->sourceRange)
+                         << name;
+                     return comp.getErrorType();
+--- a/source/ast/expressions/ConversionExpression.cpp
++++ b/source/ast/expressions/ConversionExpression.cpp
+@@ -193,6 +193,14 @@
+             return *result;
+         }
+ 
++        // Where nothing is instantiated (a generic class body checked with its
++        // parameters unset), a virtual interface's parameters can be unset too,
++        // so whether two virtual interface types match is not known.
++        if (context.scope->isUninstantiated() && type.isVirtualInterfaceOrArray() &&
++            rt->isVirtualInterfaceOrArray()) {
++            return badExpr(comp, &expr);
++        }
++
+         DiagCode code = diag::BadAssignment;
+         if (!context.flags.has(ASTFlags::OutputArg) &&
+             (type.isCastCompatible(*rt) || type.isBitstreamCastable(*rt))) {

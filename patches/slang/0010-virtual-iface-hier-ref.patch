@@ -1,0 +1,95 @@
+slang: --allow-virtual-iface-hier-ref
+
+"interface containing hierarchical reference to object outside its body cannot be used in a
+virtual interface" (VirtualIfaceHierRef) for an interface with an upward reference (e.g. a
+probe interface bound into the DUT) that a testbench assigns to a virtual interface.
+IEEE 1800-2023 25.9 forbids it; commercial simulators accept it. The new
+CompilationFlags::AllowVirtualIfaceHierRef (driver option --allow-virtual-iface-hier-ref)
+skips that check in Compilation::checkVirtualIfaceInstance; the interface-port check
+(VirtualIfaceIfacePort) is kept. Applies on top of 0009 (same enum).
+
+Under the flag, the instance InstanceSymbol::createVirtual builds for the virtual interface
+type is also uninstantiated. That copy is parented to the declaring scope, not to the
+instance it will refer to, so a name relative to a bind target (u_core.x in an interface
+bound into the module holding u_core) cannot resolve there: slang reported "use of
+undeclared identifier" for a name that resolves in every real instance. slang already drops
+those reports in uninstantiated bodies; the real instances still check every name. A set
+covergroup bins check (CoverageSetType) no longer reports against a coverpoint whose type is
+an error, which such a name gives in the copy.
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -147,9 +147,14 @@
+     RelaxVirtualMethodTypes = 1 << 20,
+ 
+     /// Allow `typedef class X;` to forward-declare an interface class.
+-    AllowForwardClassAsInterfaceClass = 1 << 21
++    AllowForwardClassAsInterfaceClass = 1 << 21,
++
++    /// Allow interfaces whose bodies contain hierarchical references to objects outside
++    /// of themselves (e.g. upward references into a bind target) to be used as
++    /// virtual interfaces.
++    AllowVirtualIfaceHierRef = 1 << 22
+ };
+-SLANG_BITMASK(CompilationFlags, AllowForwardClassAsInterfaceClass)
++SLANG_BITMASK(CompilationFlags, AllowVirtualIfaceHierRef)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/Compilation.cpp
++++ b/source/ast/Compilation.cpp
+@@ -2267,7 +2267,8 @@
+     if (!body)
+         body = &instance.body;
+ 
+-    if (auto it = instanceSideEffectMap.find(body); it != instanceSideEffectMap.end()) {
++    if (auto it = instanceSideEffectMap.find(body);
++        it != instanceSideEffectMap.end() && !hasFlag(CompilationFlags::AllowVirtualIfaceHierRef)) {
+         auto& upwardNames = it->second->upwardNames;
+         if (!upwardNames.empty()) {
+             auto& diag = body->addDiag(diag::VirtualIfaceHierRef, instance.location);
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -272,6 +272,10 @@
+                 "--allow-typedef-class-for-interface-class",
+                 "Allow 'typedef class X;' to forward-declare an interface class");
+ 
++    addCompFlag(CompilationFlags::AllowVirtualIfaceHierRef, "--allow-virtual-iface-hier-ref",
++                "Allow interfaces containing hierarchical references to objects outside "
++                "their body to be used as virtual interfaces");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",
+--- a/source/ast/symbols/CoverSymbols.cpp
++++ b/source/ast/symbols/CoverSymbols.cpp
+@@ -650,7 +650,9 @@ void CoverageBinSymbol::resolve() const {
+             setCoverageExpr = &Expression::bind(
+                 *init->as<ExpressionCoverageBinInitializerSyntax>().expr, context);
+ 
+-            if (!setCoverageExpr->bad()) {
++            // A coverpoint whose expression has an error type (an unresolved name in an
++            // uninstantiated body) has already been reported, or silenced.
++            if (!setCoverageExpr->bad() && !type.isError()) {
+                 auto& t = *setCoverageExpr->type;
+                 if (!t.isArray() || t.isAssociativeArray() ||
+                     !type.isAssignmentCompatible(*t.getArrayElementType())) {
+--- a/source/ast/symbols/InstanceSymbols.cpp
++++ b/source/ast/symbols/InstanceSymbols.cpp
+@@ -404,9 +404,15 @@ const InstanceSymbol& InstanceSymbol::createVirtual(
+     if (paramAssignments)
+         paramBuilder.setAssignments(*paramAssignments, /* isFromConfig */ false);
+ 
++    // With AllowVirtualIfaceHierRef the virtual instance is uninstantiated: its parent is
++    // the declaring scope, not the instance it will refer to, so a hierarchical reference
++    // relative to a bind target cannot resolve here. The real instances check it.
+     auto& comp = context.getCompilation();
++    auto flags = comp.hasFlag(CompilationFlags::AllowVirtualIfaceHierRef)
++                     ? InstanceFlags::Uninstantiated
++                     : InstanceFlags::None;
+     auto& result = *comp.emplace<InstanceSymbol>(comp, definition.name, loc, definition,
+-                                                 paramBuilder, InstanceFlags::None, 0u);
++                                                 paramBuilder, flags, 0u);
+ 
+     // Set the parent pointer so that traversing upwards still works to find
+     // the instantiation scope. This "virtual" instance never actually gets

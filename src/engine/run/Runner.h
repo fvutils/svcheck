@@ -44,6 +44,7 @@
  */
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <set>
 #include <string>
@@ -68,6 +69,7 @@ struct Finding {
     std::string         message;
     MarkerSeverityE     severity = MarkerSeverityE::Warn;
     ast::Location       loc;            // lineno -1: no location found
+    std::vector<NodeLabel> context;     // the node's context (Context::contextAt)
 };
 
 /** A rule that failed in a file: SVCHK220 (an error) or SVCHK221 (budget). */
@@ -135,10 +137,18 @@ struct RunOptions {
     // makes them relative to; "" for none (C6.9).
     std::unordered_map<int32_t, std::string>                fileNames;
     std::string                                             baseDir;
-    // Per file, by fileid (C7.1): a file runs only its `on` rules, with its
-    // options, and a finding in a file whose set leaves the rule out is
-    // dropped. Empty: every rule given runs everywhere, with `options`.
+    // Per file, by fileid (C7.1): a node runs only its file's `on` rules,
+    // with its options, and a finding in a file whose set leaves the rule
+    // out is dropped. A node's file is where it, or the first node under
+    // it, is (one root can span files: the model, `include`s). Empty: every
+    // rule given runs everywhere, with `options`.
     std::unordered_map<int32_t, std::shared_ptr<const FileRules>>   perFile;
+    // The rules of a file perFile does not name (one the host had not
+    // named when the run began); null: none.
+    std::shared_ptr<const FileRules>                                unplaced;
+    // Per node, when set (context overrides, sv-contexts.md §5.3): the
+    // rules of a node in file `fileid`, in place of perFile's.
+    std::function<const FileRules *(int32_t fileid, const rf::Node &n)>  perNode;
 };
 
 /** The severity a rule's findings get: its `severity:`, else its tier's. */
@@ -242,20 +252,19 @@ private:
     };
 
     void match(const rules::Rule &r, const rf::Node &n);
-    void evaluate(size_t idx, const rules::Rule &r, const rf::Node &n);
+    void evaluate(size_t idx, const rules::Rule &r, const rf::Node &n, const FileRules *fr);
     cel::Value eval(const cel::Expr *e, const Vars &vars, size_t idx, bool &overrun);
     std::string renderMessage(size_t idx, const rules::Rule &r, const rf::Node &finding,
         Vars &vars);
     void fail(size_t idx, const rules::Rule &r, const char *in, const cel::Value &v,
         bool overrun, const rf::Node &n);
     ast::Location locate(const rf::Node &n);
-    // Whether `r` may report in file `fileid` (perFile).
-    bool reportsIn(const rules::Rule &r, int32_t fileid) const;
+    // The rules node `n`, in file `fileid`, runs (perFile, perNode); null: all.
+    const FileRules *rulesFor(const rf::Node &n, int32_t fileid) const;
     const ast::Location &firstLocated(const rf::Node &n);
 
 private:
     RunOptions                                          m_opts;
-    const FileRules                                     *m_fileRules = nullptr;  // run()'s file
     std::unique_ptr<Context>                            m_ownCtx;    // context: null
     Context                                             *m_ctx;
     Dispatch                                            m_dispatch;

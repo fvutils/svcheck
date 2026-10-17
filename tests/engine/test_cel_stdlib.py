@@ -108,6 +108,11 @@ CASES = [
     ("contains_string", "'lint rules'.contains('t r')", B, True),
     ("starts_with_string", "'lint'.startsWith('lin')", B, True),
     ("ends_with_string", "'lint'.endsWith('lint rules')", B, False),
+    ("string_substring_int", "'agent_pkg'.substring(6)", S, "pkg"),
+    ("string_substring_int_int", "'agent_pkg'.substring(0, 5)", S, "agent"),
+    ("list_join", "['a', 'b'].join()", S, "ab"),
+    ("list_flatten", "[[1, 2], [], [3]].flatten()", "list", [1, 2, 3]),
+    ("list_join_string", "['agent', 'env'].join(', ')", S, "agent, env"),
     ("matches", "matches('action_a', '^[a-z_]+$')", B, True),
     ("matches_string", "'Action'.matches('[a-z]')", B, True),
     ("int64_to_int64", "int(5)", I, 5),
@@ -434,3 +439,12 @@ def test_registry_lists_the_macros(registry):
     macros = {f["function"] for f in registry if f["kind"] == "macro"}
     assert macros == {"has", "all", "exists", "exists_one", "map", "filter", "cel.bind",
                       "optMap", "optFlatMap"}
+
+
+@pytest.mark.parametrize("text", ["'abc'.substring(4)", "'abc'.substring(2, 1)",
+                                  "'abc'.substring(-1)"])
+def test_substring_out_of_range_is_an_error(hooks, text):
+    # svcheck-plan P2.3: cel-go's strings extension, in code points.
+    r = hooks.cel_eval(text, 0, None)
+    assert r["result"]["type"] == "error", r
+    assert "out of range" in r["result"]["value"]

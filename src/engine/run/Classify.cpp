@@ -97,7 +97,14 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
         axisOf.emplace(c->label, c->axis);
     }
 
-    // The carriers: every node of a kind some classifier names, in walk order.
+    std::vector<DeclaredContext> declared = ctx.declaredContexts();
+    std::set<const void *> isDeclared;
+    for (const DeclaredContext &d : declared) {
+        isDeclared.insert(d.carrier.ptr);
+    }
+
+    // The carriers: every node of a kind some classifier names, or that a
+    // declaration names, in walk order.
     std::vector<rf::Node> carriers;
     std::set<const void *> isCarrier;
     for (const rf::Node &root : ctx.roots()) {
@@ -105,12 +112,13 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
         while (!work.empty()) {
             rf::Node n = work.back();
             work.pop_back();
+            bool is = isDeclared.count(n.ptr) != 0;
             for (const rules::Classifier *c : classifiers) {
-                if (matches(c->carrier, n.kind)) {
-                    carriers.push_back(n);
-                    isCarrier.insert(n.ptr);
-                    break;
-                }
+                is |= matches(c->carrier, n.kind);
+            }
+            if (is) {
+                carriers.push_back(n);
+                isCarrier.insert(n.ptr);
             }
             kids.clear();
             Walker::children(n, kids);
@@ -118,13 +126,29 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
         }
     }
 
-    std::vector<DeclaredContext> declared = ctx.declaredContexts();
-    for (const DeclaredContext &d : declared) {
-        if (!axisOf.count(d.label)) {
-            out.notes.push_back({d.carrier, d.where + ": context tag '" + d.label + "' is a "
-                "label no loaded classifier has, so it has no axis; it is ignored"});
+    ctx.setCarriers(carriers);
+
+    // A declaration that names its axis (the configuration's) makes the
+    // axis; one only declared comes first, so classifiers can read it (a
+    // provenance axis, svcheck-plan P2.4).
+    std::vector<std::string> declaredAxes;
+    for (DeclaredContext &d : declared) {
+        if (d.axis.empty()) {
+            auto a = axisOf.find(d.label);
+            if (a == axisOf.end()) {
+                out.notes.push_back({d.carrier, d.where + ": context tag '" + d.label + "' is a "
+                    "label no loaded classifier has, so it has no axis; it is ignored"});
+                continue;
+            }
+            d.axis = a->second;
+        }
+        if (std::find(axes.begin(), axes.end(), d.axis) == axes.end()
+                && std::find(declaredAxes.begin(), declaredAxes.end(), d.axis)
+                    == declaredAxes.end()) {
+            declaredAxes.push_back(d.axis);
         }
     }
+    axes.insert(axes.begin(), declaredAxes.begin(), declaredAxes.end());
 
     for (const std::string &axis : axes) {
         std::map<const void *, std::vector<Found>> found;
@@ -208,8 +232,7 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
                 res.push_back(l);
             };
             for (const DeclaredContext &d : declared) {
-                auto a = axisOf.find(d.label);
-                if (d.carrier.ptr == n.ptr && a != axisOf.end() && a->second == axis) {
+                if (d.carrier.ptr == n.ptr && d.axis == axis) {
                     add(d.label, d.unit.empty() ? nameOf(n) : d.unit,
                         ContextLabel::Source::Declared, d.where);
                 }
@@ -238,7 +261,7 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
                                 s += (s.empty() ? "'" : ", '") + l.label + "'";
                             }
                             return s;
-                        }() + " on axis '" + axis + "'"});
+                        }() + " on axis '" + axis + "'", axis});
                 }
             }
         }
@@ -248,6 +271,7 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
         // first; each gives its labels to its nearest outer carrier, which
         // takes them in walk order once its own inner ones are all done.
         std::map<const void *, std::vector<std::vector<ContextLabel>>> fromInner;
+        std::map<const void *, rf::Node> outerOf;
         for (auto it=carriers.rbegin(); it!=carriers.rend(); it++) {
             std::vector<ContextLabel> &own = mine[it->ptr];
             auto &inner = fromInner[it->ptr];
@@ -261,7 +285,9 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
                         ContextLabel n = l;
                         n.carrier = *it;
                         n.unit = nameOf(*it);
-                        n.source = ContextLabel::Source::Nested;
+                        if (l.selects()) {
+                            n.source = ContextLabel::Source::Nested;
+                        }
                         own.push_back(n);
                     }
                 }
@@ -269,7 +295,37 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
             for (rf::Node p=ctx.parentOf(*it); p; p=ctx.parentOf(p)) {
                 if (isCarrier.count(p.ptr)) {
                     fromInner[p.ptr].push_back(own);
+                    outerOf[it->ptr] = p;
                     break;
+                }
+            }
+        }
+
+        // A labelled carrier joins its outer carrier's unit unless the outer
+        // one is mixed (Q-CX5). Outer carriers come first in walk order, so
+        // an outer one has joined its own outer one's unit already.
+        for (const rf::Node &n : carriers) {
+            auto o = outerOf.find(n.ptr);
+            if (o == outerOf.end()) {
+                continue;
+            }
+            const ContextLabel *only = nullptr;
+            size_t selecting = 0;
+            for (const ContextLabel &l : mine[o->second.ptr]) {
+                if (l.selects()) {
+                    only = &l;
+                    selecting++;
+                }
+            }
+            if (selecting != 1) {
+                continue;
+            }
+            for (ContextLabel &l : mine[n.ptr]) {
+                // A tag's unit name is the user's: it stays.
+                bool named = l.source == ContextLabel::Source::Declared && !l.unit.empty()
+                    && l.unit != nameOf(n);
+                if (l.selects() && l.label == only->label && !named) {
+                    l.unit = only->unit;
                 }
             }
         }
@@ -280,7 +336,7 @@ Contexts classify(const std::vector<const rules::Classifier *> &classifiers, Con
             }
         }
         ctx.setLabels(out.labels);
-        ctx.applyContexts(out.labels);
+        ctx.applyContexts(out.labels, out.notes);
     }
     if (!ctx.classified()) {
         ctx.setLabels(out.labels);

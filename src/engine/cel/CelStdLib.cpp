@@ -257,6 +257,17 @@ Value addList(CallArgs &c) {
     return Value::mkList(std::move(r));
 }
 
+// cel-go's lists extension: list(list(A)).flatten(), one level.
+Value flattenList(CallArgs &c) {
+    ValueList r;
+    for (const Value &v : *c.target->list) {
+        if (v.kind == K::List && v.list) {
+            r.insert(r.end(), v.list->begin(), v.list->end());
+        }
+    }
+    return Value::mkList(std::move(r));
+}
+
 Value inList(CallArgs &c) {
     for (const Value &v : *c[1].list) {
         if (celEquals(c[0], v)) {
@@ -340,6 +351,49 @@ Value sizeString(CallArgs &c) {
 }
 Value sizeList(CallArgs &c) { return Value::integer(static_cast<int64_t>(operand0(c).list->size())); }
 Value sizeMap(CallArgs &c) { return Value::integer(static_cast<int64_t>(operand0(c).map->size())); }
+
+// The byte offset of code point `cp` in `s`; s.size() for the end, npos past it.
+size_t utf8Offset(const std::string &s, int64_t cp) {
+    if (cp < 0) {
+        return std::string::npos;
+    }
+    size_t i = 0;
+    for (int64_t n = 0; n < cp; n++) {
+        if (i >= s.size()) {
+            return std::string::npos;
+        }
+        i++;
+        while (i < s.size() && (static_cast<unsigned char>(s[i]) & 0xC0) == 0x80) {
+            i++;
+        }
+    }
+    return i;
+}
+
+// cel-go's strings extension: substring(start[, end]), in code points.
+Value substringImpl(CallArgs &c) {
+    const std::string &s = c.target->s;
+    int64_t start = c[0].i;
+    int64_t end = (c.n > 1) ? c[1].i : static_cast<int64_t>(utf8Length(s));
+    size_t b = utf8Offset(s, start), e = utf8Offset(s, end);
+    if (b == std::string::npos || e == std::string::npos || start > end) {
+        return Value::error("substring(" + std::to_string(start) + ", " + std::to_string(end)
+            + "): out of range for a string of length " + std::to_string(utf8Length(s)));
+    }
+    return Value::string(s.substr(b, e - b));
+}
+
+// cel-go's strings extension: list(string).join([separator]).
+Value joinImpl(CallArgs &c) {
+    std::string sep = (c.n > 0) ? c[0].s : "";
+    std::string out;
+    bool first = true;
+    for (const Value &v : *c.target->list) {
+        out += (first ? "" : sep) + v.s;
+        first = false;
+    }
+    return Value::string(out);
+}
 
 Value containsImpl(CallArgs &c) {
     return Value::boolean(c.target->s.find(c[0].s) != std::string::npos);
@@ -527,6 +581,9 @@ void registerStdLib(FunctionRegistry &r) {
         "`[?k]` on an optional map: the value under the key, or `optional.none()`.");
     r.add("size_list", "size(list(A)) -> int", &sizeList, C::Constant, "The number of elements.");
     r.add("list_size", "list(A).size() -> int", &sizeList, C::Constant, "The number of elements.");
+    r.add("list_flatten", "list(list(A)).flatten() -> list(A)", &flattenList, C::Linear,
+        "The lists' elements, in order, one level deep (cel-go's lists extension): "
+        "`xs.map(x, f(x)).flatten()`.");
     r.add("size_map", "size(map(K, V)) -> int", &sizeMap, C::Constant, "The number of entries.");
     r.add("map_size", "map(K, V).size() -> int", &sizeMap, C::Constant, "The number of entries.");
 
@@ -541,6 +598,16 @@ void registerStdLib(FunctionRegistry &r) {
         "Whether the string begins with the argument.");
     r.add("ends_with_string", "string.endsWith(string) -> bool", &endsWithImpl, C::Linear,
         "Whether the string ends with the argument.");
+    r.add("string_substring_int", "string.substring(int) -> string", &substringImpl, C::Linear,
+        "The string from a code-point index to its end (cel-go's strings extension). An "
+        "index out of range is an error.");
+    r.add("string_substring_int_int", "string.substring(int, int) -> string", &substringImpl,
+        C::Linear, "The code points from the first index up to, not including, the second.");
+    r.add("list_join", "list(string).join() -> string", &joinImpl, C::Linear,
+        "The strings, one after another (cel-go's strings extension).");
+    r.add("list_join_string", "list(string).join(string) -> string", &joinImpl, C::Linear,
+        "The strings with the separator between them: `[\"a\", \"b\"].join(\", \")` is "
+        "`\"a, b\"`.");
     r.add("matches", "matches(string, string) -> bool", &matchesImpl, C::Custom,
         "Whether the RE2 pattern (second argument) matches anywhere in the string; anchor it "
         "with `^...$` for a whole-string match. Linear time: backreferences and lookaround are "

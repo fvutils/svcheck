@@ -212,3 +212,48 @@ def test_the_model_functions_are_the_models(syntax):
     names = {f["function"] for f in syntax.cel_functions()["functions"]}
     assert "macro_of" in names and "derives_from" in names
     assert not names & {"member", "type_of", "const_int", "classes", "calls_in"}
+
+
+# ----------------------------------------- accesses and statement order (P2.2) --
+
+ACCESS = ("interface bus_if(input logic clk);\n"
+          "  logic [7:0] data;\n"
+          "endinterface\n"
+          "class cfg; virtual bus_if vif; endclass\n"
+          "class mon;\n"
+          "  cfg c; int a[4];\n"
+          "  task run();\n"
+          "    c.vif.data[0] = 1;\n"
+          "    a[1] = 2;\n"
+          "    this.a[2] = 3;\n"
+          "    begin\n"
+          "      $display(\"a\");\n"
+          "      fork #1; #2; join_any\n"
+          "      disable fork;\n"
+          "      $display(\"b\");\n"
+          "    end\n"
+          "    $display(\"c\");\n"
+          "  endtask\n"
+          "endclass\n"
+          "module top; logic clk; bus_if b(clk); endmodule\n")
+
+
+def test_access_path_runs_root_first(model):
+    assert _eval(model, ACCESS, 'descendants(node, Assign).map(a, '
+                 'access_path(a.lhs).map(p, p.location.linepos))') == [
+        [5, 5, 5, 5], [5, 5], [5, 5, 5]]
+    assert _eval(model, ACCESS, 'descendants(node, Assign).map(a, '
+                 'access_path(a.lhs).exists(p, p.type.isVirtualInterface))') == [True, False, False]
+    assert _eval(model, ACCESS, 'descendants(node, Assign).map(a, access_root(a.lhs).name)') == [
+        "c", "a", "this"]
+    assert _eval(model, ACCESS, 'access_path(node) == [] && access_root(node) == null') is True
+
+
+def test_before_and_after_are_straight_line(model):
+    # Nearest first before, in order after; up through the enclosing blocks,
+    # and a fork's statements are not before or after each other.
+    D = 'descendants(node, Disable)[0]'
+    assert _eval(model, ACCESS, 'before(%s).map(s, s.location.lineno)' % D) == [13, 12, 10, 9, 8]
+    assert _eval(model, ACCESS, 'after(%s).map(s, s.location.lineno)' % D) == [15, 17]
+    assert _eval(model, ACCESS, 'descendants(node, Timed).map(t, before(t).size())') == [4, 4]
+    assert _eval(model, ACCESS, 'before(node) == [] && after(node) == []') is True

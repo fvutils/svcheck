@@ -62,6 +62,29 @@ struct ContextLabel {
     std::string     unit;           // the unit's name; "" for none
     Source          source = Source::Content;
     std::string     evidence;       // where it came from: "file:line", the tag's position
+    /**
+     * Whether the label selects: decides `applies_to`, context overrides and
+     * a unit's kinds. A label only convention gives does not (Q-CX4).
+     */
+    bool selects() const { return source != Source::Convention; }
+};
+
+/**
+ * Something classify() reports about a carrier: a source that disagrees
+ * with the one used (`axis` set: the data for a consistency rule, Q-CX4),
+ * a failed classifier, an unknown tag label.
+ */
+struct ContextNote {
+    rf::Node        carrier;        // null: about no carrier (an unknown tag label)
+    std::string     message;
+    std::string     axis;           // a disagreement's axis; "" for another note
+};
+
+/** A label of a node's context, as a context override or a finding names it. */
+struct NodeLabel {
+    std::string     axis;
+    std::string     label;
+    std::string     unit;           // "" for none
 };
 
 /** A context tag written in the source: `// svcheck context: agent(apb)`. */
@@ -69,7 +92,8 @@ struct DeclaredContext {
     rf::Node        carrier;
     std::string     label;
     std::string     unit;
-    std::string     where;          // "file:line"
+    std::string     where;          // "file:line", or the configuration's entry
+    std::string     axis;           // "" for the axis a classifier gives the label
 };
 
 class Context : public cel::Host {
@@ -104,9 +128,12 @@ public:
     /**
      * The labels classify() resolved (Classify.h), which `applies_to` reads
      * through labelsAt(); replaces any set before. classify() calls it after
-     * each axis.
+     * each axis. Labels that do not select (ContextLabel::selects) are left
+     * out.
      */
     void setLabels(const std::vector<ContextLabel> &labels);
+    /** The carriers classify() found, labelled or not (for labelsAt's mixed rule). */
+    void setCarriers(const std::vector<rf::Node> &carriers);
 
     /** Whether the run was classified: setLabels() was called. */
     bool classified() const { return m_classified; }
@@ -116,9 +143,22 @@ public:
 
     /**
      * The labels on `axis` of the innermost carrier, `n` or above it, that
-     * has one there (Q-CX3); null when none has.
+     * has one there (Q-CX3); null when none has. A carrier with more than
+     * one label on the axis is mixed, and its labels are not its inner
+     * carriers' (Q-CX5): when an unlabelled carrier lies between `n` and
+     * it, the answer is null, unknown.
      */
     const std::set<std::string> *labelsAt(const rf::Node &n, const std::string &axis) const;
+    /**
+     * The carrier labelsAt() answers from: on `axis`, or on any axis when
+     * it is empty; null for none (or unknown).
+     */
+    rf::Node carrierAt(const rf::Node &n, const std::string &axis) const;
+    /**
+     * A node's context: on each axis, in name order, labelsAt()'s labels,
+     * each with its unit's name.
+     */
+    std::vector<NodeLabel> contextAt(const rf::Node &n) const;
 
     /** The owned roots, in the order indexed. */
     const std::vector<rf::Node> &roots() const { return m_roots; }
@@ -170,9 +210,12 @@ public:
     /**
      * The context labels found so far, after each axis classify() resolves:
      * the host makes its units of them, which the next axis's classifiers
-     * and the rules read. Default: nothing.
+     * and the rules read. `notes` are classify()'s so far; the
+     * disagreements among them (ContextNote::axis) belong to their
+     * carriers' units. Default: nothing.
      */
-    virtual void applyContexts(const std::vector<ContextLabel> &labels);
+    virtual void applyContexts(const std::vector<ContextLabel> &labels,
+        const std::vector<ContextNote> &notes);
 
     /**
      * Called when a node is asked about that no index()ed tree holds: the
@@ -238,8 +281,11 @@ private:
     mutable std::vector<UnknownType>                            m_unknown;
     mutable std::set<std::pair<const void *, std::string>>      m_unknownSeen;
     mutable uint64_t                                            m_indexNs = 0;
-    // setLabels(): by carrier, axis -> labels.
+    // setLabels(): by carrier, axis -> labels, and axis -> label -> unit.
     std::unordered_map<const void *, std::map<std::string, std::set<std::string>>>  m_labels;
+    std::unordered_map<const void *,
+        std::map<std::string, std::map<std::string, std::string>>>  m_units;
+    std::unordered_set<const void *>                            m_carriers;
     std::set<std::string>                                       m_axes;
     bool                                                        m_classified = false;
     mutable bool                                                m_timing = false;

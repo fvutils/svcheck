@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <filesystem>
 #include <map>
 #include "SvContext.h"
 #include "Unit.h"
 #include "UnitDep.h"
 #include "reflect/Reflect.h"
+#include "pipeline/Glob.h"
 #include "run/Classify.h"
 #include "svcheck/sem/IClass.h"
 #include "svcheck/sem/IDefinition.h"
@@ -61,6 +63,58 @@ std::vector<DeclaredContext> SvContext::declaredContexts() const {
     carriersIn(m_design->getItems(), decls);
 
     std::vector<DeclaredContext> out;
+    // The configuration's (svcheck-plan P2.4): packages, definitions and
+    // $unit classes, by file or package name.
+    if (!m_config.empty()) {
+        std::vector<sem::IDecl *> top;
+        for (const sem::IPackageUP &p : m_design->getPackages()) {
+            top.push_back(p.get());
+        }
+        for (const sem::IDefinitionUP &d : m_design->getDefinitions()) {
+            top.push_back(d.get());
+        }
+        for (const sem::IDeclUP &d : m_design->getItems()) {
+            if (dynamic_cast<sem::IClass *>(d.get())) {
+                top.push_back(d.get());
+            }
+        }
+        for (sem::IDecl *d : top) {
+            if (d->getInLibrary()) {
+                continue;
+            }
+            std::string path;
+            if (!filePath(d->getLocation().fileid, path)) {
+                path.clear();
+            }
+            std::string rel = path;
+            if (!m_configDir.empty()) {
+                std::filesystem::path r = std::filesystem::path(path).lexically_relative(
+                    m_configDir);
+                if (!r.empty() && *r.begin() != "..") {
+                    rel = r.generic_string();
+                }
+            }
+            bool isPkg = dynamic_cast<sem::IPackage *>(d) != nullptr;
+            for (const ConfigContext &c : m_config) {
+                bool hit = false;
+                for (const std::string &g : c.files) {
+                    hit |= !path.empty() && lint::pipeline::globMatchesPath(g, rel);
+                }
+                for (const std::string &g : c.packages) {
+                    hit |= isPkg && lint::pipeline::globMatchesPath(g, d->getName());
+                }
+                if (hit) {
+                    DeclaredContext dc;
+                    dc.carrier = sem::reflect::classify(d);
+                    dc.label = c.label;
+                    dc.unit = c.unit;
+                    dc.axis = c.axis;
+                    dc.where = c.where;
+                    out.push_back(dc);
+                }
+            }
+        }
+    }
     for (sem::IDecl *d : decls) {
         for (const std::string &tag : d->getTags()) {
             DeclaredContext dc;
@@ -83,11 +137,12 @@ std::vector<DeclaredContext> SvContext::declaredContexts() const {
     return out;
 }
 
-void SvContext::applyContexts(const std::vector<ContextLabel> &labels) {
+void SvContext::applyContexts(const std::vector<ContextLabel> &labels,
+        const std::vector<lint::run::ContextNote> &notes) {
     m_design->getUnits().clear();
     m_design->getDeps().clear();
     m_unitOf.clear();
-    m_axes.clear();
+    m_selects.clear();
 
     // Carriers with one unit name are one unit; the name is the label's, else
     // the carrier's qualified name.
@@ -113,7 +168,8 @@ void SvContext::applyContexts(const std::vector<ContextLabel> &labels) {
             }
             carriers.push_back(decl);
         }
-        std::vector<std::string> &ls = u->getLabels();
+        // A label only convention gives never selects (Q-CX4).
+        std::vector<std::string> &ls = l.selects() ? u->getLabels() : u->getConventionLabels();
         if (std::find(ls.begin(), ls.end(), l.label) == ls.end()) {
             ls.push_back(l.label);
         }
@@ -122,7 +178,28 @@ void SvContext::applyContexts(const std::vector<ContextLabel> &labels) {
             + rf::classes[l.carrier.kind].name + " " + decl->getName());
         // A carrier in two units (two labels, two names) answers with the first.
         m_unitOf.emplace(node, u);
-        m_axes[node].insert(l.axis);
+        if (l.selects()) {
+            m_selects.emplace(node, u);
+        }
+    }
+    // A label convention gives beside a selecting one is not the unit's.
+    for (const sem::IUnitUP &u : m_design->getUnits()) {
+        std::vector<std::string> &cl = u->getConventionLabels();
+        const std::vector<std::string> &ls = u->getLabels();
+        cl.erase(std::remove_if(cl.begin(), cl.end(), [&ls](const std::string &l) {
+            return std::find(ls.begin(), ls.end(), l) != ls.end(); }), cl.end());
+    }
+    for (const lint::run::ContextNote &n : notes) {
+        if (n.axis.empty()) {
+            continue;
+        }
+        auto it = m_unitOf.find(sem::reflect::asSemNode(n.carrier));
+        if (it != m_unitOf.end()) {
+            std::vector<std::string> &ds = it->second->getDisagreements();
+            if (std::find(ds.begin(), ds.end(), n.message) == ds.end()) {
+                ds.push_back(n.message);
+            }
+        }
     }
 
     // Import edges between units, each once.
@@ -137,8 +214,8 @@ void SvContext::applyContexts(const std::vector<ContextLabel> &labels) {
                 imports = &d->getImports();
             }
             for (sem::IPackage *p : *imports) {
-                auto it = m_unitOf.find(static_cast<sem::ISemNode *>(p));
-                if (it == m_unitOf.end() || it->second == u.get()
+                auto it = m_selects.find(static_cast<sem::ISemNode *>(p));
+                if (it == m_selects.end() || it->second == u.get()
                         || !seen.insert({u.get(), it->second}).second) {
                     continue;
                 }
@@ -177,21 +254,14 @@ const std::vector<sem::IClass *> &SvContext::subclassesOf(const sem::IClass *c) 
 }
 
 sem::IUnit *SvContext::contextOf(const rf::Node &n, const std::string &axis) const {
-    for (rf::Node p=n; p; p=parentOf(p)) {
-        const sem::ISemNode *s = sem::reflect::asSemNode(p);
-        auto it = m_unitOf.find(s);
-        if (it == m_unitOf.end()) {
-            continue;
-        }
-        if (axis.empty()) {
-            return it->second;
-        }
-        auto a = m_axes.find(s);
-        if (a != m_axes.end() && a->second.count(axis)) {
-            return it->second;
-        }
+    // The innermost labelled carrier, as applies_to finds it (mixed
+    // carriers included), and its unit.
+    rf::Node c = carrierAt(n, axis);
+    if (!c) {
+        return nullptr;
     }
-    return nullptr;
+    auto it = m_selects.find(sem::reflect::asSemNode(c));
+    return (it == m_selects.end()) ? nullptr : it->second;
 }
 
 }

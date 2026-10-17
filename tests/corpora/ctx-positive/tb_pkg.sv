@@ -1,6 +1,6 @@
 // One package for the whole bench, as a quick-start bench often is: the agent,
 // the env and the test together. CTX002 should report the package; CTX001 the
-// monitor's objection.
+// monitor's objection, and not the scoreboard's or the sequence's.
 package tb_pkg;
   import uvm_pkg::*;
   `include "uvm_macros.svh"
@@ -90,6 +90,30 @@ package tb_pkg;
     function void connect_phase(uvm_phase phase);
       drv.seq_item_port.connect(sqr.seq_item_export);
     endfunction
+  endclass
+
+  // A scoreboard and a sequence that raise objections: neither is in an
+  // agent, so CTX001 must not report them, though the package holds an agent
+  // (svcheck-plan P2.4: in a mixed package a class's context is its own).
+  class apb_scoreboard extends uvm_scoreboard;
+    `uvm_component_utils(apb_scoreboard)
+    function new(string name, uvm_component parent); super.new(name, parent); endfunction
+    task run_phase(uvm_phase phase);
+      phase.raise_objection(this);
+      #100ns;
+      phase.drop_objection(this);
+    endtask
+  endclass
+
+  class apb_long_seq extends apb_seq;
+    `uvm_object_utils(apb_long_seq)
+    function new(string name = "apb_long_seq"); super.new(name); endfunction
+    task body();
+      uvm_phase p = get_starting_phase();
+      if (p != null) p.raise_objection(this);
+      super.body();
+      if (p != null) p.drop_objection(this);
+    endtask
   endclass
 
   class apb_env extends uvm_env;

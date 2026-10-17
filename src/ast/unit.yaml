@@ -15,6 +15,7 @@ enums:
 classes:
 - Unit:
     super: SemNode
+    set_by: classify
     doc: |
         A context unit: one or more carriers (packages, definitions,
         classes) with their labels (sv-contexts.md §2). Carriers with the
@@ -23,14 +24,19 @@ classes:
 
         Attributes:
             name: the unit's name (`apb` in `agent(apb)`): a tag's, a classifier's `name:`, else the carrier's
-            labels: its labels, on every axis, each once
+            labels: its labels, on every axis, each once: those that select (`applies_to`, context overrides); a label only convention gives is not here
+            conventionLabels: the labels only convention gives it (Q-CX4: they never select; for `--contexts` and consistency rules)
             carriers: the carriers it is made of
             evidence: where each label came from, one line each: `unit agent: Content (r.yaml:12) on Package apb_pkg`
+            disagreements: where a weaker source disagrees with the one used, one line each (`convention (r.yaml:3) says 'agent', but content says 'base-lib' on axis 'unit'`): what a consistency rule reports
     data:
     - name:
         type: string
         is_ctor: false
     - labels:
+        type: list<string>
+        is_ctor: false
+    - conventionLabels:
         type: list<string>
         is_ctor: false
     - carriers:
@@ -39,9 +45,13 @@ classes:
     - evidence:
         type: list<string>
         is_ctor: false
+    - disagreements:
+        type: list<string>
+        is_ctor: false
 
 - UnitDep:
     super: SemNode
+    set_by: classify
     doc: A dependency of one unit on another (sv-contexts.md §4.2).
     data:
     - kind:

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <functional>
 #include <chrono>
 #include <cstdlib>
 #include <map>
@@ -133,7 +134,7 @@ run::Contexts LintEngine::classify(const std::vector<ast::reflect::Node> &roots,
         ctx.index(r);
     }
     std::vector<const rules::Classifier *> cls = classifiers();
-    if (cls.empty()) {
+    if (cls.empty() && ctx.declaredContexts().empty()) {
         ctx.setLabels({});
         return run::Contexts();
     }
@@ -163,7 +164,8 @@ const char *severityName(MarkerSeverityE s) {
     }
 }
 
-void markerJson(JsonWriter &w, const IMarker &m) {
+void markerJson(JsonWriter &w, const IMarker &m,
+        const std::vector<run::NodeLabel> *context=nullptr) {
     const ast::Location &l = m.loc();
     w.beginObject();
     w.kv("severity", severityName(m.severity())).kv("message", m.msg());
@@ -171,6 +173,15 @@ void markerJson(JsonWriter &w, const IMarker &m) {
     w.kv("col", static_cast<int64_t>(l.linepos)).kv("extent", static_cast<int64_t>(l.extent));
     w.key("related").beginArray().endArray();
     w.kv("code", m.id());
+    // The finding's context (sv-contexts.md §5.4): each label, its axis and unit.
+    if (context && !context->empty()) {
+        w.key("context").beginArray();
+        for (const run::NodeLabel &c : *context) {
+            w.beginObject().kv("axis", c.axis).kv("label", c.label).kv("unit", c.unit)
+                .endObject();
+        }
+        w.endArray();
+    }
     w.endObject();
 }
 
@@ -328,6 +339,7 @@ std::string LintEngine::catalogJson() const {
         m.aliases = r->m_aliases;
         m.replacedBy = r->m_replacedBy;
         m.defaultEnabled = r->m_defaultEnabled;
+        m.minimal = !r->m_builtin && r->m_defaultEnabled;
         entry(m);
     }
     w.endArray();
@@ -648,8 +660,10 @@ std::string LintEngine::finish(const std::string &requestJson) {
 std::vector<const rules::Rule *> LintEngine::select(const yaml::Node &selection,
         const std::vector<ast::reflect::Node> &roots, const std::vector<const rules::Rule *> &all,
         const run::Context &ctx, run::RunOptions &opts, std::vector<std::string> &problems) {
-    pipeline::Catalogue cat(m_hostMarkers, m_refused, all);
-    pipeline::Selection sel(cat, selection);
+    // Kept by the run: with context overrides, groups are resolved per node.
+    auto catp = std::make_shared<pipeline::Catalogue>(m_hostMarkers, m_refused, all);
+    auto selp = std::make_shared<pipeline::Selection>(*catp, selection);
+    pipeline::Selection &sel = *selp;
     sel.defaultBaseDir(opts.baseDir);
     for (const pipeline::SelectionError &e : sel.errors()) {
         problems.push_back("selection: " + e.message);
@@ -660,8 +674,13 @@ std::vector<const rules::Rule *> LintEngine::select(const yaml::Node &selection,
     }
 
     // One FileRules per group, shared by its files.
-    std::unordered_map<uint32_t, std::shared_ptr<run::FileRules>> byGroup;
-    auto rulesOf = [&](uint32_t g) {
+    auto byGroupP = std::make_shared<std::unordered_map<uint32_t,
+        std::shared_ptr<run::FileRules>>>();
+    auto &byGroup = *byGroupP;
+    auto problemsP = std::make_shared<std::vector<std::string>>();
+    std::function<std::shared_ptr<run::FileRules>(uint32_t)> rulesOf;
+    rulesOf = [&sel, &byGroup, all, byId, problemsP](uint32_t g) {
+        std::vector<std::string> &problems = *problemsP;
         auto it = byGroup.find(g);
         if (it != byGroup.end()) {
             return it->second;
@@ -721,6 +740,49 @@ std::vector<const rules::Rule *> LintEngine::select(const yaml::Node &selection,
         placeFile(fileid);
         any.insert(opts.perFile[fileid]->on.begin(), opts.perFile[fileid]->on.end());
     }
+    // A root can span files (the model; `include`s): every placed file's rules.
+    for (const auto &pf : opts.perFile) {
+        any.insert(pf.second->on.begin(), pf.second->on.end());
+    }
+    opts.unplaced = rulesOf(0);
+    if (!sel.hasOverrides()) {
+        // One group for every file: its options for all, and no lookup per node.
+        opts.options = opts.unplaced->options;
+        opts.perFile.clear();
+        opts.unplaced.reset();
+    } else if (sel.hasContextOverrides()) {
+        // Groups per node (sv-contexts.md §5.3): by its file and context. A
+        // context override can enable a rule anywhere, so every rule may run.
+        for (const rules::Rule *r : all) {
+            any.insert(r);
+        }
+        const run::Context *cp = &ctx;
+        auto names = std::make_shared<std::unordered_map<int32_t, std::string>>(opts.fileNames);
+        auto cache = std::make_shared<std::map<std::string, const run::FileRules *>>();
+        opts.perNode = [selp, catp, byGroupP, rulesOf, cp, names, cache](int32_t fileid,
+                const ast::reflect::Node &n) -> const run::FileRules * {
+            std::vector<pipeline::Selection::ContextLabel> labels;
+            std::string key = std::to_string(fileid);
+            for (const run::NodeLabel &l : cp->contextAt(n)) {
+                labels.emplace_back(l.label, l.unit);
+                key += "|" + l.label + "(" + l.unit + ")";
+            }
+            auto hit = cache->find(key);
+            if (hit != cache->end()) {
+                return hit->second;
+            }
+            std::string path;
+            auto fn = names->find(fileid);
+            if (fn != names->end()) {
+                path = fn->second;
+            } else {
+                cp->filePath(fileid, path);
+            }
+            const run::FileRules *fr = rulesOf(selp->groupOf(path, labels)).get();
+            cache->emplace(key, fr);
+            return fr;
+        };
+    }
     if (roots.empty()) {
         // No trees (the gate): the rules the named files enable, else the
         // project's, decide whether SVCHK230 is said.
@@ -738,6 +800,8 @@ std::vector<const rules::Rule *> LintEngine::select(const yaml::Node &selection,
             on.push_back(r);
         }
     }
+    problems.insert(problems.end(), problemsP->begin(), problemsP->end());
+    problemsP->clear();
     return on;
 }
 
@@ -980,7 +1044,7 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
     }
     for (const run::Finding &f : runner.findings()) {
         std::unique_ptr<IMarker> m(run::Runner::toMarker(f));
-        markerJson(w, *m);
+        markerJson(w, *m, &f.context);
     }
     for (const run::RuleFailure &f : runner.failures()) {
         std::unique_ptr<IMarker> m(run::Runner::toMarker(f));
@@ -995,7 +1059,8 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
     for (size_t i=0; i<on.size(); i++) {
         const run::RuleStats &s = runner.stats()[i];
         w.beginObject();
-        w.kv("id", on[i]->m_id).kv("matches", s.matches).kv("findings", s.findings);
+        w.kv("id", on[i]->m_id).kv("tier", on[i]->m_tier);
+        w.kv("matches", s.matches).kv("findings", s.findings);
         w.kv("steps", s.steps).kv("ns", s.ns).kv("errors", s.errors);
         w.kv("outside", s.outside).kv("unknown", s.unknown);
         w.endObject();

@@ -1,0 +1,315 @@
+# Precision review of UVM001 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: UVM001
+findings:
+- at: core-v-verif/lib/uvm_libs/uvml_logs/uvml_logs_rs_json.sv:27
+  message: '''uvml_logs_rs_json_c'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): a report server, installed with uvm_report_server::set_server(),
+    never created through the factory'
+- at: core-v-verif/lib/uvm_libs/uvml_logs/uvml_logs_rs_text.sv:27
+  message: '''uvml_logs_rs_text_c'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): a report server, installed with uvm_report_server::set_server(),
+    never created through the factory'
+- at: fw-wb-dma/packages/fwvip-gpio/src/uvm/fwvip_gpio_initiator_config.svh:17
+  message: '''fwvip_gpio_initiator_config_p'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/packages/fwvip-gpio/src/uvm/fwvip_gpio_monitor_config.svh:24
+  message: '''fwvip_gpio_monitor_config_p'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/packages/fwvip-gpio/src/uvm/fwvip_gpio_target_config.svh:24
+  message: '''fwvip_gpio_target_config_p'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_initiator_config.svh:27
+  message: '''fwvip_wb_initiator_config_p'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_initiator_config.svh:65
+  message: '''fwvip_wb_initiator_config_ap'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_monitor_config.svh:21
+  message: '''fwvip_wb_monitor_config_p'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_target_config.svh:41
+  message: '''fwvip_wb_target_config_p'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_target_config.svh:111
+  message: '''fwvip_wb_target_config_ap'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_name_check.svh:38
+  message: '''wb_dma_name_check_visitor'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): a uvm_visitor the test constructs with new() for one walk; nothing
+    would create it through the factory'
+- at: opentitan/lowrisc_dv_dv_base_reg_0/dv_base_mem.sv:13
+  message: '''dv_base_mem'' is a uvm_object but is not registered; type_id::create and factory overrides
+    cannot see it'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): lowRISC''s base classes, not `virtual` but only ever derived
+    from (P1-43); the base-lib context or exempt_bases'
+- at: opentitan/lowrisc_dv_dv_base_reg_0/dv_base_reg.sv:6
+  message: '''dv_base_reg'' is a uvm_object but is not registered; type_id::create and factory overrides
+    cannot see it'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): lowRISC''s base classes, not `virtual` but only ever derived
+    from (P1-43); the base-lib context or exempt_bases'
+- at: opentitan/lowrisc_dv_dv_base_reg_0/dv_base_reg_block.sv:6
+  message: '''dv_base_reg_block'' is a uvm_object but is not registered; type_id::create and factory overrides
+    cannot see it'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): lowRISC''s base classes, not `virtual` but only ever derived
+    from (P1-43); the base-lib context or exempt_bases'
+- at: opentitan/lowrisc_dv_sec_cm_0/prim_count_if.sv:23
+  message: '''prim_count_if_proxy'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - opentitan-edn
+  - opentitan-keymgr
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a proxy class declared inside a sec_cm interface, built by the
+    interface with new() and handed to the testbench through sec_cm_pkg; a factory could not create it
+    per instance'
+- at: opentitan/lowrisc_dv_sec_cm_0/prim_onehot_check_if.sv:45
+  message: '''prim_onehot_check_if_proxy'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a proxy class declared inside a sec_cm interface, built by the
+    interface with new() and handed to the testbench through sec_cm_pkg; a factory could not create it
+    per instance'
+- at: opentitan/lowrisc_dv_sec_cm_0/prim_onehot_check_if.sv:136
+  message: '''prim_onehot_check_with_addr_fault_if_proxy'' is a uvm_object but is not registered; type_id::create
+    and factory overrides cannot see it'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a proxy class declared inside a sec_cm interface, built by the
+    interface with new() and handed to the testbench through sec_cm_pkg; a factory could not create it
+    per instance'
+- at: opentitan/lowrisc_dv_sec_cm_0/prim_onehot_check_if.sv:169
+  message: '''prim_onehot_check_without_addr_fault_if_proxy'' is a uvm_object but is not registered; type_id::create
+    and factory overrides cannot see it'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a proxy class declared inside a sec_cm interface, built by the
+    interface with new() and handed to the testbench through sec_cm_pkg; a factory could not create it
+    per instance'
+- at: opentitan/lowrisc_dv_sec_cm_0/prim_sparse_fsm_flop_if.sv:35
+  message: '''prim_sparse_fsm_flop_if_proxy'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - opentitan-aes
+  - opentitan-edn
+  - opentitan-keymgr
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a proxy class declared inside a sec_cm interface, built by the
+    interface with new() and handed to the testbench through sec_cm_pkg; a factory could not create it
+    per instance'
+- at: uvm-tb-proto/vip/fwvip-spi/src/vip/uvm/fwvip_spi_initiator_config.svh:15
+  message: '''fwvip_spi_initiator_config_p'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: uvm-tb-proto/vip/fwvip-spi/src/vip/uvm/fwvip_spi_monitor_config.svh:10
+  message: '''fwvip_spi_monitor_config_p'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: uvm-tb-proto/vip/fwvip-spi/src/vip/uvm/fwvip_spi_target_config.svh:11
+  message: '''fwvip_spi_target_config_p'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator_config.svh:27
+  message: '''fwvip_wb_initiator_config_p'' is a uvm_object but is not registered; type_id::create and
+    factory overrides cannot see it'
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_monitor_config.svh:20
+  message: '''fwvip_wb_monitor_config_p'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_config.svh:38
+  message: '''fwvip_wb_target_config_p'' is a uvm_object but is not registered; type_id::create and factory
+    overrides cannot see it'
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): fwvip''s per-instance config holding the vif, unregistered on
+    purpose (P1-43); the pack''s exempt_bases option'

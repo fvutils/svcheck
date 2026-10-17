@@ -73,6 +73,54 @@ versions. `scripts/wasm_size.sh TOOLS BUILD` builds svcheck for WASI (it downloa
 binaryen and wasmtime into TOOLS) and prints its size. A generic class's model body comes from a
 specialisation the design makes, and the default only when there is none.
 
+P2.1 added the corpora and the precision harness. `tests/corpora/corpora.yaml` lists every
+corpus (source, needed packages, exceptions); `scripts/corpora/registry.py` reads it for the
+scripts. The public ones are ivpm's `corpora` dep-set (`ivpm update -d default-dev,corpora
+--force`; not in CI): OpenTitan IPs, exported by `scripts/corpora/opentitan.py` into
+`packages/opentitan-dv/<ip>`, and CORE-V-VERIF's CV32E40P bench (`scripts/corpora/corev.py`
+writes its list). Corpus fixes are ivpm patches in `tests/corpora/<name>/fixes.patch`, with
+`tool: patch` (ivpm's `git apply` inside this work tree skips them silently). `scripts/precision.py`
+runs the rules on the corpora against the reviews in `tests/precision/<RULE>.yaml` (`--update`
+adds new findings as unreviewed; `--check` fails on new or gone ones, as `test_corpora.py` does).
+The lint JSON's `rules` entries carry each rule's `tier`.
+
+P2.2 grew the model to what the 36 pack rules read: `tests/host/test_pack_model.py` holds each
+rule's core predicate as a probe, by batch. Generate blocks are `GenBlock`s, each from the first
+instance that elaborates it (S-1). A model class name must not be a slang syntax kind (the
+install aborts). Docs are Sphinx (`sphinx-build -W -b html docs docs/_build/html`): the node
+reference (`docs/model/`, rendered from `src/ast/*.yaml` by pyastbuilder), the rule author's page
+(`docs/rules/authoring.rst`) and the function reference (`docs/rules/functions.rst`, generated:
+rerun `scripts/gen_rule_functions.py` after changing a library function, or
+`tests/host/test_node_reference.py` fails).
+
+P2.3 put the forked pipeline on the CLI (`src/cli/Lint.cpp`; config `src/cli/Config.cpp`,
+query modes `src/cli/Query.cpp`): `--profile/--select/--ignore`, `-Werror[=SEL]` and
+`-Wno-error=SEL` (svcheck's; every other `-W` is slang's), `--config FILE` (provisional YAML
+under `svcheck:`, overrides by `files` and/or `context`), `// svcheck waive ID: reason`
+(the host lexes files that mention `svcheck`), `--list-markers`, `--explain`, `--check-rules
+--uvm DIR`, `--rules-for`, `--show-config`, `--format github`. A `--rules` file's rules are in
+every profile but `none`. slang's warnings are `SLANG###` markers: numbers in the append-only
+`src/host/slang_warnings.txt` (after a slang bump, `scripts/gen_slang_warnings.py --update
+packages/slang/scripts/diagnostics.txt src/host/slang_warnings.txt`, or the build fails).
+Patches SL-6…SL-11 add slang options relaxing LRM-strict errors, all under `--relax-lrm`.
+Tests: `tests/host/test_pipeline.py`; the CLI page is `docs/cli.rst`.
+
+P2.4: a convention-only label never selects (`Unit.conventionLabels`; disagreements in
+`Unit.disagreements`); a labelled class joins its package's unit unless the package is mixed,
+where an unlabelled inner carrier has no context (`run::Context::carrierAt`); `contexts:` in
+`--config` declares labels on any axis (provenance); `specializations(c)` serves the
+config-class join in `rules/trial/classify-content.yaml`.
+
+P2.4b brought the ten OpenTitan exception corpora in (`docs/design/lrm-relaxations.md`):
+`scripts/corpora/opentitan.py` reads the sim cfg as dvsim does (its `sim_tops` as more `--top`s,
+dvsim's common defines, the first build mode), and every OpenTitan list has `--relax-lrm`.
+Patches SL-12…SL-15 are more relaxations (`--relax-lrm` also sets slang's own
+`--allow-hierarchical-const`), SL-16/SL-17 fix covergroup lookups; SL-10 now makes the virtual
+copy of an interface uninstantiated, and SL-11 covers output arguments. `-Wno-error=X` is
+svcheck's and also slang's when X is a slang option (`takeWarningPolicy`).
+To change a slang patch: rebuild a git tree of pristine slang (`packages/.download/v11.0.tar.gz`)
+with the patches as commits, edit there, and regenerate each patch as one commit's diff.
+
 ## Build and test
 
 ```sh
@@ -91,8 +139,9 @@ everything. Build with `packages/python/bin/ninja -C build` instead.
 - The CMake configure must stay offline: slang's FetchContent deps are supplied from
   `packages/` (`FETCHCONTENT_SOURCE_DIR_*`, `FETCHCONTENT_FULLY_DISCONNECTED`). A new slang
   FetchContent dep needs an ivpm entry, not network access.
-- When bumping slang, bump `fmt` in `ivpm.yaml` to slang's `external/CMakeLists.txt` tag, and
-  re-check the local patches (`patches/slang/README.md`, "Bumping slang").
+- When bumping slang, bump `fmt` in `ivpm.yaml` to slang's `external/CMakeLists.txt` tag,
+  re-check the local patches (`patches/slang/README.md`, "Bumping slang"), and append slang's
+  new warning options to the SLANG table (`gen_slang_warnings.py --update`).
 - slang issues are tracked locally, not upstream: each in `patches/slang/` with a patch that ivpm
   applies to the slang archive (`patches:` on both `slang` entries in `ivpm.yaml`) and a repro
   that `tests/host/test_slang_patches.py` compiles. After `ivpm update` changes slang's sources,

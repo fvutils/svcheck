@@ -72,6 +72,8 @@ classes:
     - units:
         type: list<UP<Unit>>
         is_ctor: false
+        set_by: classify
     - deps:
         type: list<UP<UnitDep>>
         is_ctor: false
+        set_by: classify

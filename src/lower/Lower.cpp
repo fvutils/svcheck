@@ -40,9 +40,10 @@
 #include "Class.h"
 #include "Conversion.h"
 #include "Definition.h"
-#include "Process.h"
 #include "Design.h"
+#include "Disable.h"
 #include "ExprStmt.h"
+#include "GenBlock.h"
 #include "If.h"
 #include "ImmediateAssert.h"
 #include "Literal.h"
@@ -54,8 +55,10 @@
 #include "OpaqueExpr.h"
 #include "OpaqueStmt.h"
 #include "Package.h"
+#include "Process.h"
 #include "Return.h"
 #include "Subroutine.h"
+#include "Timed.h"
 #include "TypeRef.h"
 #include "Typedef.h"
 #include "VarDecl.h"
@@ -66,6 +69,7 @@
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/Statement.h"
+#include "slang/ast/TimingControl.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/CallExpression.h"
 #include "slang/ast/expressions/ConversionExpression.h"
@@ -176,10 +180,22 @@ public:
 
         // 3. Bodies, in declaration order.
         for (auto &[sym, sub] : m_bodies) {
+            // A subroutine's body is a Block, however many statements it has.
             const sa::Statement &body = sym->getBody();
-            if (body.kind != sa::StatementKind::Invalid) {
-                sub->setBody(lowerStmt(body));
+            if (body.kind == sa::StatementKind::Invalid) {
+                continue;
             }
+            sem::IStmt *b = lowerStmt(body);
+            if (!dynamic_cast<sem::IBlock *>(b)) {
+                sem::Block *list = located(new sem::Block(), body.sourceRange);
+                if (body.kind != sa::StatementKind::Empty) {
+                    list->getStmts().push_back(sem::IStmtUP(b));
+                } else {
+                    delete b;
+                }
+                b = list;
+            }
+            sub->setBody(b);
         }
         for (auto &[sym, proc] : m_procBodies) {
             const sa::Statement &body = sym->getBody();
@@ -188,7 +204,10 @@ public:
             }
         }
         for (auto &[sym, var] : m_inits) {
-            if (const sa::Expression *init = sym->getInitializer()) {
+            // A formal argument's initializer is its default value.
+            const sa::Expression *init = (sym->kind == sa::SymbolKind::FormalArgument)
+                ? sym->as<sa::FormalArgumentSymbol>().getDefaultValue() : sym->getInitializer();
+            if (init) {
                 var->setInit(lowerExpr(*init));
             }
         }
@@ -322,26 +341,105 @@ private:
         m_definitions[&def] = n;
     }
 
-    // A definition's items come from its first instance body; each body
-    // below it is visited for the definitions it instantiates.
+    // A definition's items come from its first instance body (S-1), and a
+    // generate block's from the first instance that elaborates it. Every
+    // body is visited for the definitions it instantiates and the blocks it
+    // elaborates; a cached duplicate of another instance's body adds neither.
     void declInstance(const sa::InstanceSymbol &inst) {
         const sa::DefinitionSymbol &def = inst.getDefinition();
         declDefinition(def);
-        sem::Definition *n = m_definitions[&def];
-        if (!m_bodiesSeen.insert(&def).second) {
+        if (inst.getCanonicalBody()) {
             return;
         }
-        for (const sa::Symbol &m : inst.body.members()) {
-            if (m.kind == sa::SymbolKind::Instance) {
+        sem::Definition *n = m_definitions[&def];
+        bool first = m_bodiesSeen.insert(&def).second;
+        declScope(inst.body, n, n->getItems(), first, std::string(def.name));
+        if (first) {
+            m_imports.emplace_back(&inst.body, n);
+        }
+    }
+
+    // The members of an instance body or generate block. `fill`: add its
+    // declarations to `items` (the first time this body or block is seen);
+    // else only instances and generate blocks are visited.
+    void declScope(const sa::Scope &scope, sem::Definition *carrier,
+            std::vector<sem::IDeclUP> &items, bool fill, const std::string &prefix) {
+        for (const sa::Symbol &m : scope.members()) {
+            switch (m.kind) {
+            case sa::SymbolKind::Instance:
                 declInstance(m.as<sa::InstanceSymbol>());
                 continue;
+            case sa::SymbolKind::InstanceArray:
+                declInstanceArray(m.as<sa::InstanceArraySymbol>());
+                break;
+            case sa::SymbolKind::GenerateBlock: {
+                const auto &b = m.as<sa::GenerateBlockSymbol>();
+                sem::GenBlock *g = genBlock(b, b.getExternalName(), false, carrier, items, prefix);
+                declGenEntry(b, g, carrier);
+                continue;
             }
-            addFile(n->getFiles(), m.location);
-            if (sem::IDecl *d = declMember(m, n, std::string(def.name))) {
-                n->getItems().push_back(sem::IDeclUP(d));
+            case sa::SymbolKind::GenerateBlockArray: {
+                // One node for the loop's body, from its first iteration.
+                const auto &a = m.as<sa::GenerateBlockArraySymbol>();
+                sem::GenBlock *g = genBlock(a, a.getExternalName(), true, carrier, items, prefix);
+                for (const sa::GenerateBlockSymbol *e : a.entries) {
+                    declGenEntry(*e, g, carrier);
+                }
+                continue;
+            }
+            default:
+                break;
+            }
+            if (!fill) {
+                continue;
+            }
+            addFile(carrier->getFiles(), m.location);
+            if (sem::IDecl *d = declMember(m, carrier, prefix)) {
+                items.push_back(sem::IDeclUP(d));
             }
         }
-        m_imports.emplace_back(&inst.body, n);
+    }
+
+    void declInstanceArray(const sa::InstanceArraySymbol &a) {
+        for (const sa::Symbol *e : a.elements) {
+            if (e->kind == sa::SymbolKind::Instance) {
+                declInstance(e->as<sa::InstanceSymbol>());
+            } else if (e->kind == sa::SymbolKind::InstanceArray) {
+                declInstanceArray(e->as<sa::InstanceArraySymbol>());
+            }
+        }
+    }
+
+    // The node of a generate block, made the first time its syntax is seen,
+    // in whichever instance (keyed by syntax, so every instance's copy of
+    // the block is one node).
+    sem::GenBlock *genBlock(const sa::Symbol &b, const std::string &name, bool isLoop,
+            sem::Definition *carrier, std::vector<sem::IDeclUP> &items, const std::string &prefix) {
+        const void *key = b.getSyntax() ? static_cast<const void *>(b.getSyntax()) : &b;
+        auto it = m_genBlocks.find(key);
+        if (it != m_genBlocks.end()) {
+            return it->second;
+        }
+        sem::GenBlock *g = new sem::GenBlock();
+        setDecl(g, b, carrier, prefix);
+        g->setName(name);
+        g->setQname(prefix + "::" + name);
+        g->setIsLoop(isLoop);
+        items.push_back(sem::IDeclUP(g));
+        m_genBlocks[key] = g;
+        return g;
+    }
+
+    // One elaborated copy of a block: its declarations if the node has
+    // none yet, and its instances and nested blocks in any case.
+    void declGenEntry(const sa::GenerateBlockSymbol &b, sem::GenBlock *g,
+            sem::Definition *carrier) {
+        if (b.isUninstantiated) {
+            return;
+        }
+        bool fill = !g->getIsElaborated();
+        g->setIsElaborated(true);
+        declScope(b, carrier, g->getItems(), fill, g->getQname());
     }
 
     // The node for a member of a package, definition, class or $unit; null
@@ -492,13 +590,27 @@ private:
         n->setIsStatic(s.flags.has(sa::MethodFlags::Static));
         m_returns.emplace_back(&s.getReturnType(), n);
         for (const sa::FormalArgumentSymbol *a : s.getArguments()) {
-            n->getArgs().push_back(sem::IVariableUP(declVariable(*a, carrier, n->getQname())));
+            sem::Variable *v = declVariable(*a, carrier, n->getQname());
+            v->setDirection((a->direction == sa::ArgumentDirection::Ref
+                    && a->flags.has(sa::VariableFlags::Const))
+                ? sem::ArgDirection::ConstRef : direction(a->direction));
+            n->getArgs().push_back(sem::IVariableUP(v));
         }
         m_subs[&s] = n;
         if (!library(s) && !s.flags.has(sa::MethodFlags::Pure)) {
             m_bodies.emplace_back(&s, n);
         }
         return n;
+    }
+
+    static sem::ArgDirection direction(sa::ArgumentDirection d) {
+        switch (d) {
+        case sa::ArgumentDirection::In: return sem::ArgDirection::In;
+        case sa::ArgumentDirection::Out: return sem::ArgDirection::Out;
+        case sa::ArgumentDirection::InOut: return sem::ArgDirection::InOut;
+        case sa::ArgumentDirection::Ref: return sem::ArgDirection::Ref;
+        }
+        return sem::ArgDirection::In;
     }
 
     sem::IDecl *declProcess(const sa::ProceduralBlockSymbol &b, sem::IDecl *carrier,
@@ -736,8 +848,20 @@ private:
             return b;
         }
         case sa::StatementKind::Block: {
-            sem::Block *b = located(new sem::Block(), s.sourceRange);
-            const sa::Statement &body = s.as<sa::BlockStatement>().body;
+            // A named block's range is its body's: the syntax has its `begin`.
+            sem::Block *b = located(new sem::Block(),
+                s.syntax ? s.syntax->sourceRange() : s.sourceRange);
+            const auto &bs = s.as<sa::BlockStatement>();
+            switch (bs.blockKind) {
+            case sa::StatementBlockKind::Sequential: b->setKind(sem::BlockKind::Sequential); break;
+            case sa::StatementBlockKind::JoinAll: b->setKind(sem::BlockKind::JoinAll); break;
+            case sa::StatementBlockKind::JoinAny: b->setKind(sem::BlockKind::JoinAny); break;
+            case sa::StatementBlockKind::JoinNone: b->setKind(sem::BlockKind::JoinNone); break;
+            }
+            if (bs.blockSymbol) {
+                b->setLabel(std::string(bs.blockSymbol->name));
+            }
+            const sa::Statement &body = bs.body;
             if (body.kind == sa::StatementKind::List) {
                 for (const sa::Statement *c : body.as<sa::StatementList>().list) {
                     b->getStmts().push_back(sem::IStmtUP(lowerStmt(*c)));
@@ -750,16 +874,81 @@ private:
         case sa::StatementKind::ExpressionStatement: {
             sem::ExprStmt *n = located(new sem::ExprStmt(), s.sourceRange);
             n->setExpr(lowerExpr(s.as<sa::ExpressionStatement>().expr));
+            n->setIsVoidCast(s.syntax
+                && s.syntax->kind == slang::syntax::SyntaxKind::VoidCastedCallStatement);
             return n;
         }
         case sa::StatementKind::VariableDeclaration: {
             sem::VarDecl *n = located(new sem::VarDecl(), s.sourceRange);
-            const sa::VariableSymbol &v = s.as<sa::VariableDeclStatement>().symbol;
-            sem::Variable *var = declVariable(v, nullptr, "");
-            if (const sa::Expression *init = v.getInitializer()) {
-                var->setInit(lowerExpr(*init));
+            n->setVar(localVariable(s.as<sa::VariableDeclStatement>().symbol));
+            return n;
+        }
+        case sa::StatementKind::Timed: {
+            const auto &t = s.as<sa::TimedStatement>();
+            sem::Timed *n = located(new sem::Timed(), s.sourceRange);
+            std::vector<const sa::Expression *> exprs;
+            timingExprs(t.timing, exprs);
+            switch (t.timing.kind) {
+            case sa::TimingControlKind::Delay:
+            case sa::TimingControlKind::Delay3:
+            case sa::TimingControlKind::OneStepDelay:
+                n->setKind(sem::TimingKind::Delay);
+                break;
+            case sa::TimingControlKind::CycleDelay:
+                n->setKind(sem::TimingKind::Cycle);
+                break;
+            default:
+                n->setKind(sem::TimingKind::Event);
+                break;
             }
-            n->setVar(var);
+            for (const sa::Expression *e : exprs) {
+                n->getExprs().push_back(sem::IExprUP(lowerExpr(*e)));
+            }
+            if (t.stmt.kind != sa::StatementKind::Empty) {
+                n->setBody(lowerStmt(t.stmt));
+            }
+            return n;
+        }
+        case sa::StatementKind::Wait: {
+            const auto &w = s.as<sa::WaitStatement>();
+            sem::Timed *n = located(new sem::Timed(), s.sourceRange);
+            n->setKind(sem::TimingKind::Wait);
+            n->getExprs().push_back(sem::IExprUP(lowerExpr(w.cond)));
+            if (w.stmt.kind != sa::StatementKind::Empty) {
+                n->setBody(lowerStmt(w.stmt));
+            }
+            return n;
+        }
+        case sa::StatementKind::WaitFork: {
+            sem::Timed *n = located(new sem::Timed(), s.sourceRange);
+            n->setKind(sem::TimingKind::WaitFork);
+            return n;
+        }
+        case sa::StatementKind::WaitOrder: {
+            const auto &w = s.as<sa::WaitOrderStatement>();
+            sem::Timed *n = located(new sem::Timed(), s.sourceRange);
+            n->setKind(sem::TimingKind::WaitOrder);
+            for (const sa::Expression *e : w.events) {
+                n->getExprs().push_back(sem::IExprUP(lowerExpr(*e)));
+            }
+            if (w.ifTrue && w.ifTrue->kind != sa::StatementKind::Empty) {
+                n->setBody(lowerStmt(*w.ifTrue));
+            }
+            return n;
+        }
+        case sa::StatementKind::Disable: {
+            sem::Disable *n = located(new sem::Disable(), s.sourceRange);
+            const sa::Expression &t = s.as<sa::DisableStatement>().target;
+            if (t.kind == sa::ExpressionKind::ArbitrarySymbol) {
+                n->setTarget(std::string(t.as<sa::ArbitrarySymbolExpression>().symbol->name));
+            } else if (t.syntax) {
+                n->setTarget(trimmed(t.syntax->toString()));
+            }
+            return n;
+        }
+        case sa::StatementKind::DisableFork: {
+            sem::Disable *n = located(new sem::Disable(), s.sourceRange);
+            n->setIsFork(true);
             return n;
         }
         case sa::StatementKind::Conditional: {
@@ -811,6 +1000,17 @@ private:
         case sa::StatementKind::ForeverLoop: {
             sem::Loop *n = located(new sem::Loop(), s.sourceRange);
             n->setSlangKind(std::string(sa::toString(s.kind)));
+            if (s.kind == sa::StatementKind::ForLoop) {
+                for (const sa::VariableSymbol *v : s.as<sa::ForLoopStatement>().loopVars) {
+                    n->getVars().push_back(sem::IVariableUP(localVariable(*v)));
+                }
+            } else if (s.kind == sa::StatementKind::ForeachLoop) {
+                for (const auto &d : s.as<sa::ForeachLoopStatement>().loopDims) {
+                    if (d.loopVar) {
+                        n->getVars().push_back(sem::IVariableUP(localVariable(*d.loopVar)));
+                    }
+                }
+            }
             Children c = childrenOf(s);
             for (const sa::Expression *e : c.exprs) {
                 n->getExprs().push_back(sem::IExprUP(lowerExpr(*e)));
@@ -860,6 +1060,66 @@ private:
         }
     }
 
+    // A variable declared in a body (a local, a loop variable), with its initializer.
+    sem::Variable *localVariable(const sa::VariableSymbol &v) {
+        sem::Variable *var = declVariable(v, nullptr, "");
+        if (const sa::Expression *init = v.getInitializer()) {
+            var->setInit(lowerExpr(*init));
+        }
+        return var;
+    }
+
+    // The expressions a timing control reads, in order.
+    static void timingExprs(const sa::TimingControl &t, std::vector<const sa::Expression *> &out) {
+        switch (t.kind) {
+        case sa::TimingControlKind::Delay:
+            out.push_back(&t.as<sa::DelayControl>().expr);
+            break;
+        case sa::TimingControlKind::Delay3: {
+            const auto &d = t.as<sa::Delay3Control>();
+            out.push_back(&d.expr1);
+            if (d.expr2) {
+                out.push_back(d.expr2);
+            }
+            if (d.expr3) {
+                out.push_back(d.expr3);
+            }
+            break;
+        }
+        case sa::TimingControlKind::SignalEvent: {
+            const auto &e = t.as<sa::SignalEventControl>();
+            out.push_back(&e.expr);
+            if (e.iffCondition) {
+                out.push_back(e.iffCondition);
+            }
+            break;
+        }
+        case sa::TimingControlKind::EventList:
+            for (const sa::TimingControl *e : t.as<sa::EventListControl>().events) {
+                timingExprs(*e, out);
+            }
+            break;
+        case sa::TimingControlKind::RepeatedEvent: {
+            const auto &r = t.as<sa::RepeatedEventControl>();
+            out.push_back(&r.expr);
+            timingExprs(r.event, out);
+            break;
+        }
+        case sa::TimingControlKind::CycleDelay:
+            out.push_back(&t.as<sa::CycleDelayControl>().expr);
+            break;
+        case sa::TimingControlKind::BlockEventList:
+            for (const auto &e : t.as<sa::BlockEventListControl>().events) {
+                if (e.target) {
+                    out.push_back(e.target);
+                }
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
     template <class T> T *typed(T *n, const sa::Expression &e) {
         setLocation(n, e.sourceRange);
         if (e.type) {
@@ -877,6 +1137,8 @@ private:
         case sa::ExpressionKind::IntegerLiteral:
         case sa::ExpressionKind::UnbasedUnsizedIntegerLiteral:
         case sa::ExpressionKind::StringLiteral:
+        case sa::ExpressionKind::RealLiteral:
+        case sa::ExpressionKind::TimeLiteral:
             return true;
         case sa::ExpressionKind::NamedValue: {
             sa::SymbolKind k = e.as<sa::NamedValueExpression>().symbol.kind;
@@ -927,6 +1189,26 @@ private:
         } else if (v.isString()) {
             n->setConstKind(sem::ConstKind::String);
             n->setConstString(v.str());
+        } else if (v.isReal() || v.isShortReal()) {
+            n->setConstKind(sem::ConstKind::Real);
+            n->setConstReal(v.isReal() ? double(v.real()) : double(v.shortReal()));
+        }
+    }
+
+    // A call's arguments. One the call leaves out is its formal's default,
+    // the same expression slang binds for every such call (isDefault).
+    void lowerArgs(const sa::CallExpression &c, std::vector<sem::IExprUP> &out) {
+        std::span<const sa::FormalArgumentSymbol *const> formals;
+        if (!c.isSystemCall()) {
+            formals = std::get<0>(c.subroutine)->getArguments();
+        }
+        std::span<const sa::Expression *const> args = c.arguments();
+        for (size_t i=0; i<args.size(); i++) {
+            sem::IExpr *a = lowerExpr(*args[i]);
+            if (i < formals.size() && formals[i]->getDefaultValue() == args[i]) {
+                a->setIsDefault(true);
+            }
+            out.push_back(sem::IExprUP(a));
         }
     }
 
@@ -950,19 +1232,16 @@ private:
             if (c.thisClass()) {
                 n->setReceiver(lowerExpr(*c.thisClass()));
             }
-            for (const sa::Expression *a : c.arguments()) {
-                n->getArgs().push_back(sem::IExprUP(lowerExpr(*a)));
-            }
+            lowerArgs(c, n->getArgs());
             return n;
         }
         case sa::ExpressionKind::NewClass: {
             const auto &nc = e.as<sa::NewClassExpression>();
             sem::NewClass *n = typed(new sem::NewClass(), e);
+            n->setIsSuper(nc.isSuperClass);
             const sa::Expression *ctor = nc.constructorCall();
             if (ctor && ctor->kind == sa::ExpressionKind::Call) {
-                for (const sa::Expression *a : ctor->as<sa::CallExpression>().arguments()) {
-                    n->getArgs().push_back(sem::IExprUP(lowerExpr(*a)));
-                }
+                lowerArgs(ctor->as<sa::CallExpression>(), n->getArgs());
             }
             return n;
         }
@@ -1029,6 +1308,7 @@ private:
     std::unordered_map<const sa::PackageSymbol *, sem::IPackage *>  m_packages;
     std::unordered_map<const sa::DefinitionSymbol *, sem::Definition *>  m_definitions;
     std::unordered_set<const sa::DefinitionSymbol *>                m_bodiesSeen;
+    std::unordered_map<const void *, sem::GenBlock *>          m_genBlocks;
     std::unordered_map<const sa::GenericClassDefSymbol *, sem::Class *>  m_generics;
     std::unordered_map<const sa::ClassType *, sem::Class *>         m_classOf;
     std::vector<std::pair<const sa::ClassType *, sem::Class *>>     m_classes;

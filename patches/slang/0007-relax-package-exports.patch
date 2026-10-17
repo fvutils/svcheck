@@ -1,0 +1,91 @@
+slang: --relax-package-exports makes 'export pkg::*' pass on all of pkg
+
+"use of undeclared identifier" in a scope that imports P, for a name of pkg that P exports
+with 'export pkg::*' but never references itself. IEEE 1800-2017 26.6 passes on only the
+names P references (slang is right); Verilator and VCS pass on every name. The new
+CompilationFlags::RelaxPackageExports (driver option --relax-package-exports) makes
+PackageSymbol::findForImport, when the name was not imported into P, look it up in each
+package P wildcard-imports and exports with 'pkg::*' or '*::*'. A per-package guard stops
+export cycles. Applies on top of 0006 (same enum).
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -135,9 +135,13 @@
+     /// Allow a string literal where an assertion control task ($asserton, $assertoff,
+     /// $assertkill, $assertcontrol) expects a scope or assertion name (a VCS extension).
+     /// The string is not resolved; the argument is accepted and ignored.
+-    AllowAssertControlStringScope = 1 << 18
++    AllowAssertControlStringScope = 1 << 18,
++
++    /// Make `export pkg::*` (and `export *::*`) pass on every name of the imported
++    /// package, not only the names the exporting package itself references.
++    RelaxPackageExports = 1 << 19
+ };
+-SLANG_BITMASK(CompilationFlags, AllowAssertControlStringScope)
++SLANG_BITMASK(CompilationFlags, RelaxPackageExports)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/include/slang/ast/symbols/CompilationUnitSymbols.h
++++ b/include/slang/ast/symbols/CompilationUnitSymbols.h
+@@ -71,6 +71,10 @@
+                                      std::optional<TimeScale> directiveTimeScale);
+ 
+     static bool isKind(SymbolKind kind) { return kind == SymbolKind::Package; }
++
++private:
++    // Guards the RelaxPackageExports search against export cycles.
++    mutable bool inRelaxedExport = false;
+ };
+ 
+ /// Represents the entirety of a design, along with all contained compilation units.
+--- a/source/ast/symbols/CompilationUnitSymbols.cpp
++++ b/source/ast/symbols/CompilationUnitSymbols.cpp
+@@ -175,6 +175,34 @@
+         }
+     }
+ 
++    // Other tools pass on every name of a package exported with a wildcard, whether or
++    // not this package referenced it (LRM 26.6 passes on only the referenced ones).
++    if (getCompilation().hasFlag(CompilationFlags::RelaxPackageExports) && !inRelaxedExport) {
++        inRelaxedExport = true;
++        const Symbol* found = nullptr;
++        for (auto import : wildcardData->wildcardImports) {
++            auto package = import->getPackage();
++            if (!package)
++                continue;
++
++            bool exported = hasExportAll;
++            for (auto decl : exportDecls) {
++                if (decl->item.kind == TokenKind::Star &&
++                    decl->package.valueText() == package->name) {
++                    exported = true;
++                    break;
++                }
++            }
++
++            if (exported) {
++                if ((found = package->findForImport(lookupName)) != nullptr)
++                    break;
++            }
++        }
++        inRelaxedExport = false;
++        return found;
++    }
++
+     return nullptr;
+ }
+ 
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -260,6 +260,10 @@
+                 "Allow a string literal in place of a scope or assertion name in the "
+                 "assertion control tasks ($assertoff etc.); the string is not resolved");
+ 
++    addCompFlag(CompilationFlags::RelaxPackageExports, "--relax-package-exports",
++                "Make 'export pkg::*' re-export every name of pkg, not only the names "
++                "the exporting package references");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

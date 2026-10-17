@@ -1,0 +1,51 @@
+slang: bind a copied argument's default value lazily
+
+"use of undeclared identifier" for a class's own type and enum value in a
+covergroup's sample() argument with a default, as in
+
+    class c;
+      typedef enum int {A, B} loc_t;
+      covergroup cg with function sample(loc_t l = B); endgroup
+    endclass
+
+MethodBuilder::copyArg bound the source argument's default value when it
+copied it, while CovergroupType::fromSyntax was still building the
+covergroup, which is not yet a member of the class, so lookups from it do not
+reach the class. Without a default the type is linked, and resolves later.
+copyArg now copies a default given as syntax as syntax.
+
+Local issue SL-4 (patches/slang/README.md). Not reported upstream yet.
+Present in v11.0 and on master (2026-10-16). Applies to v11.0.
+
+--- a/include/slang/ast/symbols/VariableSymbols.h
++++ b/include/slang/ast/symbols/VariableSymbols.h
+@@ -119,6 +119,9 @@
+ 
+     const Expression* getDefaultValue() const;
+ 
++    /// The default value's syntax, if it has one and it was given as syntax.
++    const syntax::ExpressionSyntax* getDefaultValueSyntax() const { return defaultValSyntax; }
++
+     FormalArgumentSymbol& clone(Compilation& compilation) const;
+ 
+     void serializeTo(ASTSerializer& serializer) const;
+--- a/source/ast/symbols/SymbolBuilders.cpp
++++ b/source/ast/symbols/SymbolBuilders.cpp
+@@ -62,8 +62,16 @@
+     auto arg = compilation.emplace<FormalArgumentSymbol>(fromArg.name, fromArg.location,
+                                                          fromArg.direction, fromArg.lifetime);
+     arg->flags = fromArg.flags;
+-    arg->setDefaultValue(fromArg.getDefaultValue());
+     symbol.addMember(*arg);
++
++    // Copy a default given as syntax as syntax, so that it binds when it is
++    // used. Binding it here looks names up from fromArg's scope, which may not
++    // be in its parent yet: a covergroup's sample() arguments are copied while
++    // the covergroup is being built, before it is a member of its class.
++    if (auto syntax = fromArg.getDefaultValueSyntax())
++        arg->setDefaultValueSyntax(*syntax);
++    else
++        arg->setDefaultValue(fromArg.getDefaultValue());
+     args.push_back(arg);
+ 
+     auto& argDT = *arg->getDeclaredType();

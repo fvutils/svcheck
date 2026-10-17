@@ -136,13 +136,18 @@ def test_convention_alone_labels_and_disagreement_is_noted():
                 os.path.join(TRIAL, "contexts.yaml"),
                 os.path.join(TRIAL, "classify-convention.yaml"), extra=["--contexts"])
     units = _units(ctx)
+    conv = {u["name"]: sorted(u["convention_labels"]) for u in ctx["units"]}
     # Class names alone: my_base_env, my_base_test, and a class named *_test
-    # that is no test at all.
-    assert units["my_base_env"] == ["env"]
-    assert units["reg_intr_test"] == ["test"]
-    assert units["base_agent_pkg"] == ["base-lib", "env", "test"]
+    # that is no test at all. Convention never selects (Q-CX4, svcheck-plan
+    # P2.4): their labels are kept apart, and give no unit a kind.
+    assert (units["my_base_env"], conv["my_base_env"]) == ([], ["env"])
+    assert (units["reg_intr_test"], conv["reg_intr_test"]) == ([], ["test"])
+    assert (units["base_agent_pkg"], conv["base_agent_pkg"]) == (["base-lib"], ["env", "test"])
     (note,) = ctx["notes"]
     assert "says 'agent', but content says 'base-lib'" in note["message"]
+    # The disagreement is the unit's, for a consistency rule.
+    (unit,) = [u for u in ctx["units"] if u["name"] == "base_agent_pkg"]
+    assert unit["disagreements"] == [note["message"]]
 
 
 def test_unit_and_unitdep_findings_have_a_place(tmp_path):
@@ -179,23 +184,14 @@ sv-rules:
         "my_base_env: true", "my_base_test: false"]
 
 
-@pytest.mark.parametrize("corpus", ["uvm-tb-proto", "fw-wb-dma", "opentitan-uart", "fwvip",
-                                    "ctx-positive"])
-def test_corpus_compiles(corpus):
-    snapshot = {"fwvip": "uvm-tb-proto", "ctx-positive": "uvm-core"}.get(corpus, corpus)
-    if not os.path.isdir(os.path.join(ROOT, "packages", snapshot)):
-        pytest.skip("packages/%s is not there (tests/corpora/README.md)" % snapshot)
-    r = subprocess.run([native_path(), "--rules", os.path.join(TRIAL, "contexts.yaml"),
-                        "-F", os.path.join(CORPORA, corpus + ".f"), "--format", "json"],
-                       capture_output=True, text=True, timeout=300, cwd=ROOT)
-    out = json.loads(r.stdout)
-    assert out["compilation"]["errors"] == 0, r.stderr
-    assert out["compilation"]["unparsed"] == []
+# That each corpus compiles is tests/host/test_corpora.py's (P2.1).
 
 
 def test_the_positive_corpus_fires():
     """P1.7's positive corpus: one package holds the agent, env and test, and
-    the monitor raises an objection (tests/corpora/ctx-positive.f)."""
+    the monitor raises an objection (tests/corpora/ctx-positive.f). P2.4: in
+    that mixed package, the scoreboard's and a sequence's objections are not
+    in an agent; the monitor's are, for being a monitor."""
     r = subprocess.run([native_path(), "--rules", os.path.join(TRIAL, "contexts.yaml"),
                         "-F", os.path.join(CORPORA, "ctx-positive.f"), "--format", "json"],
                        capture_output=True, text=True, timeout=300, cwd=ROOT)
@@ -203,3 +199,4 @@ def test_the_positive_corpus_fires():
     assert out["compilation"]["errors"] == 0, r.stderr
     assert [(f["code"], os.path.basename(f["file"]), f["line"]) for f in out["findings"]] == [
         ("CTX002", "tb_pkg.sv", 4), ("CTX001", "tb_pkg.sv", 68), ("CTX001", "tb_pkg.sv", 72)]
+    assert all("in agent apb_monitor" in f["message"] for f in out["findings"][1:])

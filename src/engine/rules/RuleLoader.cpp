@@ -1507,11 +1507,16 @@ bool Loader::loadMessage(const Node *n, Rule &r, cel::CheckEnv &env,
             continue;
         }
         using TK = cel::Type::Kind;
+        auto scalar = [](TK k) {
+            return k == TK::String || k == TK::Int || k == TK::Double || k == TK::Bool
+                || k == TK::Node;
+        };
         TK k = res.type.kind;
-        if (k != TK::String && k != TK::Int && k != TK::Double && k != TK::Bool
-                && k != TK::Node) {
+        // A list of those is written ", "-separated (svcheck divergence log, P2.3).
+        bool list = k == TK::List && !res.type.args.empty() && scalar(res.type.args[0].kind);
+        if (!scalar(k) && !list) {
             celDiag(code::ExprType, src, e->begin, "a message can interpolate a string, a number, "
-                "a bool or a node, not '" + res.type.str() + "'");
+                "a bool, a node, or a list of them, not '" + res.type.str() + "'");
             ok = false;
             continue;
         }
@@ -1544,6 +1549,7 @@ void Loader::loadRule(const Node *n, size_t index, RuleSet &set) {
 
     RuleUP r(new Rule());
     r->m_file = m_src.name;
+    r->m_builtin = m_builtin;
     r->m_mark = n->mark;
 
     std::vector<std::string> allowed;

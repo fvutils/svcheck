@@ -1,0 +1,69 @@
+# Precision review of UVM030 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: UVM030
+findings:
+- at: core-v-verif/lib/uvm_agents/uvma_rvfi/uvma_rvfi_mon_trn_logger.sv:55
+  message: build_phase overrides uvml_logs_pkg::uvml_logs_mon_trn_logger_c::build_phase but never calls
+    super.build_phase(); the parent's build_phase is skipped
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-16): the base''s build_phase gets cfg and cntxt from config_db and
+    reads the CLI arguments; all skipped'
+- at: opentitan/lowrisc_dv_csrng_agent_0.1/csrng_monitor.sv:32
+  message: run_phase overrides dv_base_agent_pkg::dv_base_monitor::run_phase but never calls super.run_phase();
+    the parent's run_phase is skipped
+  corpora:
+  - opentitan-csrng
+  - opentitan-edn
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): P1-43 (uart_monitor): dv_base_monitor::run_phase forks collect_trans(),
+    which this monitor skips (it forks its own tasks)'
+- at: opentitan/lowrisc_dv_dma_env_0.1.0/dma_scoreboard.sv:791
+  message: check_phase overrides cip_base_pkg::cip_base_scoreboard::check_phase but never calls super.check_phase();
+    the parent's check_phase is skipped
+  corpora:
+  - opentitan-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-16): skips the base''s end-of-test print of unprocessed TL FIFO items'
+- at: opentitan/lowrisc_dv_entropy_src_xht_agent_0.1/entropy_src_xht_monitor.sv:14
+  message: run_phase overrides dv_base_agent_pkg::dv_base_monitor::run_phase but never calls super.run_phase();
+    the parent's run_phase is skipped
+  corpora:
+  - opentitan-entropy_src
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): P1-43 (uart_monitor): dv_base_monitor::run_phase forks collect_trans(),
+    which this monitor skips (it forks its own tasks)'
+- at: opentitan/lowrisc_dv_i2c_agent_0.1/i2c_monitor.sv:93
+  message: run_phase overrides dv_base_agent_pkg::dv_base_monitor::run_phase but never calls super.run_phase();
+    the parent's run_phase is skipped
+  corpora:
+  - opentitan-i2c
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): P1-43 (uart_monitor): dv_base_monitor::run_phase forks collect_trans(),
+    which this monitor skips (it forks its own tasks)'
+- at: opentitan/lowrisc_dv_pattgen_agent_0.1/pattgen_monitor.sv:25
+  message: run_phase overrides dv_base_agent_pkg::dv_base_monitor::run_phase but never calls super.run_phase();
+    the parent's run_phase is skipped
+  corpora:
+  - opentitan-pattgen
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-16): P1-43 (uart_monitor); pattgen_monitor is the same pattern'
+- at: opentitan/lowrisc_dv_spi_agent_0.1/spi_monitor.sv:41
+  message: run_phase overrides dv_base_agent_pkg::dv_base_monitor::run_phase but never calls super.run_phase();
+    the parent's run_phase is skipped
+  corpora:
+  - opentitan-spi_device
+  - opentitan-spi_host
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): P1-43 (uart_monitor): dv_base_monitor::run_phase forks collect_trans(),
+    which this monitor skips (it forks its own tasks)'
+- at: opentitan/lowrisc_dv_uart_agent_0.1/uart_monitor.sv:25
+  message: run_phase overrides dv_base_agent_pkg::dv_base_monitor::run_phase but never calls super.run_phase();
+    the parent's run_phase is skipped
+  corpora:
+  - opentitan-uart
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-16): P1-43 (uart_monitor); pattgen_monitor is the same pattern'

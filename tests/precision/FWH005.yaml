@@ -1,0 +1,216 @@
+# Precision review of FWH005 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: FWH005
+findings:
+- at: fw-wb-dma/packages/fw-proto-wb/src/wb_mem_adapters.svh:32
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/packages/fw-proto-wb/src/wb_mem_adapters.svh:33
+  message: '''data'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/packages/fw-proto-wb/src/wb_mem_adapters.svh:33
+  message: '''strb'' is logic[3:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/packages/fw-proto-wb/src/wb_mem_adapters.svh:34
+  message: '''dr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/packages/fw-proto-wb/src/wb_mem_adapters.svh:38
+  message: '''data'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/packages/fw-proto-wb/src/wb_mem_adapters.svh:39
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:282
+  message: '''adr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:282
+  message: '''dat_w'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:283
+  message: '''sel'' is logic[3:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:284
+  message: '''dat_r'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:316
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:317
+  message: '''data'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:317
+  message: '''strb'' is logic[3:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:324
+  message: '''data'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/src/spl/wb_dma_rf.svh:325
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:19
+  message: '''err_addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:27
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:29
+  message: '''adr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:29
+  message: '''dat_w'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:30
+  message: '''sel'' is logic[3:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:31
+  message: '''dat_r'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:50
+  message: '''base'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:50
+  message: '''seed'' is logic[15:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_mem.svh:54
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_model_base.svh:46
+  message: '''csr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_ram_mem.svh:7
+  message: '''base'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_ram_mem.svh:7
+  message: '''seed'' is logic[15:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_ram_mem.svh:10
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_ram_mem.svh:15
+  message: '''addr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_wb_model.svh:35
+  message: '''csr'' is logic[31:0]; the static subset is 2-state: use bit'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-16): in code fw-hdl''s synthesis flow never reads (P1-43): the rule
+    needs a synthesised-component context (P3)'

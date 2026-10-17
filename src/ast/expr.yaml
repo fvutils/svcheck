@@ -8,6 +8,7 @@ enums:
     - NotConst: "not a constant, or not one the model keeps"
     - Int: "an integer with no X or Z bits, that fits 64 bits"
     - String: "a string"
+    - Real: "a real or time value (`1.5`, `5ns`), in the time unit of its scope for a time literal"
 
 classes:
 - Expr:
@@ -20,6 +21,8 @@ classes:
             constKind: whether it is a constant (a literal, a parameter, an enum value, or an operator over those), and of what kind: what `const_value` reads
             constInt: its value, when constKind is Int
             constString: its value, when constKind is String
+            constReal: its value, when constKind is Real
+            isDefault: an argument the call leaves out, filled in from its formal's default; its location is the default's, in the subroutine's declaration
     data:
     - type:
         type: P<TypeRef>
@@ -35,6 +38,14 @@ classes:
     - constString:
         type: string
         is_ctor: false
+    - constReal:
+        type: double
+        is_ctor: false
+        init: 0.0
+    - isDefault:
+        type: bool
+        is_ctor: false
+        init: false
 
 - Call:
     super: Expr
@@ -49,7 +60,7 @@ classes:
             isSuper: called through `super.`
             classType: the class the subroutine is a member of, as the call names it: `uvm_config_db#(virtual bus_if)` for `uvm_config_db#(virtual bus_if)::get(...)`; null for a subroutine outside a class
             receiver: the object a method is called on (`obj` in `obj.m()`), or null
-            args: the arguments, in order
+            args: the arguments, in the formals' order, each one the call leaves out filled in from its default (`isDefault`)
     data:
     - name:
         type: string
@@ -79,7 +90,17 @@ classes:
     super: Expr
     doc: |
         `new(...)` of a class: `type.classDecl` is the class constructed.
+        `super.new(...)` in a constructor is one too, with `isSuper`: it
+        constructs nothing, and its type is `void`.
+
+        Attributes:
+            isSuper: `super.new(...)`, the base class's constructor called from a constructor
+            args: the constructor's arguments, in the formals' order, with defaults filled in (`isDefault`)
     data:
+    - isSuper:
+        type: bool
+        is_ctor: false
+        init: false
     - args:
         type: list<UP<Expr>>
         is_ctor: false

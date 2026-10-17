@@ -17,6 +17,8 @@
  */
 #include <algorithm>
 #include <chrono>
+#include <set>
+#include <tuple>
 #include <filesystem>
 #if defined(__GLIBC__)
 #include <malloc.h>
@@ -33,6 +35,7 @@
 #include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/diagnostics/DiagnosticEngine.h"
 #include "slang/driver/Driver.h"
+#include "slang/parsing/Lexer.h"
 #include "slang/parsing/Preprocessor.h"
 #include "slang/syntax/AllSyntax.h"
 #include "slang/syntax/SyntaxTree.h"
@@ -47,6 +50,8 @@ struct LintCompilation::Impl {
     std::unique_ptr<slang::ast::Compilation>    comp;
     std::unique_ptr<sem::IDesign>               design;
     std::unique_ptr<Sources>                    sources;
+    slang::SourceManager                        *sm = nullptr;
+    std::vector<slang::BufferID>                userBuffers;    // linted files, includes too
 };
 
 namespace {
@@ -108,12 +113,16 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
     Impl &p = *m_impl;
     auto t0 = Clock::now();
     p.comp = driver.createCompilation();
-    // slang's warnings are not findings (Q-UVM4, P2.2); its errors gate,
-    // as its own command line ranks them (-Werror and the like included).
+    p.sm = &driver.sourceManager;
+    // slang's errors gate, as its own command line ranks them; its warnings
+    // are SLANG### markers (Q-UVM4), kept below once the library is known.
+    std::vector<const slang::Diagnostic *> warned;
     for (const slang::Diagnostic &d : p.comp->getAllDiagnostics()) {
         slang::DiagnosticSeverity sev = driver.diagEngine.getSeverity(d.code, d.location);
         if (sev == slang::DiagnosticSeverity::Error || sev == slang::DiagnosticSeverity::Fatal) {
             driver.diagEngine.issue(d);
+        } else if (sev == slang::DiagnosticSeverity::Warning) {
+            warned.push_back(&d);
         }
     }
     m_errors = static_cast<uint32_t>(driver.diagEngine.getNumErrors());
@@ -161,6 +170,25 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
 
     p.sources.reset(new Sources(driver.sourceManager));
     setSources(p.sources.get());
+    // The user's buffers, each once: the trees' own and what they include.
+    std::set<uint32_t> seenBuf;
+    auto userBuffer = [&](slang::BufferID buf) {
+        std::string path = driver.sourceManager.getFullPath(buf).string();
+        if (!path.empty() && !under(absolute(path), m_libraryDirs)
+                && seenBuf.insert(buf.getId()).second) {
+            p.userBuffers.push_back(buf);
+        }
+    };
+    for (const auto &t : driver.syntaxTrees) {
+        for (slang::BufferID buf : t->getSourceBufferIds()) {
+            userBuffer(buf);
+        }
+        for (const slang::parsing::IncludeMetadata &inc : t->getIncludeDirectives()) {
+            if (inc.buffer.id) {
+                userBuffer(inc.buffer.id);
+            }
+        }
+    }
     // The user's files, in command-line order; a library's are not linted.
     // A tree is linted when it has a user file without a syntax error: with
     // --single-unit one tree holds every file, the library's too. Findings
@@ -209,6 +237,33 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
         }
     }
 
+    // slang's warnings in shown files, one per (option, place), sorted.
+    std::set<std::tuple<std::string, int32_t, int32_t, std::string>> seenWarn;
+    for (const slang::Diagnostic *d : warned) {
+        std::string_view opt = driver.diagEngine.getOptionName(d->code);
+        slang::SourceLocation loc = driver.sourceManager.getFullyOriginalLoc(d->location);
+        if (opt.empty() || !loc.valid() || !loc.buffer().valid()) {
+            continue;
+        }
+        Warning w;
+        w.option = std::string(opt);
+        int32_t id = p.sources->fileid(loc.buffer());
+        w.file = p.sources->paths()[id];
+        if (w.file.empty() || !shows(w.file)) {
+            continue;
+        }
+        w.line = static_cast<int32_t>(driver.sourceManager.getLineNumber(loc));
+        w.col = static_cast<int32_t>(driver.sourceManager.getColumnNumber(loc));
+        w.message = driver.diagEngine.formatMessage(*d);
+        if (seenWarn.emplace(w.file, w.line, w.col, w.option).second) {
+            m_warnings.push_back(std::move(w));
+        }
+    }
+    std::sort(m_warnings.begin(), m_warnings.end(), [](const Warning &a, const Warning &b) {
+        return std::tie(a.file, a.line, a.col, a.option, a.message)
+            < std::tie(b.file, b.line, b.col, b.option, b.message);
+    });
+
     auto tLower = Clock::now();
     if (!m_errors && layer == SemanticLayer::Model) {
         p.design = lowerCompilation(*p.comp, *p.sources, m_libraryDirs);
@@ -244,6 +299,59 @@ LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer la
         files[static_cast<int32_t>(i)] = p.sources->paths()[i];
     }
     m_context->setFiles(files, "");
+}
+
+std::vector<lint::LintTokens> LintCompilation::waiverTokens() const {
+    std::vector<lint::LintTokens> out;
+    const Impl &p = *m_impl;
+    for (slang::BufferID buf : p.userBuffers) {
+        lint::LintTokens lt;
+        lt.path = p.sources->paths()[p.sources->fileid(buf)];
+        // Only a file that mentions svcheck can hold a waiver.
+        if (!shows(lt.path) || p.sm->getSourceText(buf).find("svcheck") == std::string::npos) {
+            continue;
+        }
+        // Lexed alone, without the preprocessor: the file as written.
+        slang::BumpAllocator alloc;
+        slang::Diagnostics diags;
+        slang::SourceBuffer sb;
+        sb.data = p.sm->getSourceText(buf);
+        sb.id = buf;
+        slang::parsing::Lexer lexer(sb, alloc, diags, *p.sm);
+        auto lc = [&](slang::SourceLocation loc, lint::LintToken &t) {
+            t.line = static_cast<int32_t>(p.sm->getLineNumber(loc));
+            t.col = static_cast<int32_t>(p.sm->getColumnNumber(loc));
+        };
+        while (true) {
+            slang::parsing::Token tok = lexer.lex();
+            // A comment is trivia of the token after it; its location is
+            // that token's less the trivia after the comment.
+            size_t offset = tok.location().offset();
+            size_t len = 0;
+            for (const slang::parsing::Trivia &tr : tok.trivia()) {
+                len += tr.getRawText().size();
+            }
+            size_t at = offset - std::min(offset, len);
+            for (const slang::parsing::Trivia &tr : tok.trivia()) {
+                if (tr.kind == slang::parsing::TriviaKind::LineComment) {
+                    lint::LintToken t;
+                    t.comment = true;
+                    t.text = std::string(tr.getRawText());
+                    lc(slang::SourceLocation(buf, at), t);
+                    lt.tokens.push_back(std::move(t));
+                }
+                at += tr.getRawText().size();
+            }
+            if (tok.kind == slang::parsing::TokenKind::EndOfFile) {
+                break;
+            }
+            lint::LintToken t;
+            lc(tok.location(), t);
+            lt.tokens.push_back(std::move(t));
+        }
+        out.push_back(std::move(lt));
+    }
+    return out;
 }
 
 LintCompilation::~LintCompilation() {

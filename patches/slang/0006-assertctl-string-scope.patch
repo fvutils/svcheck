@@ -1,0 +1,57 @@
+slang: --allow-assertctl-string-scope accepts a string scope in assertion control tasks
+
+"expected scope or assertion name" (ExpectedScopeOrAssert) for $assertoff(0, "tb.dut")
+and its siblings. IEEE 1800-2017 20.12 asks for hierarchical identifiers; VCS also takes a
+string path, and OpenTitan's DV uses that form throughout (DV_ASSERT_CTRL). The new
+CompilationFlags::AllowAssertControlStringScope (driver option
+--allow-assertctl-string-scope) accepts a string literal in a scope position. The string is
+not resolved and the argument is ignored.
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -130,9 +130,14 @@
+     AllowLibModuleRedefinition = 1 << 16,
+ 
+     /// Don't instantiate unreferenced modules to perform semantic checking on them.
+-    IgnoreUninstantiatedModules = 1 << 17
++    IgnoreUninstantiatedModules = 1 << 17,
++
++    /// Allow a string literal where an assertion control task ($asserton, $assertoff,
++    /// $assertkill, $assertcontrol) expects a scope or assertion name (a VCS extension).
++    /// The string is not resolved; the argument is accepted and ignored.
++    AllowAssertControlStringScope = 1 << 18
+ };
+-SLANG_BITMASK(CompilationFlags, IgnoreUninstantiatedModules)
++SLANG_BITMASK(CompilationFlags, AllowAssertControlStringScope)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/builtins/SystemTasks.cpp
++++ b/source/ast/builtins/SystemTasks.cpp
+@@ -668,6 +668,12 @@
+                     return symbol.isScope() || symbol.kind == SymbolKind::Instance;
+                 };
+ 
++                // Some tools accept a hierarchical path given as a string.
++                if (args[i]->kind == ExpressionKind::StringLiteral &&
++                    comp.hasFlag(CompilationFlags::AllowAssertControlStringScope)) {
++                    continue;
++                }
++
+                 if (args[i]->kind != ExpressionKind::ArbitrarySymbol ||
+                     !isScope(*args[i]->as<ArbitrarySymbolExpression>().symbol)) {
+                     if (!context.scope->isUninstantiated())
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -255,6 +255,11 @@
+                 "definition comes from a library file (-v / --libfile); the first definition "
+                 "is kept and subsequent library-file redefinitions are silently discarded");
+ 
++    addCompFlag(CompilationFlags::AllowAssertControlStringScope,
++                "--allow-assertctl-string-scope",
++                "Allow a string literal in place of a scope or assertion name in the "
++                "assertion control tasks ($assertoff etc.); the string is not resolved");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

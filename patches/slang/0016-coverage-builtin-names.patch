@@ -1,0 +1,157 @@
+slang: covergroup built-in method names do not hide user names
+
+A covergroup's body, its coverpoints and crosses hold the built-in methods start, stop,
+get_coverage, ...; slang let those hide user names:
+- a sample() argument (or covergroup argument) named start or stop, which is in the scope
+  above the body: `coverpoint start` bound to the built-in function ("'void' is not a valid
+  type for a coverage expression");
+- a bin named start or stop in a coverpoint ("redefinition of 'start'"), and
+  binsof(cp.start) then found the method ("binsof target is not a coverpoint or coverpoint
+  bin");
+- an implicit coverpoint of a cross item named start ("redefinition", and binsof(start)
+  failed).
+Now Lookup::unqualifiedImpl skips a built-in of a covergroup body when the covergroup has
+an argument of that name; Scope::handleNameConflict lets a user member take a built-in's
+name in a coverage scope; an implicit cross coverpoint whose name is taken is kept out of
+the name map (Scope gives it its name back after inserting it); and
+ConditionBinsSelectExpr::fromSyntax finds an implicit coverpoint among its cross's targets
+first. Found in OpenTitan's i2c DV (all 26 of its errors).
+
+--- a/include/slang/ast/symbols/CoverSymbols.h
++++ b/include/slang/ast/symbols/CoverSymbols.h
+@@ -50,6 +50,9 @@ public:
+ 
+     CovergroupBodySymbol(Compilation& compilation, SourceLocation loc);
+ 
++    /// The last of the built-in members (option, type_option, the built-in methods).
++    const Symbol* getLastBuiltinMember() const { return lastBuiltinMember; }
++
+     void serializeTo(ASTSerializer& serializer) const;
+ 
+     static bool isKind(SymbolKind kind) { return kind == SymbolKind::CovergroupBody; }
+--- a/source/ast/Lookup.cpp
++++ b/source/ast/Lookup.cpp
+@@ -1807,6 +1807,25 @@ bool Lookup::findAssertionLocalVar(const ASTContext& context, const NameSyntax&
+     return lookupDownward(nameParts, name, context, LookupFlags::None, result);
+ }
+ 
++// A covergroup's built-in methods (start, stop, ...) do not hide an argument of the
++// covergroup, or of its sample() method, of the same name: those are in the covergroup
++// type's scope, the parent of the body that holds the built-ins.
++static bool covergroupBuiltinHidesArg(const Scope& scope, const Symbol& symbol,
++                                      std::string_view name) {
++    if (scope.asSymbol().kind != SymbolKind::CovergroupBody ||
++        symbol.kind != SymbolKind::Subroutine) {
++        return false;
++    }
++
++    auto last = scope.asSymbol().as<CovergroupBodySymbol>().getLastBuiltinMember();
++    if (!last || symbol.getIndex() > last->getIndex())
++        return false;
++
++    auto parent = scope.asSymbol().getParentScope();
++    auto arg = parent ? parent->find(name) : nullptr;
++    return arg && arg->kind == SymbolKind::FormalArgument;
++}
++
+ // RelaxForwardMethodRefs: a method of the class being searched may be named before its
+ // declaration even when it returns a value and is called without parentheses.
+ static bool forwardMethodRef(const Scope& scope) {
+@@ -1830,7 +1849,8 @@ void Lookup::unqualifiedImpl(const Scope& scope, std::string_view name, LookupLo
+     // Try a simple name lookup to see if we find anything.
+     auto& nameMap = scope.getNameMap();
+     const Symbol* symbol = nullptr;
+-    if (auto it = nameMap.find(name); it != nameMap.end()) {
++    if (auto it = nameMap.find(name);
++        it != nameMap.end() && !covergroupBuiltinHidesArg(scope, *it->second, name)) {
+         // If the lookup is for a local name, check that we can access the symbol (it must be
+         // declared before use). Callables and block names can be referenced anywhere in the
+         // scope, so the location doesn't matter for them.
+--- a/source/ast/Scope.cpp
++++ b/source/ast/Scope.cpp
+@@ -762,6 +762,16 @@ void Scope::handleNameConflict(const Symbol& member, const Symbol*& existing) co
+         }
+     }
+ 
++    // A coverage scope's built-in methods (start, stop, ...) give way to a member the user
++    // declares with the same name (a bin named start, say).
++    if (existing->kind == SymbolKind::Subroutine && !existing->getSyntax() &&
++        (asSymbol().kind == SymbolKind::CovergroupBody ||
++         asSymbol().kind == SymbolKind::Coverpoint ||
++         asSymbol().kind == SymbolKind::CoverCross)) {
++        existing = &member;
++        return;
++    }
++
+     if (existing->isValue() && member.isValue()) {
+         // We want to look at the symbol types here to provide nicer error messages, but
+         // it might not be safe to resolve the type at this point (because we're in the
+@@ -1143,6 +1153,15 @@ void Scope::elaborate() const {
+                 auto members = {&cross};
+                 insertMembersAndNets(members, implicitMembers, symbol);
+                 cross.addBody(member.node.as<CoverCrossSyntax>(), *this);
++
++                // An implicit coverpoint whose name was taken was inserted unnamed, so it
++                // stays out of the name map; give it its name back.
++                for (auto implicit : implicitMembers) {
++                    auto& cp = const_cast<Symbol*>(implicit)->as<CoverpointSymbol>();
++                    auto init = cp.declaredType.getInitializerSyntax();
++                    if (cp.name.empty() && init && init->kind == SyntaxKind::IdentifierName)
++                        cp.name = init->as<IdentifierNameSyntax>().identifier.valueText();
++                }
+                 break;
+             }
+             case SyntaxKind::NetAlias: {
+--- a/source/ast/symbols/CoverSymbols.cpp
++++ b/source/ast/symbols/CoverSymbols.cpp
+@@ -958,6 +958,13 @@ CoverCrossSymbol& CoverCrossSymbol::fromSyntax(const Scope& scope, const CoverCr
+             auto& newPoint = CoverpointSymbol::fromImplicit(scope, *item);
+             targets.push_back(&newPoint);
+             implicitMembers.push_back(&newPoint);
++
++            // When the name is already taken (a sample() argument of the same name), the
++            // implicit coverpoint must not hide that symbol from name lookup: it is added
++            // without a name, which Scope restores after inserting it, and binsof finds
++            // it through the cross's targets.
++            if (symbol)
++                newPoint.name = {};
+         }
+     }
+ 
+@@ -1084,11 +1091,32 @@ void InvalidBinsSelectExpr::serializeTo(ASTSerializer& serializer) const {
+ BinsSelectExpr& ConditionBinsSelectExpr::fromSyntax(const BinsSelectConditionExprSyntax& syntax,
+                                                     const ASTContext& context) {
+     auto& comp = context.getCompilation();
+-    auto& nameExpr = Expression::bind(*syntax.name, context, ASTFlags::AllowCoverpoint);
+-    if (nameExpr.bad())
+-        return badExpr(comp, nullptr);
+ 
+-    auto sym = nameExpr.getSymbolReference();
++    // An implicit coverpoint of the enclosing cross, which may not be in its scope's name
++    // map (see CoverCrossSymbol::fromSyntax), is found by name among the cross's targets.
++    const Symbol* sym = nullptr;
++    if (syntax.name->kind == SyntaxKind::IdentifierName) {
++        auto name = syntax.name->as<IdentifierNameSyntax>().identifier.valueText();
++        for (auto scope = context.scope; scope; scope = scope->asSymbol().getParentScope()) {
++            auto& scopeSym = scope->asSymbol();
++            if (scopeSym.kind == SymbolKind::CoverCross) {
++                for (auto target : scopeSym.as<CoverCrossSymbol>().targets) {
++                    if (target->isImplicit && target->name == name)
++                        sym = target;
++                }
++                break;
++            }
++            if (scopeSym.kind == SymbolKind::CovergroupBody)
++                break;
++        }
++    }
++
++    if (!sym) {
++        auto& nameExpr = Expression::bind(*syntax.name, context, ASTFlags::AllowCoverpoint);
++        if (nameExpr.bad())
++            return badExpr(comp, nullptr);
++        sym = nameExpr.getSymbolReference();
++    }
+     if (sym && sym->kind == SymbolKind::CoverCross) {
+         auto& diag = context.addDiag(diag::CrossIdentInBinsof, syntax.name->sourceRange());
+         diag << sym->name;

@@ -28,6 +28,21 @@ package:
       patches:
       - patches/slang/0001-hasSameType-elaborate-bodies-first.patch
       - patches/slang/0002-randomize-inherited-properties.patch
+      - patches/slang/0003-adjacent-macro-pastes.patch
+      - patches/slang/0004-copied-default-values-bind-lazily.patch
+      - patches/slang/0005-generic-body-unset-parameters.patch
+      - patches/slang/0006-assertctl-string-scope.patch
+      - patches/slang/0007-relax-package-exports.patch
+      - patches/slang/0008-relax-virtual-method-types.patch
+      - patches/slang/0009-typedef-class-for-interface-class.patch
+      - patches/slang/0010-virtual-iface-hier-ref.patch
+      - patches/slang/0011-relax-array-element-conversions.patch
+      - patches/slang/0012-relax-string-compare.patch
+      - patches/slang/0013-relax-forward-method-refs.patch
+      - patches/slang/0014-relax-logical-handle-operands.patch
+      - patches/slang/0015-relax-dist-precedence.patch
+      - patches/slang/0016-coverage-builtin-names.patch
+      - patches/slang/0017-binsof-hierarchical-cross-item.patch
     # slang's CMake fetches fmt with FetchContent at configure time
     # (external/CMakeLists.txt). Supplying the same tag here and pointing
     # FETCHCONTENT_SOURCE_DIR_FMT at it keeps the configure offline
@@ -65,9 +80,82 @@ package:
       type: raw
     - name: pytest
       src: pypi
+    # The documentation (docs/conf.py), which tests/host/test_node_reference.py
+    # builds; pyastbuilder's Sphinx support renders the node reference. BSD-2.
+    - name: sphinx
+      src: pypi
     - name: ninja
       src: pypi
     - name: ivpm-build
+      src: pypi
+
+  #**************************************************************************
+  #* corpora -- the public testbenches the rules are measured on (P2.1)
+  #**************************************************************************
+  - name: corpora
+    description: Public UVM corpora for the precision harness; add to default-dev
+    doc: |
+      Test-only, and large (OpenTitan is ~300 MB unpacked), so not in
+      default-dev or CI: `ivpm update -d default-dev,corpora --force`.
+      tests/corpora/README.md says how each one becomes a file list there;
+      scripts/precision.py and scripts/measure.py run them. The pins are
+      fixed: a finding's review (tests/precision/) is keyed by file and line.
+    deps:
+    # OpenTitan at the commit of the P1.6b UART snapshot, so the IPs share
+    # one tree, with the fixes slang needs. Its DV needs FuseSoC to run the
+    # generators (RAL) before a file list exists: scripts/corpora/opentitan.py.
+    # Apache-2.0.
+    - name: opentitan
+      url: https://github.com/lowRISC/opentitan/archive/83fc48ed3a727399056772d12be8c7d4a8a276f0.tar.gz
+      type: raw
+      patches:
+      # tool: patch, since `git apply` inside svcheck's own work tree skips
+      # every file of a patch under the ignored packages/ and still succeeds.
+      - file: tests/corpora/opentitan/fixes.patch
+        tool: patch
+    # CORE-V-VERIF, the CV32E40P UVM bench at its latest release (the core
+    # its makefiles clone is the next entry), with the fixes slang needs
+    # (tests/corpora/README.md). Solderpad-2.0 / Apache-2.0.
+    - name: core-v-verif
+      url: https://github.com/openhwgroup/core-v-verif/archive/refs/tags/cv32e40p_v1.8.3.tar.gz
+      type: raw
+      patches:
+      # tool: patch, since `git apply` inside svcheck's own work tree skips
+      # every file of a patch under the ignored packages/ and still succeeds.
+      - file: tests/corpora/core-v-cv32e40p/fixes.patch
+        tool: patch
+    # The CV32E40P RTL, at the tag core-v-verif's
+    # cv32e40p/sim/ExternalRepos.mk names (CV_CORE_TAG). Solderpad-0.51.
+    - name: cv32e40p
+      url: https://github.com/openhwgroup/cv32e40p/archive/refs/tags/cv32e40p_v1.8.3.tar.gz
+      type: raw
+    # Verilab's svlib, which the CV32E40P bench imports, at the hash
+    # ExternalRepos.mk names (SVLIB_HASH). Apache-2.0.
+    - name: svlib
+      url: https://bitbucket.org/verilab/svlib/get/c25509a7e54a880fe8f58f3daa2f891d6ecf6428.tar.gz
+      type: raw
+    # FuseSoC and the Python packages OpenTitan's generators import, for
+    # scripts/corpora/opentitan.py (the versions P1.6b's export used).
+    - name: fusesoc
+      src: pypi
+      version: "==2.4.5"
+    - name: hjson
+      src: pypi
+    - name: mako
+      src: pypi
+    - name: pyyaml
+      src: pypi
+    - name: tabulate
+      src: pypi
+    - name: semantic_version
+      src: pypi
+    - name: mistletoe
+      src: pypi
+    - name: systemrdl-compiler
+      src: pypi
+    - name: peakrdl-systemrdl
+      src: pypi
+    - name: pycryptodome
       src: pypi
 
   #**************************************************************************
@@ -81,6 +169,21 @@ package:
       patches:
       - patches/slang/0001-hasSameType-elaborate-bodies-first.patch
       - patches/slang/0002-randomize-inherited-properties.patch
+      - patches/slang/0003-adjacent-macro-pastes.patch
+      - patches/slang/0004-copied-default-values-bind-lazily.patch
+      - patches/slang/0005-generic-body-unset-parameters.patch
+      - patches/slang/0006-assertctl-string-scope.patch
+      - patches/slang/0007-relax-package-exports.patch
+      - patches/slang/0008-relax-virtual-method-types.patch
+      - patches/slang/0009-typedef-class-for-interface-class.patch
+      - patches/slang/0010-virtual-iface-hier-ref.patch
+      - patches/slang/0011-relax-array-element-conversions.patch
+      - patches/slang/0012-relax-string-compare.patch
+      - patches/slang/0013-relax-forward-method-refs.patch
+      - patches/slang/0014-relax-logical-handle-operands.patch
+      - patches/slang/0015-relax-dist-precedence.patch
+      - patches/slang/0016-coverage-builtin-names.patch
+      - patches/slang/0017-binsof-hierarchical-cross-item.patch
     - name: fmt
       url: https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz
       type: raw

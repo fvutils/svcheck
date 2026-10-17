@@ -1,0 +1,81 @@
+slang: --relax-logical-handle-operands
+
+"invalid operands to binary expression" (BadBinaryExpression) for a class handle (or other
+boolean convertible, non-numeric operand) of &&, ||, -> or <->. slang already accepts such
+an operand in a condition and with !, where it is true when not null; IEEE 1800-2017 8.4
+does not list the logical operators among those valid on handles; VCS accepts them. The new
+CompilationFlags::RelaxLogicalHandleOperands (driver option --relax-logical-handle-operands)
+makes BinaryExpression::fromComponents accept any boolean convertible operands there, and
+constant evaluation take a non-numeric operand's truth value. Found in OpenTitan's
+spi_device DV (`ral.cmd_info[i].upload && ...`, where the handles, not the fields' values,
+are tested). Applies on top of 0013 (same enum).
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -165,9 +165,13 @@ enum class SLANG_EXPORT CompilationFlags {
+ 
+     /// Allow a class method that returns a value to be named, without parentheses,
+     /// before its declaration.
+-    RelaxForwardMethodRefs = 1 << 25
++    RelaxForwardMethodRefs = 1 << 25,
++
++    /// Allow any boolean convertible operand (a class handle, say) of the binary logical
++    /// operators &&, ||, -> and <->, as conditions and ! already allow.
++    RelaxLogicalHandleOperands = 1 << 26
+ };
+-SLANG_BITMASK(CompilationFlags, RelaxForwardMethodRefs)
++SLANG_BITMASK(CompilationFlags, RelaxLogicalHandleOperands)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/expressions/OperatorExpressions.cpp
++++ b/source/ast/expressions/OperatorExpressions.cpp
+@@ -858,7 +858,11 @@ Expression& BinaryExpression::fromComponents(Expression& lhs, Expression& rhs, B
+         case BinaryOperator::LogicalImplication:
+         case BinaryOperator::LogicalEquivalence:
+             // Result is always a single bit.
+-            good = bothNumeric;
++            // RelaxLogicalHandleOperands: any boolean convertible operand (a class handle
++            // is true when it is not null), as in a condition or with !.
++            good = bothNumeric ||
++                   (compilation.hasFlag(CompilationFlags::RelaxLogicalHandleOperands) &&
++                    lt->isBooleanConvertible() && rt->isBooleanConvertible());
+             result->type = singleBitType(compilation, lt, rt);
+             selfDetermined(context, result->left_);
+             selfDetermined(context, result->right_);
+@@ -1376,6 +1380,22 @@ ConstantValue BinaryExpression::evalImpl(EvalContext& context) const {
+     if (!cvr)
+         return nullptr;
+ 
++    // A logical operator's operand that is not numeric (RelaxLogicalHandleOperands).
++    if (OpInfo::isShortCircuit(op) || op == BinaryOperator::LogicalEquivalence) {
++        auto isNum = [](const ConstantValue& cv) {
++            return cv.isInteger() || cv.isReal() || cv.isShortReal();
++        };
++        if (!isNum(cvl) || !isNum(cvr)) {
++            bool l = cvl.isTrue(), r = cvr.isTrue();
++            switch (op) {
++                case BinaryOperator::LogicalOr: return SVInt(l || r);
++                case BinaryOperator::LogicalAnd: return SVInt(l && r);
++                case BinaryOperator::LogicalImplication: return SVInt(!l || r);
++                default: return SVInt(l == r);
++            }
++        }
++    }
++
+     return OpInfo::eval(op, cvl, cvr);
+ }
+ 
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -289,6 +289,10 @@ void Driver::addStandardArgs() {
+                 "Allow a class method that returns a value to be called without parentheses "
+                 "before its declaration");
+ 
++    addCompFlag(CompilationFlags::RelaxLogicalHandleOperands, "--relax-logical-handle-operands",
++                "Allow class handles and other boolean convertible operands of the binary "
++                "logical operators");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

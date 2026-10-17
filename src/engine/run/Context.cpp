@@ -168,33 +168,78 @@ std::vector<DeclaredContext> Context::declaredContexts() const {
     return {};
 }
 
-void Context::applyContexts(const std::vector<ContextLabel> &) { }
+void Context::applyContexts(const std::vector<ContextLabel> &,
+        const std::vector<ContextNote> &) { }
 
 void Context::setLabels(const std::vector<ContextLabel> &labels) {
     m_labels.clear();
+    m_units.clear();
     m_axes.clear();
     for (const ContextLabel &l : labels) {
+        if (!l.selects()) {
+            continue;
+        }
         m_labels[l.carrier.ptr][l.axis].insert(l.label);
+        m_units[l.carrier.ptr][l.axis].emplace(l.label, l.unit);
         m_axes.insert(l.axis);
     }
     m_classified = true;
 }
 
-const std::set<std::string> *Context::labelsAt(const rf::Node &n,
-        const std::string &axis) const {
-    if (!m_axes.count(axis)) {
-        return nullptr;
+void Context::setCarriers(const std::vector<rf::Node> &carriers) {
+    m_carriers.clear();
+    for (const rf::Node &c : carriers) {
+        m_carriers.insert(c.ptr);
     }
+}
+
+rf::Node Context::carrierAt(const rf::Node &n, const std::string &axis) const {
+    if (!axis.empty() && !m_axes.count(axis)) {
+        return rf::Node();
+    }
+    // Whether an unlabelled carrier lies between n and the one found.
+    bool passed = false;
     for (rf::Node c = n; c; c = parentOf(c)) {
         auto it = m_labels.find(c.ptr);
         if (it != m_labels.end()) {
-            auto a = it->second.find(axis);
-            if (a != it->second.end()) {
-                return &a->second;
+            const auto &axes = it->second;
+            auto a = axis.empty() ? axes.end() : axes.find(axis);
+            if (axis.empty() || a != axes.end()) {
+                bool mixed = false;
+                for (const auto &ax : axes) {
+                    if ((axis.empty() || ax.first == axis) && ax.second.size() > 1) {
+                        mixed = true;
+                    }
+                }
+                return (passed && mixed) ? rf::Node() : c;
             }
         }
+        passed |= m_carriers.count(c.ptr) != 0;
     }
-    return nullptr;
+    return rf::Node();
+}
+
+const std::set<std::string> *Context::labelsAt(const rf::Node &n,
+        const std::string &axis) const {
+    rf::Node c = carrierAt(n, axis);
+    if (!c) {
+        return nullptr;
+    }
+    return &m_labels.at(c.ptr).at(axis);
+}
+
+std::vector<NodeLabel> Context::contextAt(const rf::Node &n) const {
+    std::vector<NodeLabel> out;
+    for (const std::string &axis : m_axes) {
+        rf::Node c = carrierAt(n, axis);
+        if (!c) {
+            continue;
+        }
+        for (const auto &lu : m_units.at(c.ptr).at(axis)) {
+            out.push_back({axis, lu.first, lu.second});
+        }
+    }
+    return out;
 }
 
 void Context::noteUnknownType(const std::string &path) const {

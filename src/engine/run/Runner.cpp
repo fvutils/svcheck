@@ -80,12 +80,6 @@ void Runner::run(const rf::Node &root) {
     // A root is a file: each rule starts it with a fresh budget.
     std::fill(m_file.begin(), m_file.end(), FileState());
     m_ctx->index(root);
-    m_fileRules = nullptr;
-    if (!m_opts.perFile.empty()) {
-        auto it = m_opts.perFile.find(m_ctx->fileidOf(root));
-        static const FileRules none;
-        m_fileRules = (it == m_opts.perFile.end()) ? &none : it->second.get();
-    }
     m_walker.walk(root, [this](const rules::Rule &r, const rf::Node &n) {
         match(r, n);
     });
@@ -93,8 +87,15 @@ void Runner::run(const rf::Node &root) {
 
 void Runner::match(const rules::Rule &r, const rf::Node &n) {
     size_t idx = m_index.at(&r);
-    if (m_file[idx].failed || (m_fileRules && !m_fileRules->on.count(&r))) {
+    if (m_file[idx].failed) {
         return;
+    }
+    const FileRules *fr = nullptr;
+    if (!m_opts.perFile.empty() || m_opts.perNode) {
+        fr = rulesFor(n, locate(n).fileid);
+        if (!fr->on.count(&r)) {
+            return;
+        }
     }
     // applies_to is selection, not part of the predicate: a node outside
     // the rule's contexts is not evaluated. Each axis must fit.
@@ -116,7 +117,7 @@ void Runner::match(const rules::Rule &r, const rf::Node &n) {
     auto t0 = std::chrono::steady_clock::now();
     uint64_t index0 = m_ctx->indexNs();
     m_ctx->setCurrent(&r, n);
-    evaluate(idx, r, n);
+    evaluate(idx, r, n, fr);
     uint64_t ns = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::steady_clock::now() - t0).count());
     // An index this rule was the first to need is the run's cost (C8).
@@ -124,14 +125,15 @@ void Runner::match(const rules::Rule &r, const rf::Node &n) {
     m_stats[idx].ns += (ns > index) ? ns - index : 0;
 }
 
-void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
+void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n,
+        const FileRules *fr) {
     RuleStats &st = m_stats[idx];
     st.matches++;
     bool overrun = false;
 
     Vars vars;
     vars.emplace_back("node", nodeValue(n));
-    const auto &optsOf = m_fileRules ? m_fileRules->options : m_opts.options;
+    const auto &optsOf = fr ? fr->options : m_opts.options;
     auto set = optsOf.find(&r);
     for (const rules::RuleOption &o : r.m_options) {
         const cel::Value *v = &o.def;
@@ -212,9 +214,13 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
         if (!Walker::nameLocation(f, fd.loc)) {
             fd.loc = locate(f);
         }
-        // A model-scope rule may report in a file whose overrides turn it off.
-        if (!reportsIn(r, fd.loc.fileid)) {
+        // A model-scope rule may report in a file, or a context, whose
+        // overrides turn it off.
+        if (fr && !rulesFor(f, fd.loc.fileid)->on.count(&r)) {
             continue;
+        }
+        if (m_ctx->classified()) {
+            fd.context = m_ctx->contextAt(f);
         }
         vars.emplace_back("finding", nodeValue(f));
         fd.message = renderMessage(idx, r, f, vars);
@@ -228,12 +234,20 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
     }
 }
 
-bool Runner::reportsIn(const rules::Rule &r, int32_t fileid) const {
+const FileRules *Runner::rulesFor(const rf::Node &n, int32_t fileid) const {
+    static const FileRules none;
+    if (m_opts.perNode) {
+        const FileRules *fr = m_opts.perNode(fileid, n);
+        return fr ? fr : &none;
+    }
     if (m_opts.perFile.empty()) {
-        return true;
+        return nullptr;
     }
     auto it = m_opts.perFile.find(fileid);
-    return it == m_opts.perFile.end() || it->second->on.count(&r);
+    if (it == m_opts.perFile.end()) {
+        return m_opts.unplaced ? m_opts.unplaced.get() : &none;
+    }
+    return it->second.get();
 }
 
 cel::Value Runner::eval(const cel::Expr *e, const Vars &vars, size_t idx, bool &overrun) {
@@ -268,12 +282,32 @@ std::string Runner::renderMessage(size_t idx, const rules::Rule &r, const rf::No
         }
         bool overrun = false;
         cel::Value v = eval(p.expr.get(), vars, idx, overrun);
+        auto scalar = [this](const cel::Value &x) -> std::string {
+            switch (x.kind) {
+                case cel::Value::Kind::String: return x.s;
+                case cel::Value::Kind::Int: return std::to_string(x.i);
+                case cel::Value::Kind::Double: return cel::formatDouble(x.d);
+                case cel::Value::Kind::Bool: return x.b ? "true" : "false";
+                case cel::Value::Kind::Node: return renderNode(toNode(x));
+                default: return "?";
+            }
+        };
         switch (v.kind) {
-            case cel::Value::Kind::String: out += v.s; break;
-            case cel::Value::Kind::Int: out += std::to_string(v.i); break;
-            case cel::Value::Kind::Double: out += cel::formatDouble(v.d); break;
-            case cel::Value::Kind::Bool: out += v.b ? "true" : "false"; break;
-            case cel::Value::Kind::Node: out += renderNode(toNode(v)); break;
+            case cel::Value::Kind::String:
+            case cel::Value::Kind::Int:
+            case cel::Value::Kind::Double:
+            case cel::Value::Kind::Bool:
+            case cel::Value::Kind::Node:
+                out += scalar(v);
+                break;
+            case cel::Value::Kind::List:
+                // A list is written ", "-separated (P2.3; P1-37).
+                if (v.list) {
+                    for (size_t i=0; i<v.list->size(); i++) {
+                        out += (i ? ", " : "") + scalar((*v.list)[i]);
+                    }
+                }
+                break;
             case cel::Value::Kind::Error:
                 // The finding stands; the rule's message is broken.
                 fail(idx, r, m_lazyOverrun ? "let" : "message", v, overrun, finding);

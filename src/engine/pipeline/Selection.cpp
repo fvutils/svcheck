@@ -305,6 +305,7 @@ Catalogue::Catalogue(const std::vector<MarkerMeta> &host, const std::set<std::st
         m.aliases = r->m_aliases;
         m.replacedBy = r->m_replacedBy;
         m.defaultEnabled = r->m_defaultEnabled;
+        m.minimal = !r->m_builtin && r->m_defaultEnabled;
         m.rule = r;
         all.push_back(m);
     }
@@ -651,7 +652,7 @@ void Selection::readLayer(const yaml::Node *n, const std::string &key, Layer &l,
         "profile", "select", "ignore", "rules-version", "rule", "overrides", "baseline",
         "rules"};
     static const std::vector<std::string> overrideKeys = {
-        "files", "profile", "select", "ignore", "rule"};
+        "files", "context", "profile", "select", "ignore", "rule"};
     static const std::vector<std::string> cliKeys = {"select", "ignore"};
     const std::vector<std::string> &known = isOverride ? overrideKeys
         : (key == "command_line") ? cliKeys : lintKeys;
@@ -679,8 +680,17 @@ void Selection::readLayer(const yaml::Node *n, const std::string &key, Layer &l,
     }
     if (isOverride) {
         readStrings(n->get("files"), key + ".files", l.files);
-        if (l.files.empty()) {
-            error("request", key + ".files", key + ": 'files' must list at least one pattern");
+        // A context override (sv-contexts.md §5.3): `context = "agent"`, or
+        // "agent(apb)" for one unit; a string or a list.
+        const yaml::Node *c = n->get("context");
+        if (c && c->kind == NK::String) {
+            l.contexts.push_back(c->s);
+        } else {
+            readStrings(c, key + ".context", l.contexts);
+        }
+        if (l.files.empty() && l.contexts.empty()) {
+            error("request", key + ".files", key + ": 'files' or 'context' must list at "
+                "least one pattern");
         }
     }
 }
@@ -897,15 +907,42 @@ Selection::Warnings Selection::warnings() const {
     return w;
 }
 
-uint32_t Selection::groupOf(const std::string &path) {
+bool Selection::hasContextOverrides() const {
+    for (const Layer &l : m_overrides) {
+        if (!l.contexts.empty()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+uint32_t Selection::groupOf(const std::string &path, const std::vector<ContextLabel> &context) {
     std::string rel = relPath(path);
     std::vector<uint32_t> hit;
     for (uint32_t i=0; i<m_overrides.size(); i++) {
-        for (const std::string &g : m_overrides[i].files) {
+        const Layer &l = m_overrides[i];
+        bool files = l.files.empty();
+        for (const std::string &g : l.files) {
             if (globMatchesPath(g, rel)) {
-                hit.push_back(i);
+                files = true;
                 break;
             }
+        }
+        bool ctx = l.contexts.empty();
+        for (const std::string &c : l.contexts) {
+            // "label" or "label(unit)".
+            size_t open = c.find('(');
+            std::string label = c.substr(0, open);
+            std::string unit = (open != std::string::npos && c.back() == ')')
+                ? c.substr(open + 1, c.size() - open - 2) : "";
+            for (const ContextLabel &cl : context) {
+                if (cl.first == label && (unit.empty() || cl.second == unit)) {
+                    ctx = true;
+                }
+            }
+        }
+        if (files && ctx) {
+            hit.push_back(i);
         }
     }
     auto it = m_groupIndex.find(hit);

@@ -18,6 +18,24 @@ enums:
     - Unique0: "`unique0`"
     - Priority: "`priority`"
 
+- BlockKind:
+    doc: How a block runs its statements.
+    values:
+    - Sequential: "`begin ... end`, or a subroutine's statement list"
+    - JoinAll: "`fork ... join`"
+    - JoinAny: "`fork ... join_any`"
+    - JoinNone: "`fork ... join_none`"
+
+- TimingKind:
+    doc: What a Timed statement waits for.
+    values:
+    - Delay: "a delay: `#5`, `#5ns`, `#(a, b, c)`, `#1step`"
+    - Event: "an event: `@(posedge clk)`, `@(e)`, `@*`, `repeat (n) @(e)`"
+    - Cycle: "a cycle delay: `##2`"
+    - Wait: "`wait (cond)`"
+    - WaitFork: "`wait fork`"
+    - WaitOrder: "`wait_order (a, b)`"
+
 - AssertKind:
     doc: An immediate assertion's kind.
     values:
@@ -32,19 +50,41 @@ classes:
 
 - Block:
     super: Stmt
-    doc: A `begin ... end` or `fork ... join` block, or a subroutine's statement list.
+    doc: |
+        A `begin ... end` or `fork ... join` block, or a subroutine's statement list.
+
+        Attributes:
+            kind: sequential, or the fork's join
+            label: the block's name (`begin : drain`), or empty
+            stmts: its statements, in order
     data:
+    - kind:
+        type: BlockKind
+        is_ctor: false
+        init: BlockKind::Sequential
+    - label:
+        type: string
+        is_ctor: false
     - stmts:
         type: list<UP<Stmt>>
         is_ctor: false
 
 - ExprStmt:
     super: Stmt
-    doc: An expression evaluated for its effect (a call, an assignment).
+    doc: |
+        An expression evaluated for its effect (a call, an assignment).
+
+        Attributes:
+            expr: the expression
+            isVoidCast: written `void'(f(...));`, a function call whose result is thrown away on purpose. slang keeps no cast for it, so `expr` is the call itself; a `void'` inside an expression is a Conversion
     data:
     - expr:
         type: UP<Expr>
         is_ctor: false
+    - isVoidCast:
+        type: bool
+        is_ctor: false
+        init: false
 
 - VarDecl:
     super: Stmt
@@ -122,17 +162,62 @@ classes:
 
         Attributes:
             slangKind: slang's statement kind (`ForLoop`, `ForeachLoop`, ...)
-            exprs: its control expressions (condition, steps, count)
+            vars: the variables it declares: `i` in `for (int i = 0; ...)`, each loop variable of a `foreach`
+            exprs: its control expressions (condition, steps, count; a `for` loop's initializers when it declares no variable)
             body: its body
     data:
     - slangKind:
         type: string
+        is_ctor: false
+    - vars:
+        type: list<UP<Variable>>
         is_ctor: false
     - exprs:
         type: list<UP<Expr>>
         is_ctor: false
     - body:
         type: UP<Stmt>
+        is_ctor: false
+
+- Timed:
+    super: Stmt
+    doc: |
+        A statement that waits: a delay or event control before a statement
+        (`#5 x = 1;`, `@(posedge clk);`), `wait`, `wait fork`, `wait_order`.
+        Time passes here, so a rule asking whether code consumes time looks
+        for these (and for calls of tasks).
+
+        Attributes:
+            kind: what it waits for
+            exprs: what the wait reads: the delay (`exprs[0]` for a Delay or Cycle), the events' expressions and `iff` conditions, the `wait` condition, the `wait_order` events; empty for `@*` and `wait fork`
+            body: the statement it controls, or null (`#5;`, `wait fork`); `wait_order`'s pass statement
+    data:
+    - kind:
+        type: TimingKind
+        is_ctor: false
+        init: TimingKind::Delay
+    - exprs:
+        type: list<UP<Expr>>
+        is_ctor: false
+    - body:
+        type: UP<Stmt>
+        is_ctor: false
+
+- Disable:
+    super: Stmt
+    doc: |
+        `disable name` or `disable fork`.
+
+        Attributes:
+            isFork: `disable fork`
+            target: the name disabled (a block's label, or a task), as written; empty for `disable fork`
+    data:
+    - isFork:
+        type: bool
+        is_ctor: false
+        init: false
+    - target:
+        type: string
         is_ctor: false
 
 - Return:

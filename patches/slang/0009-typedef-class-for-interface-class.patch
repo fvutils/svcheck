@@ -1,0 +1,58 @@
+slang: --allow-typedef-class-for-interface-class
+
+"forward typedef basic type 'class' does not match declaration" (ForwardTypedefDoesNotMatch)
+for 'typedef class X;' followed by 'interface class X'. IEEE 1800-2017 6.18 asks for
+'typedef interface class X;'; other tools accept the plain form. The new
+CompilationFlags::AllowForwardClassAsInterfaceClass (driver option
+--allow-typedef-class-for-interface-class) makes ForwardingTypedefSymbol::checkType accept a
+'class' forward declaration resolved by an interface class (not the reverse). Applies on top
+of 0008 (same enum).
+
+--- a/include/slang/ast/Compilation.h
++++ b/include/slang/ast/Compilation.h
+@@ -144,9 +144,12 @@
+     /// Accept a virtual method override whose return or argument type differs from the
+     /// superclass method's only in being 2-state rather than 4-state (or the reverse),
+     /// or in being equivalent rather than matching (e.g. bit [7:0] for logic [7:0]).
+-    RelaxVirtualMethodTypes = 1 << 20
++    RelaxVirtualMethodTypes = 1 << 20,
++
++    /// Allow `typedef class X;` to forward-declare an interface class.
++    AllowForwardClassAsInterfaceClass = 1 << 21
+ };
+-SLANG_BITMASK(CompilationFlags, RelaxVirtualMethodTypes)
++SLANG_BITMASK(CompilationFlags, AllowForwardClassAsInterfaceClass)
+ 
+ /// Contains various options that can control compilation behavior.
+ struct SLANG_EXPORT CompilationOptions {
+--- a/source/ast/types/AllTypes.cpp
++++ b/source/ast/types/AllTypes.cpp
+@@ -1309,7 +1309,14 @@
+ 
+ void ForwardingTypedefSymbol::checkType(ForwardTypeRestriction checkRestriction,
+                                         Visibility checkVisibility, SourceLocation declLoc) const {
+-    if (typeRestriction != ForwardTypeRestriction::None && typeRestriction != checkRestriction) {
++    // Some tools accept 'typedef class X;' for an interface class.
++    bool relaxed = typeRestriction == ForwardTypeRestriction::Class &&
++                   checkRestriction == ForwardTypeRestriction::InterfaceClass &&
++                   getParentScope()->getCompilation().hasFlag(
++                       CompilationFlags::AllowForwardClassAsInterfaceClass);
++
++    if (typeRestriction != ForwardTypeRestriction::None && typeRestriction != checkRestriction &&
++        !relaxed) {
+         auto& diag = getParentScope()->addDiag(diag::ForwardTypedefDoesNotMatch, location);
+         diag << SemanticFacts::getTypeRestrictionText(typeRestriction);
+         diag.addNote(diag::NoteDeclarationHere, declLoc);
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -268,6 +268,10 @@
+                 "Allow virtual method overrides whose argument or return types differ from "
+                 "the superclass method's only in 2-state vs 4-state (same width and sign)");
+ 
++    addCompFlag(CompilationFlags::AllowForwardClassAsInterfaceClass,
++                "--allow-typedef-class-for-interface-class",
++                "Allow 'typedef class X;' to forward-declare an interface class");
++
+     cmdLine.add("--top", options.topModules,
+                 "One or more top-level modules to instantiate "
+                 "(instead of figuring it out automatically)",

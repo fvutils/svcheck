@@ -57,6 +57,8 @@ public:
     JsonWriter &value(int v) { return value(static_cast<int64_t>(v)); }
     JsonWriter &value(uint32_t v) { return value(static_cast<uint64_t>(v)); }
     JsonWriter &valueNull() { sep(); m_out += "null"; return *this; }
+    /** A value already written as JSON, inserted as is. */
+    JsonWriter &raw(const std::string &json) { sep(); m_out += json; return *this; }
 
     // JSON has no NaN or infinity; those are written as strings, which the
     // reader side knows to expect for a double.

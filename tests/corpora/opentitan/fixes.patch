@@ -1,0 +1,62 @@
+opentitan: fixes for slang (svcheck corpora opentitan-*)
+
+What VCS accepts in OpenTitan's DV and slang 11 rejects as an error, in the IPs
+tests/corpora/corpora.yaml compiles. Each change keeps the bench's meaning.
+
+- hmac_scoreboard: the streaming concatenation reverses the bytes of a 32-bit
+  value: a 64-bit uvm_reg_data_t streamed into a 32-bit target is an error (11.4.14).
+- hmac_common_vseq, pattgen_{cnt_rollover,perf}_vseq: an override of a protected
+  virtual method is protected too; slang refuses one that widens its access.
+
+diff --git a/hw/ip/hmac/dv/env/hmac_scoreboard.sv b/hw/ip/hmac/dv/env/hmac_scoreboard.sv
+index efa2ee9..aacdd96 100644
+--- a/hw/ip/hmac/dv/env/hmac_scoreboard.sv
++++ b/hw/ip/hmac/dv/env/hmac_scoreboard.sv
+@@ -351,7 +351,7 @@ task hmac_scoreboard::process_tl_access(tl_seq_item item, tl_channels_e channel,
+           // `exp_digest` with the prediction.
+           int digest_idx = get_digest_index(csr_name);
+           if (`gmv(ral.cfg.digest_swap)) begin
+-            exp_digest[digest_idx] = {<<8{`gmv(csr)}};
++            exp_digest[digest_idx] = {<<8{32'(`gmv(csr))}};
+           end else begin
+             exp_digest[digest_idx] = `gmv(csr);
+           end
+diff --git a/hw/ip/hmac/dv/env/seq_lib/hmac_common_vseq.sv b/hw/ip/hmac/dv/env/seq_lib/hmac_common_vseq.sv
+index 570b3b5..8cc9a6e 100644
+--- a/hw/ip/hmac/dv/env/seq_lib/hmac_common_vseq.sv
++++ b/hw/ip/hmac/dv/env/seq_lib/hmac_common_vseq.sv
+@@ -17,7 +17,7 @@ class hmac_common_vseq extends hmac_base_vseq;
+   extern task body();
+ 
+   // Class specific methods
+-  extern task wait_to_issue_reset(uint reset_delay_bound);
++  extern protected task wait_to_issue_reset(uint reset_delay_bound);
+ endclass : hmac_common_vseq
+ 
+ 
+diff --git a/hw/ip/pattgen/dv/env/seq_lib/pattgen_cnt_rollover_vseq.sv b/hw/ip/pattgen/dv/env/seq_lib/pattgen_cnt_rollover_vseq.sv
+index 3bbf4fa..4528421 100644
+--- a/hw/ip/pattgen/dv/env/seq_lib/pattgen_cnt_rollover_vseq.sv
++++ b/hw/ip/pattgen/dv/env/seq_lib/pattgen_cnt_rollover_vseq.sv
+@@ -15,7 +15,7 @@ class pattgen_cnt_rollover_vseq extends pattgen_base_vseq;
+   endfunction
+ 
+   // override this function for pattgen_cnt_rollover test
+-  function pattgen_channel_cfg get_random_channel_config(uint channel);
++  protected virtual function pattgen_channel_cfg get_random_channel_config(uint channel);
+     bit [1:0] is_max;
+     pattgen_channel_cfg ch_cfg;
+     ch_cfg = pattgen_channel_cfg::type_id::create($sformatf("channel_cfg_%0d", channel));
+diff --git a/hw/ip/pattgen/dv/env/seq_lib/pattgen_perf_vseq.sv b/hw/ip/pattgen/dv/env/seq_lib/pattgen_perf_vseq.sv
+index cf34d55..8f666b2 100644
+--- a/hw/ip/pattgen/dv/env/seq_lib/pattgen_perf_vseq.sv
++++ b/hw/ip/pattgen/dv/env/seq_lib/pattgen_perf_vseq.sv
+@@ -15,7 +15,7 @@ class pattgen_perf_vseq extends pattgen_base_vseq;
+   endfunction
+ 
+   // override this function for pattgen_perf test
+-  function pattgen_channel_cfg get_random_channel_config(uint channel);
++  protected virtual function pattgen_channel_cfg get_random_channel_config(uint channel);
+     pattgen_channel_cfg ch_cfg;
+     ch_cfg = pattgen_channel_cfg::type_id::create($sformatf("channel_cfg_%0d", channel));
+     `DV_CHECK_RANDOMIZE_WITH_FATAL(ch_cfg,

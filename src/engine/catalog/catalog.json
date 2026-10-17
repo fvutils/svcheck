@@ -48,7 +48,8 @@
    "naming",
    "expression",
    "process",
-   "metric"
+   "metric",
+   "slang"
   ],
   "profiles": [
    "minimal",

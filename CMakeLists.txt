@@ -58,7 +58,9 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 
 add_executable(svcheck
   src/cli/main.cpp
-  src/cli/Lint.cpp)
+  src/cli/Config.cpp
+  src/cli/Lint.cpp
+  src/cli/Query.cpp)
 target_compile_definitions(svcheck PRIVATE SVCHECK_VERSION="${SVCHECK_VERSION}")
 target_link_libraries(svcheck PRIVATE svcheck_host)
 

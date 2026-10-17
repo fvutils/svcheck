@@ -25,7 +25,11 @@
  *   unit name, in Design.units, and a unit's carriers' package imports of
  *   another unit's carriers are UnitDep edges (`Import`), in Design.deps.
  * - `context(n)`: the unit of the innermost carrier, `n` or above it, that
- *   has one (on an axis, when one is given).
+ *   has a selecting label (on an axis, when one is given), as `applies_to`
+ *   finds it (Context::carrierAt). A label only convention gives makes a
+ *   unit, with it in `conventionLabels`, but is never a node's context.
+ * - Disagreements between sources are kept on their carrier's unit
+ *   (`disagreements`), for a consistency rule.
  */
 #pragma once
 #include <set>
@@ -40,13 +44,34 @@
 namespace svcheck {
 namespace host {
 
+/**
+ * A context the configuration declares (sv-contexts.md §3.1; svcheck-plan
+ * P2.4): for the packages, definitions and `$unit` classes in files that
+ * match `files`, or the packages whose names match `packages` (globs).
+ */
+struct ConfigContext {
+    std::vector<std::string>    files;      // relative to baseDir
+    std::vector<std::string>    packages;
+    std::string                 label;
+    std::string                 unit;
+    std::string                 axis;       // "" for the classifiers' axis of the label
+    std::string                 where;      // the entry, for evidence
+};
+
 class SvContext : public lint::run::Context {
 public:
     explicit SvContext(sem::IDesign *design) : m_design(design) { }
 
     virtual std::vector<lint::run::DeclaredContext> declaredContexts() const override;
 
-    virtual void applyContexts(const std::vector<lint::run::ContextLabel> &labels) override;
+    /** The configuration's declared contexts; `baseDir` is what their globs are relative to. */
+    void setConfigContexts(const std::vector<ConfigContext> &ctxs, const std::string &baseDir) {
+        m_config = ctxs;
+        m_configDir = baseDir;
+    }
+
+    virtual void applyContexts(const std::vector<lint::run::ContextLabel> &labels,
+        const std::vector<lint::run::ContextNote> &notes) override;
 
     /**
      * The unit of the innermost carrier at or above `n` that has one, with a
@@ -65,9 +90,12 @@ public:
 
 private:
     sem::IDesign                                                        *m_design;
+    std::vector<ConfigContext>                                          m_config;
+    std::string                                                         m_configDir;
+    // Each labelled carrier's unit; m_selects only those with a label that
+    // selects (not convention alone).
     std::unordered_map<const sem::ISemNode *, sem::IUnit *>              m_unitOf;
-    // The axes each carrier has a label on: the model's Unit keeps labels only.
-    std::unordered_map<const sem::ISemNode *, std::set<std::string>>     m_axes;
+    std::unordered_map<const sem::ISemNode *, sem::IUnit *>              m_selects;
     mutable std::unordered_map<const sem::IClass *, std::vector<sem::IClass *>> m_subclasses;
     mutable bool                                                        m_subclassesBuilt = false;
 };

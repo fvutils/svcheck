@@ -1,0 +1,72 @@
+slang: --relax-dist-precedence
+
+`a == b dist {...}` parses as `a == (b dist {...})`, then "invalid operands to binary
+expression ('bit[31:0]' and 'void')": slang gives dist the precedence of inside, which
+IEEE 1800-2017 Table 11-2 lists, while the grammar (expression_or_dist ::= expression
+[dist {...}]) and other tools apply the dist to the whole expression. The new
+ParserOptions::distOverWholeExpression (driver option --relax-dist-precedence) makes
+Parser::parseSubExpression leave a dist to the outermost level of an expression_or_dist.
+Found in OpenTitan's keymgr DV (and the hmac and pattgen constraints its fixes.patch
+rewrites).
+
+--- a/include/slang/driver/Driver.h
++++ b/include/slang/driver/Driver.h
+@@ -196,6 +196,9 @@ public:
+         /// The maximum call stack depth of parsing before an error is issued.
+         std::optional<uint32_t> maxParseDepth;
+ 
++        /// Parse the `dist` of an expression_or_dist over the whole expression.
++        std::optional<bool> relaxDistPrecedence;
++
+         /// The maximum number of lexer errors that can be encountered before giving up.
+         std::optional<uint32_t> maxLexerErrors;
+ 
+--- a/include/slang/parsing/Parser.h
++++ b/include/slang/parsing/Parser.h
+@@ -135,6 +135,11 @@ struct SLANG_EXPORT ParserOptions {
+ 
+     /// The version of the SystemVerilog language to use.
+     LanguageVersion languageVersion = LanguageVersion::Default;
++
++    /// Parse the `dist` of an expression_or_dist over the whole expression, as its
++    /// grammar reads (`a == b dist {...}` is `(a == b) dist {...}`), rather than at the
++    /// precedence of `inside` that Table 11-2 gives it.
++    bool distOverWholeExpression = false;
+ };
+ 
+ /// Implements a full syntax parser for SystemVerilog.
+--- a/source/driver/Driver.cpp
++++ b/source/driver/Driver.cpp
+@@ -138,6 +138,9 @@ void Driver::addStandardArgs() {
+     // Parsing
+     cmdLine.add("--max-parse-depth", options.maxParseDepth,
+                 "Maximum depth of nested language constructs allowed", "<depth>");
++    cmdLine.add("--relax-dist-precedence", options.relaxDistPrecedence,
++                "Parse a dist over the whole expression before it, as the expression_or_dist "
++                "grammar reads, not at the precedence of inside");
+     cmdLine.add("--max-lexer-errors", options.maxLexerErrors,
+                 "Maximum number of errors that can occur during lexing before the rest of the file "
+                 "is skipped",
+@@ -1180,6 +1183,7 @@ void Driver::addParseOptions(Bag& bag) const {
+     poptions.languageVersion = languageVersion;
+     if (options.maxParseDepth.has_value())
+         poptions.maxRecursionDepth = *options.maxParseDepth;
++    poptions.distOverWholeExpression = options.relaxDistPrecedence == true;
+ 
+     bag.set(soptions);
+     bag.set(ppoptions);
+--- a/source/parsing/Parser_expressions.cpp
++++ b/source/parsing/Parser_expressions.cpp
+@@ -142,6 +142,12 @@ ExpressionSyntax& Parser::parseBinaryExpression(ExpressionSyntax* left,
+ 
+         options &= ~ExpressionOptions::ProceduralAssignmentContext;
+ 
++        // distOverWholeExpression: a dist belongs to the outermost expression.
++        if (opKind == SyntaxKind::ExpressionOrDist && precedence > 0 &&
++            options.has(ExpressionOptions::AllowDist) && parseOptions.distOverWholeExpression) {
++            break;
++        }
++
+         // see if we should take this operator or if it's part of our parent due to precedence
+         int newPrecedence = getPrecedence(opKind);
+         if (newPrecedence < precedence)

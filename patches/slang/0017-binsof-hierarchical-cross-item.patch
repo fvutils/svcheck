@@ -1,0 +1,76 @@
+slang: binsof of a hierarchical cross item
+
+`cross cp_y, cfg.vif.x { ignore_bins i = binsof(cfg.vif.x) ...; }` in a class covergroup:
+the hierarchical cross item is slang's own extension (-Wnonstandard-hierarchical-cross),
+but binsof(cfg.vif.x) then bound cfg as in a static context: "invalid use of non-static
+class property 'cfg'". ConditionBinsSelectExpr::fromSyntax now matches a binsof target
+against the text of its cross's implicit items before binding it as a name.
+CoverpointSymbol::isImplicitlyDeclared() is new. Found in OpenTitan's sysrst_ctrl DV.
+Applies on top of 0016.
+
+--- a/include/slang/ast/symbols/CoverSymbols.h
++++ b/include/slang/ast/symbols/CoverSymbols.h
+@@ -208,6 +208,9 @@ public:
+ 
+     const Expression* getIffExpr() const;
+ 
++    /// Whether a cross created this coverpoint for one of its items.
++    bool isImplicitlyDeclared() const { return isImplicit; }
++
+     void checkBins() const;
+ 
+     void serializeTo(ASTSerializer& serializer) const;
+--- a/source/ast/symbols/CoverSymbols.cpp
++++ b/source/ast/symbols/CoverSymbols.cpp
+@@ -19,6 +19,7 @@
+ #include "slang/diagnostics/DeclarationsDiags.h"
+ #include "slang/diagnostics/ExpressionsDiags.h"
+ #include "slang/syntax/AllSyntax.h"
++#include "slang/text/CharInfo.h"
+ #include "slang/util/String.h"
+ 
+ namespace {
+@@ -1092,23 +1093,29 @@ BinsSelectExpr& ConditionBinsSelectExpr::fromSyntax(const BinsSelectConditionExp
+                                                     const ASTContext& context) {
+     auto& comp = context.getCompilation();
+ 
+-    // An implicit coverpoint of the enclosing cross, which may not be in its scope's name
+-    // map (see CoverCrossSymbol::fromSyntax), is found by name among the cross's targets.
++    // An implicit coverpoint of the enclosing cross is found among the cross's targets,
++    // by the text of its item: it may not be in its scope's name map (see
++    // CoverCrossSymbol::fromSyntax), and a hierarchical item (cfg.vif.x, a nonstandard
++    // extension) is not a name that binds in this context.
+     const Symbol* sym = nullptr;
+-    if (syntax.name->kind == SyntaxKind::IdentifierName) {
+-        auto name = syntax.name->as<IdentifierNameSyntax>().identifier.valueText();
+-        for (auto scope = context.scope; scope; scope = scope->asSymbol().getParentScope()) {
+-            auto& scopeSym = scope->asSymbol();
+-            if (scopeSym.kind == SymbolKind::CoverCross) {
+-                for (auto target : scopeSym.as<CoverCrossSymbol>().targets) {
+-                    if (target->isImplicit && target->name == name)
+-                        sym = target;
+-                }
+-                break;
++    auto itemText = [](const SyntaxNode& node) {
++        auto str = node.toString();
++        std::erase_if(str, [](char c) { return isWhitespace(c); });
++        return str;
++    };
++    for (auto scope = context.scope; scope; scope = scope->asSymbol().getParentScope()) {
++        auto& scopeSym = scope->asSymbol();
++        if (scopeSym.kind == SymbolKind::CoverCross) {
++            std::string name = itemText(*syntax.name);
++            for (auto target : scopeSym.as<CoverCrossSymbol>().targets) {
++                auto init = target->declaredType.getInitializerSyntax();
++                if (target->isImplicitlyDeclared() && init && itemText(*init) == name)
++                    sym = target;
+             }
+-            if (scopeSym.kind == SymbolKind::CovergroupBody)
+-                break;
++            break;
+         }
++        if (scopeSym.kind == SymbolKind::CovergroupBody)
++            break;
+     }
+ 
+     if (!sym) {

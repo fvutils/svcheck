@@ -19,6 +19,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "HookParser.h"
 #include "Lint.h"
@@ -74,12 +75,38 @@ static int serveTestHooks(int argc, char** argv) {
     return 0;
 }
 
+// Simulator options common in vendor .f files, which slang does not know
+// (svcheck-plan P2.3, P1-24): skipped with their arguments, or renamed to
+// slang's. Only names slang does not define itself; a user's --cmd-ignore
+// and --cmd-rename add to these. Verilator's --timing is not here: slang's
+// own --timing takes min|typ|max (--cmd-ignore --timing,0 for such a list).
+static const char* const vendorIgnores[] = {
+    // Verilator
+    "--cc,0", "--exe,0", "--main,0", "--binary,0", "--build,0", "--no-timing,0",
+    "-o,1", "-Mdir,1", "--prefix,1", "-CFLAGS,1", "-LDFLAGS,1", "--trace,0", "--trace-fst,0",
+    "--trace-structs,0", "--assert,0", "--coverage,0", "-O0,0", "-O1,0", "-O2,0", "-O3,0",
+    "--x-assign,1", "--x-initial,1", "--autoflush,0", "-Wno-fatal,0", "-Wall,0",
+    // VCS
+    "-sverilog,0", "-full64,0", "+v2k,0", "-debug_access+all,0", "-debug_access+r,0",
+    "-kdb,0", "-lca,0", "-ntb_opts,1", "-Mupdate,0", "-assert,1", "-cm,1", "-cm_dir,1",
+    "-xprop,0", "+error,0", "+notimingcheck,0", "+nospecify,0",
+    // Questa, Xcelium
+    "-sv,0", "-mfcu,0", "-64bit,0", "-uvmhome,1", "-access,1", "-messagecount,1",
+};
+static const char* const vendorRenames[] = {
+    "--top-module,--top", "-top,--top", "-timescale,--timescale",
+};
+
 int main(int argc, char** argv) {
     if (argc >= 2 && std::strcmp(argv[1], "--engine-test-hooks") == 0)
         return serveTestHooks(argc, argv);
 
     driver::Driver driver;
     driver.addStandardArgs();
+    for (const char* c : vendorIgnores)
+        (void)driver.cmdLine.addIgnoreCommand(c);
+    for (const char* c : vendorRenames)
+        (void)driver.cmdLine.addRenameCommand(c);
 
     std::optional<bool> showHelp;
     std::optional<bool> showVersion;
@@ -92,6 +119,17 @@ int main(int argc, char** argv) {
     svcheck::cli::LintOptions lint;
     std::optional<std::string> format, semantic;
     std::optional<bool> contexts;
+    // svcheck's own -W forms (-Werror, -Werror=SEL, -Wno-error=SEL) are its
+    // warning policy (svcheck-plan P2.3); every other -W is slang's.
+    // -Wno-error=X also reaches slang when X is one of its options or groups.
+    std::vector<std::string> args(argv, argv + argc);
+    svcheck::cli::takeWarningPolicy(args, lint, [&driver](const std::string &name) {
+        return !driver.diagEngine.findFromOptionName(name).empty() ||
+               driver.diagEngine.findDiagGroup(name) != nullptr;
+    });
+    std::vector<const char*> argp;
+    for (const std::string& a : args)
+        argp.push_back(a.c_str());
     driver.cmdLine.add("--rules", lint.rules,
                        "Check the sources with the rules of this sv-rules file (repeatable)",
                        "<file>");
@@ -108,8 +146,63 @@ int main(int argc, char** argv) {
     driver.cmdLine.add("--contexts", contexts, "Print each unit the rules' classifiers find, "
                        "with its labels and their evidence, instead of findings");
 
-    if (!driver.parseCommandLine(argc, argv))
+    // Selection and policy (svcheck-plan P2.3).
+    std::optional<std::string> config, profile, explain, uvm;
+    std::optional<bool> noWarnings, showWaived, statistics, listMarkers, checkRules, rulesFor,
+        showConfig, relaxLrm;
+    driver.cmdLine.add("--config", config, "Read the selection, overrides and declared "
+                       "contexts from this YAML or JSON file (an `svcheck:` mapping)", "<file>");
+    driver.cmdLine.add("--profile", profile, "The rule profile: minimal (default), "
+                       "recommended, library, strict, all or none. Rules of a --rules file "
+                       "are in every profile but none", "<name>");
+    driver.cmdLine.add("--select", lint.select, "Enable the rules a selector names: an ID, a "
+                       "name, an ID prefix, a namespace, a tier, family:<f> (repeatable)",
+                       "<selector>");
+    driver.cmdLine.add("--ignore", lint.ignore, "Disable the rules a selector names "
+                       "(repeatable; beats a --select as specific)", "<selector>");
+    driver.cmdLine.add("--no-warnings", noWarnings, "Drop findings of warning severity");
+    driver.cmdLine.add("--show-waived", showWaived, "Also print waived findings, marked "
+                       "[waived: reason]");
+    driver.cmdLine.add("--statistics", statistics, "Print how many findings each code has");
+    driver.cmdLine.add("--list-markers", listMarkers, "List every rule and marker svcheck "
+                       "knows, then exit");
+    driver.cmdLine.add("--explain", explain, "Explain a rule or marker (ID, name or old ID), "
+                       "then exit", "<rule>");
+    driver.cmdLine.add("--check-rules", checkRules, "Check the rule files and run each rule's "
+                       "examples, then exit");
+    driver.cmdLine.add("--rules-for", rulesFor, "Print the rules each source file gets, then "
+                       "exit; nothing is compiled");
+    driver.cmdLine.add("--show-config", showConfig, "Print the resolved selection, then exit");
+    driver.cmdLine.add("--relax-lrm", relaxLrm, "Accept what commercial simulators and "
+                       "Verilator accept against the LRM: every --allow-assertctl-string-scope, "
+                       "--relax-package-exports, --relax-virtual-method-types, "
+                       "--allow-typedef-class-for-interface-class, "
+                       "--allow-virtual-iface-hier-ref, --relax-array-element-conversions, "
+                       "--relax-string-compare, --relax-forward-method-refs, "
+                       "--relax-logical-handle-operands, --relax-dist-precedence and "
+                       "--allow-hierarchical-const");
+    driver.cmdLine.add("--uvm", uvm, "UVM's src directory, which --check-rules compiles "
+                       "examples against", "<dir>");
+
+    if (!driver.parseCommandLine(static_cast<int>(argp.size()), argp.data()))
         return 1;
+    // --relax-lrm (svcheck-plan P2.3): slang's relaxation flags (patches/slang
+    // SL-6..SL-11, SL-12..SL-15, and slang's own --allow-hierarchical-const),
+    // each unless the command line set it.
+    if (relaxLrm == true) {
+        using CF = ast::CompilationFlags;
+        for (CF f : {CF::AllowAssertControlStringScope, CF::RelaxPackageExports,
+                     CF::RelaxVirtualMethodTypes, CF::AllowForwardClassAsInterfaceClass,
+                     CF::AllowVirtualIfaceHierRef, CF::RelaxArrayElementConversions,
+                     CF::AllowHierarchicalConst, CF::RelaxStringCompare,
+                     CF::RelaxForwardMethodRefs, CF::RelaxLogicalHandleOperands}) {
+            auto& v = driver.options.compilationFlags[f];
+            if (!v.has_value())
+                v = true;
+        }
+        if (!driver.options.relaxDistPrecedence.has_value())
+            driver.options.relaxDistPrecedence = true;
+    }
 
     if (showHelp == true) {
         std::printf("%s\n", driver.cmdLine.getHelpText("svcheck: SystemVerilog checker").c_str());
@@ -125,12 +218,23 @@ int main(int argc, char** argv) {
 
     if (format) {
         if (!svcheck::cli::isFormat(*format)) {
-            std::fprintf(stderr, "svcheck: unknown --format '%s' (text, json, sarif)\n",
+            std::fprintf(stderr, "svcheck: unknown --format '%s' (text, json, sarif, github)\n",
                          format->c_str());
             return 2;
         }
         lint.format = *format;
     }
+    lint.config = config.value_or("");
+    lint.profile = profile.value_or("");
+    lint.explain = explain.value_or("");
+    lint.uvmDir = uvm.value_or("");
+    lint.noWarnings = noWarnings == true;
+    lint.showWaived = showWaived == true;
+    lint.statistics = statistics == true;
+    lint.listMarkers = listMarkers == true;
+    lint.checkRules = checkRules == true;
+    lint.rulesFor = rulesFor == true;
+    lint.showConfig = showConfig == true;
     if (semantic && !svcheck::host::semanticLayerOf(*semantic, lint.layer)) {
         std::fprintf(stderr, "svcheck: unknown --semantic '%s' (model, none)\n",
                      semantic->c_str());
@@ -138,8 +242,11 @@ int main(int argc, char** argv) {
     }
     lint.contexts = contexts == true;
     lint.stats = stats == true;
-    if (!lint.rules.empty() || lint.contexts) {
-        if (lint.rules.empty()) {
+    bool linting = !lint.rules.empty() || lint.contexts || !lint.config.empty() ||
+                   !lint.profile.empty() || !lint.select.empty() || !lint.ignore.empty() ||
+                   lint.query();
+    if (linting) {
+        if (lint.contexts && lint.rules.empty() && lint.config.empty()) {
             std::fprintf(stderr, "svcheck: --contexts needs --rules: the classifiers are in "
                          "the rule files\n");
             return 2;

@@ -1,0 +1,126 @@
+# Precision review of VBL003 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: VBL003
+findings:
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:359
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:361
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:363
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:365
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:368
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:370
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:372
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:374
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:376
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:382
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:383
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:384
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:385
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:386
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_seq_item.sv:394
+  message: '''$psprintf'' is not allowed; use $sformatf'
+  corpora:
+  - opentitan-aes
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aon_timer_env_0.1/seq_lib/aon_timer_alternating_enable_on_off_vseq.sv:91
+  message: '''$random'' is not allowed; use $urandom'
+  corpora:
+  - opentitan-aon_timer
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aon_timer_env_0.1/seq_lib/aon_timer_wkup_count_cdc_hi_vseq.sv:79
+  message: '''$random'' is not allowed; use $urandom'
+  corpora:
+  - opentitan-aon_timer
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_aon_timer_env_0.1/seq_lib/aon_timer_wkup_count_cdc_hi_vseq.sv:81
+  message: '''$random'' is not allowed; use $urandom'
+  corpora:
+  - opentitan-aon_timer
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_i2c_env_0.1/seq_lib/i2c_base_vseq.sv:857
+  message: '''$dist_normal'' is not allowed; use $urandom'
+  corpora:
+  - opentitan-i2c
+  verdict: unreviewed
+  note: ''
+- at: opentitan/lowrisc_dv_spi_device_env_0.1/seq_lib/spi_device_tpm_base_vseq.sv:50
+  message: '''$random'' is not allowed; use $urandom'
+  corpora:
+  - opentitan-spi_device
+  verdict: unreviewed
+  note: ''

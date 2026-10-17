@@ -1,0 +1,13 @@
+# Precision review of SVCHK-UVM001 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM001
+findings:
+- at: core-v-verif/lib/uvm_libs/uvml_logs/uvml_logs_rs_json.sv:74
+  message: uvml_logs_rs_json_c's constructor should be new(string name = "...") with no other arguments
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a report server with a defaulted log-file argument; the factory
+    never builds it'

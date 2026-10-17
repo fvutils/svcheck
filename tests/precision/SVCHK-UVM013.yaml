@@ -1,0 +1,54 @@
+# Precision review of SVCHK-UVM013 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM013
+findings:
+- at: opentitan/lowrisc_dv_adc_ctrl_env_0.1/seq_lib/adc_ctrl_clock_gating_vseq.sv:25
+  message: disable monitor_wakeup kills every running instance of the block, in every thread; use disable
+    fork, a flag or an event
+  corpora:
+  - opentitan-adc_ctrl
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): disable of a task by name in a sequence class: kills every running
+    activation, in every sequence instance'
+- at: opentitan/lowrisc_dv_adc_ctrl_env_0.1/seq_lib/adc_ctrl_clock_gating_vseq.sv:26
+  message: disable check_adc_ctrl_status kills every running instance of the block, in every thread; use
+    disable fork, a flag or an event
+  corpora:
+  - opentitan-adc_ctrl
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): disable of a task by name in a sequence class: kills every running
+    activation, in every sequence instance'
+- at: opentitan/lowrisc_dv_adc_ctrl_env_0.1/seq_lib/adc_ctrl_filters_both_vseq.sv:13
+  message: disable check_adc_ctrl_status kills every running instance of the block, in every thread; use
+    disable fork, a flag or an event
+  corpora:
+  - opentitan-adc_ctrl
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): disable of a task by name in a sequence class: kills every running
+    activation, in every sequence instance'
+- at: opentitan/lowrisc_dv_adc_ctrl_env_0.1/seq_lib/adc_ctrl_filters_interrupt_vseq.sv:14
+  message: disable check_adc_ctrl_status kills every running instance of the block, in every thread; use
+    disable fork, a flag or an event
+  corpora:
+  - opentitan-adc_ctrl
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): disable of a task by name in a sequence class: kills every running
+    activation, in every sequence instance'
+- at: opentitan/lowrisc_dv_adc_ctrl_env_0.1/seq_lib/adc_ctrl_filters_polled_vseq.sv:27
+  message: disable check_adc_ctrl_status kills every running instance of the block, in every thread; use
+    disable fork, a flag or an event
+  corpora:
+  - opentitan-adc_ctrl
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): disable of a task by name in a sequence class: kills every running
+    activation, in every sequence instance'
+- at: opentitan/lowrisc_dv_adc_ctrl_env_0.1/seq_lib/adc_ctrl_filters_wakeup_vseq.sv:14
+  message: disable check_adc_ctrl_status kills every running instance of the block, in every thread; use
+    disable fork, a flag or an event
+  corpora:
+  - opentitan-adc_ctrl
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): disable of a task by name in a sequence class: kills every running
+    activation, in every sequence instance'

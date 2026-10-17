@@ -1,0 +1,232 @@
+# UVM pack, sequences (sv-uvm-rules-assessment §3.4; consensus pack §5.1:
+# S2, S5, S6, S9). svcheck-plan P2.5, batch 1.
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  rules:
+    - id: SVCHK-UVM007
+      name: unchecked-randomize
+      summary: The result of randomize() is ignored, or checked only by an assertion
+      tier: suspicious
+      family: uvm
+      message: >-
+        randomize() ${discarded(node) ? "result is discarded" : "is checked only by an assertion"};
+        a constraint failure goes unnoticed${discarded(node) ? "" :
+        ", and the call is skipped when assertions are off"}
+      doc: |
+        A `randomize()` that fails leaves the object unchanged and returns 0.
+        Ignoring the result, with a call statement or a `void'` cast, hides
+        the failure. Checking it with an immediate `assert` is worse than it
+        looks: when assertions are turned off (`$assertoff`, or a simulator
+        option) the assertion's expression is not evaluated, so the object is
+        not randomized at all. Test the result in an `if` and report the
+        failure.
+
+        Covers `std::randomize()` as well as a class's.
+
+        Sources: Easier UVM, Mentor cookbook, lowRISC DV, Cummings,
+        CORE-V-VERIF, Verible, Verissimo, draconian_uvm, slang, Verilator.
+      match: { kind: Call }
+      where: >-
+        node.name == "randomize" && !in_library(node) &&
+        (discarded(node) || ancestors(node).exists(a, a.isa(ImmediateAssert)))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              `uvm_object_utils(bus_item)
+              rand int x;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              `uvm_object_utils(bus_seq)
+              function new(string name = ""); super.new(name); endfunction
+              task body();
+                int n;
+                bus_item it = bus_item::type_id::create("it");
+                it.randomize();                          // expect: SVCHK-UVM007
+                void'(it.randomize());                   // expect: SVCHK-UVM007
+                assert(it.randomize());                  // expect: SVCHK-UVM007
+                void'(std::randomize(n));                // expect: SVCHK-UVM007
+              endtask
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              `uvm_object_utils(bus_item)
+              rand int x;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              `uvm_object_utils(bus_seq)
+              function new(string name = ""); super.new(name); endfunction
+              task body();
+                bit ok;
+                bus_item it = bus_item::type_id::create("it");
+                if (!it.randomize() with { x > 0; }) `uvm_error("SEQ", "randomize failed")
+                ok = it.randomize();
+                if (!ok) `uvm_fatal("SEQ", "randomize failed")
+              endtask
+            endclass
+
+    - id: SVCHK-UVM008
+      name: default-sequence
+      summary: A sequence is started through the default_sequence configuration field
+      tier: style
+      family: uvm
+      message: >-
+        default_sequence starts a sequence implicitly; start it from the test with seq.start(sequencer)
+      doc: |
+        A sequence set as a sequencer's `default_sequence` starts when that
+        phase begins, from wherever the setting was made. The test's flow
+        is then split between `config_db` strings and the test body: the
+        order of sequences, which phase raises objections, and what runs on
+        which sequencer are no longer visible in one place, and a typo in
+        the phase path silently starts nothing. Start sequences explicitly
+        in the test's `run_phase` (or a virtual sequence).
+
+        Checked: a `uvm_config_db#(T)::set` whose field name is the constant
+        "default_sequence".
+
+        Sources: Sutherland/Fitzpatrick, Erickson, Verilab, Cummings,
+        Verissimo.
+      match: { kind: Call }
+      where: >-
+        !in_library(node) && node.name == "set" && config_db(node) && node.args.size() > 2 &&
+        const_string(node.args[2]) == optional.of("default_sequence")
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              `uvm_object_utils(bus_seq)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class base_test extends uvm_test;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                uvm_config_db#(uvm_object_wrapper)::set(this, "env.sqr.main_phase",   // expect: SVCHK-UVM008
+                  "default_sequence", bus_seq::get_type());
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class base_test extends uvm_test;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                uvm_config_db#(int)::set(this, "env.sqr", "count", 3);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM009
+      name: sequence-pre-post-body
+      summary: A sequence overrides pre_body() or post_body() instead of pre_start() or post_start()
+      tier: suspicious
+      family: uvm
+      message: >-
+        ${node.name}() runs only when the sequence is started with call_pre_post set; override
+        ${node.name == "pre_body" ? "pre_start" : "post_start"}() instead
+      doc: |
+        `pre_body()` and `post_body()` are called only when the sequence is
+        started with `call_pre_post` set: `start()` sets it by default, but
+        the `uvm_do` macros and a parent sequence starting a child pass 0.
+        The same sequence then runs its set-up when started by a test and
+        skips it when started by a virtual sequence. `pre_start()` and
+        `post_start()` run every time.
+
+        Sources: Easier UVM, Mentor cookbook, lowRISC DV.
+      match: { kind: Subroutine }
+      let:
+        c: cls(node)
+      where: >-
+        !node.inLibrary && node.name in ["pre_body", "post_body"] && node.overrides != null &&
+        c != null && is_sequence(c)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              function new(string name = ""); super.new(name); endfunction
+              task pre_body();                 // expect: SVCHK-UVM009
+              endtask
+              task post_body();                // expect: SVCHK-UVM009
+              endtask
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              function new(string name = ""); super.new(name); endfunction
+              task pre_start();
+              endtask
+              task post_start();
+              endtask
+            endclass
+            class helper;
+              task pre_body(); endtask
+            endclass
+
+    - id: SVCHK-UVM010
+      name: item-outside-sequence
+      summary: An item is sent with start_item()/finish_item() from outside a sequence
+      tier: style
+      family: uvm
+      message: >-
+        ${node.name}() is called from ${cls(node) != null ? cls(node).name : "outside a class"},
+        not a sequence; generate items in a sequence and start that
+      doc: |
+        Items are generated by sequences. Calling a sequence's `start_item()`
+        and `finish_item()` from a component or a test bypasses the
+        sequence's own body: its stimulus cannot be reused, layered,
+        overridden through the factory, or arbitrated with other sequences.
+        Put the generation in a sequence's `body()` and start the sequence.
+
+        Sources: Easier UVM.
+      match: { kind: Call }
+      let:
+        c: cls(node)
+      where: >-
+        !in_library(node) && node.name in ["start_item", "finish_item"] &&
+        node.subroutine != null && node.subroutine.qname.startsWith("uvm_pkg::uvm_sequence_base::") &&
+        (c == null || !is_sequence(c))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              `uvm_object_utils(bus_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              `uvm_object_utils(bus_seq)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class base_test extends uvm_test;
+              bus_seq s;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task run_phase(uvm_phase phase);
+                bus_item it = bus_item::type_id::create("it");
+                s.start_item(it);                // expect: SVCHK-UVM010
+                s.finish_item(it);               // expect: SVCHK-UVM010
+              endtask
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              `uvm_object_utils(bus_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              `uvm_object_utils(bus_seq)
+              function new(string name = ""); super.new(name); endfunction
+              task body();
+                bus_item it = bus_item::type_id::create("it");
+                start_item(it);
+                finish_item(it);
+              endtask
+            endclass

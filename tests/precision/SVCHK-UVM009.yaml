@@ -1,0 +1,30 @@
+# Precision review of SVCHK-UVM009 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM009
+findings:
+- at: fw-wb-dma/tests/uvm/env/wb_dma_base_seq.svh:24
+  message: pre_body() runs only when the sequence is started with call_pre_post set; override pre_start()
+    instead
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): pre_body/post_body: skipped when the sequence is started by
+    a parent sequence or a `uvm_do'
+- at: fw-wb-dma/tests/uvm/env/wb_dma_base_seq.svh:30
+  message: post_body() runs only when the sequence is started with call_pre_post set; override post_start()
+    instead
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): pre_body/post_body: skipped when the sequence is started by
+    a parent sequence or a `uvm_do'
+- at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:1384
+  message: post_body() runs only when the sequence is started with call_pre_post set; override post_start()
+    instead
+  corpora:
+  - opentitan-aes
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): pre_body/post_body: skipped when the sequence is started by
+    a parent sequence or a `uvm_do'

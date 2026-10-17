@@ -1,0 +1,134 @@
+# Precision review of SVCHK-UVM005 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM005
+findings:
+- at: core-v-verif/cv32e40p/env/uvme/uvme_rv32isa_covg_trn.sv:27
+  message: uvme_rv32isa_covg_trn_c adds fields but does not override do_compare, convert2string; they
+    will not see its fields
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: fw-wb-dma/packages/fwvip-gpio/src/uvm/fwvip_gpio_transaction.svh:15
+  message: fwvip_gpio_transaction adds fields but does not override do_copy, do_compare; they will not
+    see its fields
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_target_item.svh:10
+  message: fwvip_wb_target_item adds fields but does not override do_copy, do_compare, convert2string;
+    they will not see its fields
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_transaction.svh:2
+  message: fwvip_wb_transaction adds fields but does not override do_copy, do_compare, convert2string;
+    they will not see its fields
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_message_item.sv:5
+  message: aes_message_item adds fields but does not override do_compare; they will not see its fields
+  corpora:
+  - opentitan-aes
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_csrng_agent_0.1/csrng_item.sv:5
+  message: csrng_item adds fields but does not override do_compare; they will not see its fields
+  corpora:
+  - opentitan-csrng
+  - opentitan-edn
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_entropy_src_xht_agent_0.1/entropy_src_xht_item.sv:5
+  message: entropy_src_xht_item adds fields but does not override do_copy, do_compare, convert2string;
+    they will not see its fields
+  corpora:
+  - opentitan-entropy_src
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_kmac_app_agent_0.1/kmac_app_mon_item.sv:7
+  message: kmac_app_mon_item adds fields but does not override do_compare, convert2string; they will not
+    see its fields
+  corpora:
+  - opentitan-keymgr
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_kmac_app_agent_0.1/kmac_app_req_item.sv:12
+  message: kmac_app_req_item adds fields but does not override convert2string; they will not see its fields
+  corpora:
+  - opentitan-keymgr
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_kmac_app_agent_0.1/kmac_app_req_packet_item.sv:10
+  message: kmac_app_req_packet_item adds fields but does not override convert2string; they will not see
+    its fields
+  corpora:
+  - opentitan-keymgr
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_kmac_app_agent_0.1/kmac_app_rsp_item.sv:10
+  message: kmac_app_rsp_item adds fields but does not override convert2string; they will not see its fields
+  corpora:
+  - opentitan-keymgr
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_spi_host_env_0.1/spi_segment_item.sv:5
+  message: spi_segment_item adds fields but does not override do_compare; they will not see its fields
+  corpora:
+  - opentitan-spi_host
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_spi_host_env_0.1/spi_transaction_item.sv:5
+  message: spi_transaction_item adds fields but does not override do_compare; they will not see its fields
+  corpora:
+  - opentitan-spi_host
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: opentitan/lowrisc_dv_usb20_agent_0.1/usb20_item.sv:5
+  message: usb20_item adds fields but does not override do_compare, convert2string; they will not see
+    its fields
+  corpora:
+  - opentitan-aon_timer
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): compared by usbdev_scoreboard (act_item.compare(exp_item)) with
+    no do_compare: its own fields are not compared'
+- at: uvm-tb-proto/vip/fwvip-spi/src/vip/uvm/fwvip_spi_transaction.svh:1
+  message: fwvip_spi_transaction adds fields but does not override do_copy, do_compare, convert2string;
+    they will not see its fields
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_transaction.svh:2
+  message: fwvip_wb_transaction adds fields but does not override do_copy, do_compare, convert2string;
+    they will not see its fields
+  corpora:
+  - uvm-tb-proto
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): never compared or copied in the corpus; the missing methods
+    are not used'

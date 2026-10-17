@@ -50,8 +50,8 @@ rule scopes in `src/host/Lint.cpp`). `applies_to` on rules is applied by the run
 labels the classify stage leaves on `run::Context`. The engine hooks hold whole engines by id
 (`factory.mkLintEngine()` in `tests/engine/conftest.py`).
 
-P1.6 added the spike's 10 rules, in `rules/spike/` (provisional IDs; `uvm.yaml` reads
-`uvm-vocab.yaml` through `uses:`), tested by `tests/host/test_spike_rules.py` (examples, predicate
+P1.6 added the spike's 10 rules, in `rules/spike/` (provisional IDs; its four UVM rules are now
+pack rules, P2.5, and `uvm-vocab.yaml` is left for `rules/trial/`), tested by `tests/host/test_spike_rules.py` (examples, predicate
 length, a Verible fixture). `scripts/verible_equiv.py -- <svcheck file args>` diffs the
 Verible-equivalent rules against Verible (`packages/verible`, from ivpm), and
 `scripts/mk_filelist.py` writes a `-f` list for a source tree that has none. The lint JSON lists
@@ -120,6 +120,17 @@ copy of an interface uninstantiated, and SL-11 covers output arguments. `-Wno-er
 svcheck's and also slang's when X is a slang option (`takeWarningPolicy`).
 To change a slang patch: rebuild a git tree of pristine slang (`packages/.download/v11.0.tar.gz`)
 with the patches as commits, edit there, and regenerate each patch as one commit's diff.
+
+P2.5 (active) is the built-in UVM pack, `SVCHK-UVM###`: `rules/*.yaml` (embedded at build
+time; a file without `rules:` is a helper, `rules/uvm.yaml`, which any rule file names as
+`uses: [uvm.yaml]`). The CLI loads them on every run with the model; they follow the profile
+(none in `minimal`), so `--select SVCHK-UVM` runs them. `svcheck --check-rules --uvm DIR` with no
+`--rules` runs their examples. Every pack rule is run on the corpora before it ships:
+`scripts/precision.py --update` (it selects `SVCHK-UVM`), then review `tests/precision/<ID>.yaml`
+(a rule with no findings has no file). Rule files by family: `uvm-{construction,transactions,
+sequences,language,factory,phasing}.yaml`; IDs are numbered in order of addition (the plan's P2-22
+and P2-23 map them to the assessment's catalogue). `family:` takes only the loader's list
+(`uvm`, `factory`, `class`, `process`, ...).
 
 ## Build and test
 

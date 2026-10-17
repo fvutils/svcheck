@@ -75,7 +75,8 @@ def generate(rules_dir):
         with open(os.path.join(rules_dir, f), "rb") as fp:
             data = fp.read()
         out.write("// %s\n" % f)
-        out.write("static const char file_%d[] = {\n" % i)
+        # unsigned: a UTF-8 byte above 127 does not fit a signed char.
+        out.write("static const unsigned char file_%d[] = {\n" % i)
         for at in range(0, len(data), 16):
             out.write("    " + "".join("%d," % b for b in data[at:at + 16]) + "\n")
         out.write("    0\n};\n\n")
@@ -83,7 +84,8 @@ def generate(rules_dir):
     out.write("static const BuiltinRuleFile files[] = {\n")
     for i, f in enumerate(files):
         size = os.path.getsize(os.path.join(rules_dir, f))
-        out.write('    {"%s%s", file_%d, %d},\n' % (NAME_PREFIX, f, i, size))
+        out.write('    {"%s%s", reinterpret_cast<const char *>(file_%d), %d},\n'
+                  % (NAME_PREFIX, f, i, size))
     # A zero-length array is not C++; the sentinel also makes the count
     # independent of sizeof.
     out.write("    {nullptr, nullptr, 0}\n};\n\n")

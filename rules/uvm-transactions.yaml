@@ -1,0 +1,185 @@
+# UVM pack, transactions (sv-uvm-rules-assessment §3.3; consensus pack §5.1:
+# T1, T3, T8). svcheck-plan P2.5, batch 1.
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  define:
+    # Class c uses the field macros (`uvm_field_int(...)` and the like),
+    # which implement copy, compare, print and pack for the fields they name.
+    # A name test is not enough: UVM 1.2's utils macros declare the
+    # automation method in every registered class.
+    field_macros(c): >-
+      c.members.exists(m, m.isa(Subroutine) && descendants(m, Stmt).exists(n,
+        macro_of(n).startsWith("uvm_field_")))
+  rules:
+    - id: SVCHK-UVM004
+      name: item-extends-transaction
+      summary: A transaction class extends uvm_transaction instead of uvm_sequence_item
+      tier: style
+      family: uvm
+      message: >-
+        ${node.name} extends uvm_transaction; extend uvm_sequence_item so a sequence can send it
+      doc: |
+        Only a `uvm_sequence_item` can be started on a sequencer, and the rest
+        of a testbench (analysis ports, scoreboards) takes one as readily as a
+        `uvm_transaction`. Extending `uvm_sequence_item` from the start means
+        the class never has to be rewritten to be driven. Only the class that
+        extends `uvm_transaction` itself is reported, not its subclasses.
+
+        Sources: Easier UVM, Sutherland/Fitzpatrick, lowRISC DV, CORE-V-VERIF,
+        Verissimo.
+      match: { kind: Class }
+      where: >-
+        !node.inLibrary && is(node, "uvm_transaction") && !is(node, "uvm_sequence_item") &&
+        (node.base == null || node.base.inLibrary)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_txn extends uvm_transaction;   // expect: SVCHK-UVM004
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class wr_txn extends bus_txn;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+
+    - id: SVCHK-UVM005
+      name: item-methods
+      summary: A sequence item that adds fields does not override copy, compare and convert2string
+      tier: style
+      family: uvm
+      message: >-
+        ${node.name} adds fields but does not override ${missing.join(", ")}; they will not
+        see its fields
+      doc: |
+        `copy()`, `compare()` and `convert2string()` see a class's fields only
+        through the `do_` methods it overrides (or its field macros). An item
+        that adds fields without them is copied and compared as if it had
+        none: a scoreboard's comparison passes whatever the fields hold.
+
+        Checked: a sequence item (not a sequence) that declares a non-static
+        field of its own, and neither overrides each method in `methods` nor
+        uses the field macros (`uvm_field_*`), which implement them. Each
+        class that adds fields must override them: the base's methods do not
+        know the new fields.
+
+        Sources: Easier UVM, Sutherland/Fitzpatrick, Mentor cookbook, Cummings,
+        CORE-V-VERIF, Verissimo.
+      options:
+        methods:
+          type: string-list
+          default: [do_copy, do_compare, convert2string]
+          help: The methods an item must override (do_print, do_record, do_pack are common additions)
+      match: { kind: Class }
+      let:
+        missing: options.methods.filter(n, !node.members.exists(m, m.name == n))
+      where: >-
+        !node.inLibrary && is_item(node) &&
+        node.members.exists(m, m.isa(Variable) && !m.isStatic && !m.isConst) &&
+        !field_macros(node) && missing.size() > 0
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;    // expect: SVCHK-UVM005
+              `uvm_object_utils(bus_item)
+              rand bit [7:0] data;
+              function new(string name = ""); super.new(name); endfunction
+              function void do_copy(uvm_object rhs);
+                bus_item r; super.do_copy(rhs); $cast(r, rhs); data = r.data;
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              `uvm_object_utils(bus_item)
+              rand bit [7:0] data;
+              function new(string name = ""); super.new(name); endfunction
+              function void do_copy(uvm_object rhs);
+                bus_item r; super.do_copy(rhs); $cast(r, rhs); data = r.data;
+              endfunction
+              function bit do_compare(uvm_object rhs, uvm_comparer comparer);
+                bus_item r; $cast(r, rhs); return super.do_compare(rhs, comparer) && data == r.data;
+              endfunction
+              function string convert2string(); return $sformatf("data=%0h", data); endfunction
+            endclass
+            class auto_item extends uvm_sequence_item;
+              rand bit [7:0] data;
+              `uvm_object_utils_begin(auto_item)
+                `uvm_field_int(data, UVM_ALL_ON)
+              `uvm_object_utils_end
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class wr_item extends bus_item;
+              `uvm_object_utils(wr_item)
+              static int count;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              int n;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+
+    - id: SVCHK-UVM006
+      name: object-print
+      summary: An object is printed with print() instead of being reported
+      tier: style
+      family: uvm
+      message: >-
+        ${node.name}() ${node.name == "print" ?
+        "writes to standard output, around the report server" :
+        "formats the object as a multi-line table"}; report its convert2string() with `uvm_info
+      doc: |
+        `print()` writes to standard output directly, so the output has no
+        ID, verbosity or severity and cannot be filtered, counted or sent to
+        a log file: a driver that prints every item fills the log at every
+        verbosity. Report the item's `convert2string()` with `uvm_info`.
+
+        With `sprint`, `sprint()` is reported as well. It goes through the
+        report server when reported, but its table runs to many lines per
+        object; the guides that ban `print()` also prefer `convert2string()`
+        there. It is off by default: `sprint()` in a high-verbosity
+        `uvm_info` is common practice (lowRISC DV does it throughout).
+
+        Sources: Sutherland/Fitzpatrick, Cummings, lowRISC DV.
+      options:
+        sprint:
+          type: bool
+          default: false
+          help: Report sprint() as well as print()
+      match: { kind: Call }
+      where: >-
+        !in_library(node) && node.subroutine != null &&
+        (node.subroutine.qname == "uvm_pkg::uvm_object::print" ||
+         (options.sprint && node.subroutine.qname == "uvm_pkg::uvm_object::sprint"))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+              function string convert2string(); return "item"; endfunction
+            endclass
+            class bus_mon extends uvm_component;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void write(bus_item it);
+                it.print();                                     // expect: SVCHK-UVM006
+                `uvm_info("MON", it.sprint(), UVM_HIGH)
+                `uvm_info("MON", it.convert2string(), UVM_HIGH)
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+              function string convert2string(); return "item"; endfunction
+              function void do_print(uvm_printer printer); super.do_print(printer); endfunction
+            endclass
+            module top;
+              initial $display("print");
+            endmodule

@@ -1,8 +1,8 @@
-# Precision review of UVM010 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# Precision review of SVCHK-UVM018 (scripts/precision.py; svcheck-plan P2.1). Each finding
 # is the file and line, as its source, and the message; `corpora` says where it was
 # found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
 # rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
-rule: UVM010
+rule: SVCHK-UVM018
 findings:
 - at: core-v-verif/lib/uvm_libs/uvml_hrtbt/uvml_hrtbt_pkg.sv:37
   message: uvml_hrtbt_mon_c is constructed with new(); use uvml_hrtbt_mon_c::type_id::create(...) so factory
@@ -25,233 +25,266 @@ findings:
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:47
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:48
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:518
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:535
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:551
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:552
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:562
   message: key_sideload_item#(key_sideload_agent_pkg::key_sideload_sequencer::KEY_T) is constructed with
     new(); use key_sideload_item#(key_sideload_agent_pkg::key_sideload_sequencer::KEY_T)::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:592
   message: aes_message_item is constructed with new(); use aes_message_item::type_id::create(...) so factory
     overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:630
   message: aes_message_item is constructed with new(); use aes_message_item::type_id::create(...) so factory
     overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:703
   message: aes_message_item is constructed with new(); use aes_message_item::type_id::create(...) so factory
     overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:48
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:749
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:750
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:775
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:829
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:1418
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_base_vseq.sv:1449
   message: aes_message_item is constructed with new(); use aes_message_item::type_id::create(...) so factory
     overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_gcm_save_restore_vseq.sv:62
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_gcm_save_restore_vseq.sv:63
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_gcm_save_restore_vseq.sv:64
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_manual_config_err_vseq.sv:17
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_manual_config_err_vseq.sv:18
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_nist_vectors_gcm_vseq.sv:26
   message: aes_nist_vectors_gcm is constructed with new(); use aes_nist_vectors_gcm::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_nist_vectors_vseq.sv:23
   message: aes_nist_vectors is constructed with new(); use aes_nist_vectors::type_id::create(...) so factory
     overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_readability_vseq.sv:21
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_readability_vseq.sv:22
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_readability_vseq.sv:23
   message: aes_message_item is constructed with new(); use aes_message_item::type_id::create(...) so factory
     overrides apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_aes_env_0.1/seq_lib/aes_readability_vseq.sv:24
   message: aes_seq_item is constructed with new(); use aes_seq_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-aes
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_csrng_env_0.1/seq_lib/csrng_cmds_vseq.sv:25
   message: csrng_item is constructed with new(); use csrng_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-csrng
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_csrng_env_0.1/seq_lib/csrng_cmds_vseq.sv:41
   message: csrng_item is constructed with new(); use csrng_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-csrng
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_csrng_env_0.1/seq_lib/csrng_cmds_vseq.sv:57
   message: csrng_item is constructed with new(); use csrng_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-csrng
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_csrng_env_0.1/seq_lib/csrng_cmds_vseq.sv:207
   message: csrng_item is constructed with new(); use csrng_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-csrng
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_dv_lib_0/dv_base_test.sv:27
   message: dv_report_server is constructed with new(); use dv_report_server::type_id::create(...) so factory
     overrides apply
@@ -281,178 +314,203 @@ findings:
     apply
   corpora:
   - opentitan-i2c
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_i2c_env_0.1/i2c_reference_model.sv:157
   message: i2c_item is constructed with new(); use i2c_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-i2c
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_i2c_env_0.1/i2c_reference_model.sv:158
   message: i2c_item is constructed with new(); use i2c_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-i2c
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s or reference model''s scratch items, internal
+    state nobody overrides'
 - at: opentitan/lowrisc_dv_i2c_env_0.1/seq_lib/i2c_host_mode_toggle_vseq.sv:54
   message: i2c_item is constructed with new(); use i2c_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-i2c
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_i2c_env_0.1/seq_lib/i2c_host_mode_toggle_vseq.sv:61
   message: i2c_item is constructed with new(); use i2c_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-i2c
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_i2c_env_0.1/seq_lib/i2c_rx_tx_vseq.sv:35
   message: i2c_item is constructed with new(); use i2c_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-i2c
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_spi_agent_0.1/seq_lib/spi_device_cmd_rsp_seq.sv:108
   message: spi_item is constructed with new(); use spi_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-spi_device
   - opentitan-spi_host
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_spi_agent_0.1/seq_lib/spi_device_dma_seq.sv:19
   message: spi_item is constructed with new(); use spi_item::type_id::create(...) so factory overrides
     apply
   corpora:
   - opentitan-spi_device
   - opentitan-spi_host
-  verdict: unreviewed
-  note: ''
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): stimulus built with new() in a sequence: a test cannot override
+    the item or vector class'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:297
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:298
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:299
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:300
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:301
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:302
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:303
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:304
   message: sysrst_ctrl_pin_cfgs_obj is constructed with new(); use sysrst_ctrl_pin_cfgs_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:306
   message: sysrst_ctrl_debounce_timer_obj is constructed with new(); use sysrst_ctrl_debounce_timer_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:307
   message: sysrst_ctrl_debounce_timer_obj is constructed with new(); use sysrst_ctrl_debounce_timer_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:308
   message: sysrst_ctrl_debounce_timer_obj is constructed with new(); use sysrst_ctrl_debounce_timer_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:309
   message: sysrst_ctrl_debounce_timer_obj is constructed with new(); use sysrst_ctrl_debounce_timer_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:310
   message: sysrst_ctrl_debounce_timer_obj is constructed with new(); use sysrst_ctrl_debounce_timer_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:313
   message: sysrst_ctrl_combo_detect_action_obj is constructed with new(); use sysrst_ctrl_combo_detect_action_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:316
   message: sysrst_ctrl_combo_key_combinations_obj is constructed with new(); use sysrst_ctrl_combo_key_combinations_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:317
   message: sysrst_ctrl_combo_intr_status_obj is constructed with new(); use sysrst_ctrl_combo_intr_status_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_sysrst_ctrl_env_0.1/sysrst_ctrl_env_cov.sv:318
   message: sysrst_ctrl_wakeup_event_obj is constructed with new(); use sysrst_ctrl_wakeup_event_obj::type_id::create(...)
     so factory overrides apply
   corpora:
   - opentitan-sysrst_ctrl
-  verdict: unreviewed
-  note: ''
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): covergroup wrapper objects built in the coverage collector''s
+    constructor; nobody overrides them'
 - at: opentitan/lowrisc_dv_usbdev_env_0.1/usbdev_scoreboard.sv:88
   message: usbdev_timed_regs is constructed with new(); use usbdev_timed_regs::type_id::create(...) so
     factory overrides apply

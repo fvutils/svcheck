@@ -1,0 +1,325 @@
+# UVM pack, construction (sv-uvm-rules-assessment §3.2; consensus pack §5.1:
+# K1, K2, K4, K14). svcheck-plan P2.5, batch 1.
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  define:
+    # The constructor a user class declares, or null.
+    ctor(c): >-
+      c.members.exists(m, m.name == "new") ? c.members.filter(m, m.name == "new")[0] : null
+    # A subroutine with arguments (d is a member, so it is tested first).
+    takes_args(d): d != null && d.isa(Subroutine) && d.args.size() > 0
+    # Statement s is `super.new(...);`.
+    is_super_new(s): s.isa(ExprStmt) && super_new(s.expr)
+    super_new(e): e.isa(NewClass) && e.isSuper
+    # The declaration node uses: what a call calls, a name reads, a class
+    # extends, a method overrides.
+    used(n): >-
+      n.isa(Call) ? n.subroutine : n.isa(NamedValue) ? n.decl : n.isa(MemberAccess) ? n.decl :
+      n.isa(Class) ? n.base : n.isa(Subroutine) ? n.overrides : null
+  rules:
+    - id: SVCHK-UVM001
+      name: uvm-object-constructor
+      summary: A UVM object's constructor is not new(string name = "...")
+      tier: style
+      family: class
+      message: >-
+        ${cls(node).name}'s constructor should be new(string name = "...") with no other
+        arguments
+      doc: |
+        The factory constructs an object with `new(name)`, or `new()` when no
+        name is given, so a `uvm_object` constructor takes the name as its one
+        argument, an input with a default. Any other argument is never passed
+        by the factory, and an object built without the name argument has no
+        name. The default's value is not checked: `""` and the class name are
+        both common.
+
+        Components have their own form (SVCHK-UVM002). The register layer's
+        classes have the constructors UVM gives them (`uvm_reg`'s takes the
+        width and coverage too), so they are exempt (`exempt_bases`).
+
+        Sources: Easier UVM, lowRISC DV, Sigasi, Verissimo.
+      options:
+        exempt_bases:
+          type: string-list
+          default: [uvm_reg, uvm_reg_block, uvm_mem, uvm_vreg, uvm_mem_mam]
+          help: UVM classes (without uvm_pkg::) whose subclasses' constructors are not checked
+      match: { kind: Subroutine }
+      let:
+        c: cls(node)
+      where: >-
+        node.name == "new" && !node.inLibrary && c != null && is_object(c) &&
+        !options.exempt_bases.exists(b, is(c, b)) &&
+        (node.args.size() != 1 || !node.args[0].type.isString ||
+         node.args[0].direction != ArgDirection.In || node.args[0].init == null)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_item extends uvm_sequence_item;
+              function new(string name = "", int id = 0);   // expect: SVCHK-UVM001
+                super.new(name);
+              endfunction
+            endclass
+            class b_item extends uvm_sequence_item;
+              function new();                                // expect: SVCHK-UVM001
+                super.new("b");
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_item extends uvm_sequence_item;
+              `uvm_object_utils(a_item)
+              function new(string name = "a_item");
+                super.new(name);
+              endfunction
+            endclass
+            class a_cfg extends uvm_object;
+              function new(string name = "");
+                super.new(name);
+              endfunction
+            endclass
+            class a_comp extends uvm_component;
+              function new(string name, uvm_component parent);
+                super.new(name, parent);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM002
+      name: uvm-component-constructor
+      summary: A UVM component's constructor is not new(string name, uvm_component parent)
+      tier: style
+      family: class
+      message: >-
+        ${cls(node).name}'s constructor should be new(string name, uvm_component parent),
+        ${node.args.exists(a, a.init != null) ? "with no defaults" : "with no other arguments"}
+      doc: |
+        The factory constructs a component with `new(name, parent)`. Any
+        other argument is never passed by the factory. A default lets a
+        component be built with `new("x")`, with no parent: it then hangs off
+        the top of the hierarchy instead of its environment, and its path
+        names and configuration lookups are wrong.
+
+        Sources: Easier UVM, lowRISC DV, Sigasi.
+      match: { kind: Subroutine }
+      let:
+        c: cls(node)
+      where: >-
+        node.name == "new" && !node.inLibrary && c != null && is_component(c) &&
+        (node.args.size() != 2 || !node.args[0].type.isString ||
+         node.args[1].type.classDecl == null ||
+         node.args[1].type.classDecl.qname != "uvm_pkg::uvm_component" ||
+         node.args.exists(a, a.init != null))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_drv extends uvm_component;
+              function new(string name, uvm_component parent = null);   // expect: SVCHK-UVM002
+                super.new(name, parent);
+              endfunction
+            endclass
+            class b_drv extends uvm_component;
+              function new(string name = "b_drv", uvm_component parent = null);   // expect: SVCHK-UVM002
+                super.new(name, parent);
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_drv extends uvm_component;
+              `uvm_component_utils(a_drv)
+              function new(string name, uvm_component parent);
+                super.new(name, parent);
+              endfunction
+            endclass
+            class a_item extends uvm_sequence_item;
+              function new(string name = "");
+                super.new(name);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM003
+      name: super-new-first
+      summary: A UVM class's constructor does not start with super.new(...)
+      tier: suspicious
+      family: class
+      message: >-
+        ${cls(node).name}'s constructor does not start with super.new(...); the implicit
+        super.new() passes no name${is_component(cls(node)) ? " or parent" : ""} to
+        ${cls(node).base.name}
+      doc: |
+        A constructor that does not call `super.new` first gets an implicit
+        `super.new()` with no arguments. For a UVM class that drops the name
+        (and a component's parent) the factory passed in: the object is
+        unnamed, or the component's path and configuration lookups are wrong.
+        Only a constructor whose base's constructor takes arguments is
+        checked. Local declarations may come before the call.
+
+        Sources: Mentor cookbook, lowRISC DV, Easier UVM, Verilator.
+      match: { kind: Subroutine }
+      let:
+        c: cls(node)
+        stmts: "node.body.isa(Block) ? node.body.stmts.filter(s, !s.isa(VarDecl)) : [node.body]"
+      where: >-
+        node.name == "new" && !node.inLibrary && c != null && is(c, "uvm_object") &&
+        c.base != null && takes_args(ctor(c.base)) &&
+        (stmts.size() == 0 || !is_super_new(stmts[0]))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_item extends uvm_sequence_item;
+              int id;
+              function new(string name = "");   // expect: SVCHK-UVM003
+                id = 1;
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_item extends uvm_sequence_item;
+              int id;
+              function new(string name = "");
+                int n;
+                super.new(name);
+                id = 1;
+              endfunction
+            endclass
+            class a_comp extends uvm_component;
+              function new(string name, uvm_component parent);
+                super.new(name, parent);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM014
+      name: deprecated-uvm-api
+      summary: A deprecated UVM API is used
+      tier: portability
+      family: uvm
+      message: >-
+        ${used(node).qname.substring(9)} is deprecated in UVM 1.2${used(node).name in
+        ["set_config_int", "set_config_string", "set_config_object", "get_config_int",
+        "get_config_string", "get_config_object"] ? "; use uvm_config_db" :
+        used(node).name == "starting_phase" ? "; use get_starting_phase()" : ""}, and removed
+        or optional in later libraries
+      doc: |
+        UVM 1.2 marks these declarations deprecated (`ifndef
+        UVM_NO_DEPRECATED`), and IEEE 1800.2 removes most of them: the
+        `set_config_*`/`get_config_*` methods, `global_stop_request` and the
+        stop protocol, `uvm_test_done`, the sequencer's built-in sequence
+        library (`count`, `default_sequence`, `uvm_random_sequence`, ...),
+        `starting_phase`, the report hooks. Code that uses them does not
+        compile with `+define+UVM_NO_DEPRECATED`, or on a 1800.2 library
+        that leaves them out. A call, a read, a class that extends one and a
+        method that overrides one are reported.
+
+        `apis` is the list, by qualified name; the default is UVM 1.2's
+        deprecated public API.
+
+        Sources: Easier UVM, Mentor cookbook, Verilab, lowRISC DV, Sigasi,
+        Verissimo, Cummings.
+      options:
+        apis:
+          type: string-list
+          default:
+            - uvm_pkg::uvm_test_done
+            - uvm_pkg::global_stop_request
+            - uvm_pkg::set_global_timeout
+            - uvm_pkg::set_global_stop_timeout
+            - uvm_pkg::set_config_int
+            - uvm_pkg::set_config_object
+            - uvm_pkg::set_config_string
+            - uvm_pkg::uvm_random_sequence
+            - uvm_pkg::uvm_exhaustive_sequence
+            - uvm_pkg::uvm_simple_sequence
+            - uvm_pkg::uvm_test_done_objection
+            - uvm_pkg::uvm_root::stop_request
+            - uvm_pkg::uvm_component::status
+            - uvm_pkg::uvm_component::kill
+            - uvm_pkg::uvm_component::do_kill_all
+            - uvm_pkg::uvm_component::stop_phase
+            - uvm_pkg::uvm_component::stop
+            - uvm_pkg::uvm_component::enable_stop_interrupt
+            - uvm_pkg::uvm_component::set_config_int
+            - uvm_pkg::uvm_component::set_config_string
+            - uvm_pkg::uvm_component::set_config_object
+            - uvm_pkg::uvm_component::get_config_int
+            - uvm_pkg::uvm_component::get_config_string
+            - uvm_pkg::uvm_component::get_config_object
+            - uvm_pkg::uvm_sequence_base::starting_phase
+            - uvm_pkg::uvm_sequence_base::seq_kind
+            - uvm_pkg::uvm_sequence_base::num_sequences
+            - uvm_pkg::uvm_sequence_base::get_seq_kind
+            - uvm_pkg::uvm_sequence_base::get_sequence
+            - uvm_pkg::uvm_sequence_base::do_sequence_kind
+            - uvm_pkg::uvm_sequence_base::get_sequence_by_name
+            - uvm_pkg::uvm_sequence_base::create_and_start_sequence_by_name
+            - uvm_pkg::uvm_sequencer_base::count
+            - uvm_pkg::uvm_sequencer_base::max_random_count
+            - uvm_pkg::uvm_sequencer_base::max_random_depth
+            - uvm_pkg::uvm_sequencer_base::default_sequence
+            - uvm_pkg::uvm_sequencer_base::sequences
+            - uvm_pkg::uvm_sequencer_base::add_sequence
+            - uvm_pkg::uvm_sequencer_base::remove_sequence
+            - uvm_pkg::uvm_sequencer_base::set_sequences_queue
+            - uvm_pkg::uvm_sequencer_base::start_default_sequence
+            - uvm_pkg::uvm_sequencer_base::get_seq_kind
+            - uvm_pkg::uvm_sequencer_base::get_sequence
+            - uvm_pkg::uvm_sequencer_base::num_sequences
+            - uvm_pkg::uvm_report_object::report_hook
+            - uvm_pkg::uvm_report_object::report_info_hook
+            - uvm_pkg::uvm_report_object::report_warning_hook
+            - uvm_pkg::uvm_report_object::report_error_hook
+            - uvm_pkg::uvm_report_object::report_fatal_hook
+            - uvm_pkg::uvm_report_object::report_header
+            - uvm_pkg::uvm_report_object::report_summarize
+            - uvm_pkg::uvm_report_object::die
+            - uvm_pkg::uvm_report_object::set_report_max_quit_count
+            - uvm_pkg::uvm_report_object::get_report_server
+            - uvm_pkg::uvm_report_object::dump_report_state
+            - uvm_pkg::uvm_report_server::summarize
+            - uvm_pkg::uvm_report_server::process_report
+            - uvm_pkg::uvm_report_server::compose_message
+            - uvm_pkg::uvm_report_handler::run_hooks
+            - uvm_pkg::uvm_report_handler::dump_state
+          help: Deprecated declarations, by qualified name
+      match: { kind: [Call, NamedValue, MemberAccess, Class, Subroutine] }
+      where: >-
+        !in_library(node) && used(node) != null && used(node).qname in options.apis
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              function new(string name = ""); super.new(name); endfunction
+              task body();
+                if (starting_phase != null)                        // expect: SVCHK-UVM014
+                  starting_phase.raise_objection(this);            // expect: SVCHK-UVM014
+              endtask
+            endclass
+            class base_test extends uvm_test;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                set_config_int("env.agt", "is_active", 1);         // expect: SVCHK-UVM014
+              endfunction
+              function bit report_hook(string id, string message,  // expect: SVCHK-UVM014
+                                       int verbosity, string filename, int line);
+                return 1;
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class bus_item extends uvm_sequence_item;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class bus_seq extends uvm_sequence #(bus_item);
+              function new(string name = ""); super.new(name); endfunction
+              task body();
+                uvm_phase p = get_starting_phase();
+                if (p != null) p.raise_objection(this);
+              endtask
+            endclass
+            class base_test extends uvm_test;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                uvm_config_db#(int)::set(this, "env.agt", "is_active", 1);
+              endfunction
+            endclass

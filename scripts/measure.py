@@ -10,7 +10,7 @@ opentitan-uart and fwvip).
 Each configuration runs N times (default 5) with `--stats`; each phase's
 time is the minimum over the runs, the heap is the last run's. The tables:
 
-1. **Phases** on the curated model, with the spike's 10 rules and the
+1. **Phases** on the curated model, with the spike's fw-hdl and Verible rules and the
    contexts trial's (content classifiers): parse, elaborate (slang's
    compile and bind, every diagnostic), lower, classify, rules; and the
    heap after each. *Lower %* is lowering against parse + elaborate, Q-SC5's
@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "cor
 import registry  # noqa: E402
 
 ROOT = registry.ROOT
-SPIKE = ["rules/spike/uvm.yaml", "rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml"]
+SPIKE = ["rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml"]
 TRIAL = "rules/trial/contexts.yaml"
 CONVENTION = "rules/trial/classify-convention.yaml"
 PHASES = ["parse_s", "elaborate_s", "lower_s", "classify_s", "rules_s", "index_s", "total_s"]
@@ -81,7 +81,7 @@ def main():
         conv = best(args.svcheck, args.runs, c, [TRIAL, CONVENTION])
         classify.append((c, out, conv))
 
-    print("### Phases: curated model, the 10 spike rules and the 3 trial rules "
+    print("### Phases: curated model, the spike rules (fw-hdl, verible) and the 3 trial rules "
           "(ms, min of %d)\n" % args.runs)
     print("| Corpus | Files | Parse | Elaborate | Lower | Lower % | Classify | Index | Rules "
           "| Total | Heap: elaborated → lowered (MB) | Model heap % | Peak RSS (MB) |")

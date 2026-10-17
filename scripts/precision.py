@@ -46,8 +46,11 @@ import yaml  # noqa: E402
 
 ROOT = registry.ROOT
 REVIEWS = os.path.join(ROOT, "tests", "precision")
-RULES = ["rules/spike/uvm.yaml", "rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml",
+RULES = ["rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml",
          "rules/trial/contexts.yaml"]
+# The built-in packs, which follow the profile's tiers, are selected by
+# namespace (svcheck-plan P2.5).
+SELECT = ["SVCHK-UVM"]
 VERDICTS = ("true", "false", "out-of-scope", "unreviewed")
 BARS = {"correctness": 0.0, "suspicious": 0.10, "portability": 0.10}
 HEADER = """\
@@ -62,6 +65,8 @@ def run(svcheck, corpus, rules):
     cmd = [svcheck]
     for r in rules:
         cmd += ["--rules", r]
+    for s in SELECT:
+        cmd += ["--select", s]
     cmd += ["-F", os.path.relpath(corpus["path"], ROOT), "--format", "json"]
     p = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
     if p.returncode not in (0, 1) or not p.stdout.strip():

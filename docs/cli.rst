@@ -18,6 +18,12 @@ usage; 3 an internal error.
 Which rules run
 ===============
 
+svcheck's built-in packs (the UVM pack, ``SVCHK-UVM``) are always loaded, and
+run as the profile and selectors say: none of them is in the default profile,
+so ``--select SVCHK-UVM`` or ``--profile recommended`` asks for them. They read
+the semantic model, so ``--semantic=none`` leaves them out. A rule file names
+their shared helpers as ``uses: [uvm.yaml]``.
+
 ``--rules`` names a rule file, or a directory whose ``*.yaml`` rule files are
 all loaded (files that only hold helpers for ``uses:`` are skipped). A rule of
 a file named this way runs unless something narrows it:
@@ -166,7 +172,8 @@ Queries
    where it is defined, its options and its documentation.
 ``--check-rules``
    Checks the rule files and runs each rule's examples (``--uvm DIR`` gives
-   UVM's ``src`` directory for the examples that need it).
+   UVM's ``src`` directory for the examples that need it). With no rule file,
+   it checks the built-in packs.
 ``--contexts``
    Each unit the rules' classifiers find, its labels and their evidence.
 ``--statistics``, ``--stats``

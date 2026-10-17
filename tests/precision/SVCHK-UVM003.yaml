@@ -1,0 +1,106 @@
+# Precision review of SVCHK-UVM003 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM003
+findings:
+- at: opentitan/lowrisc_dv_dv_base_reg_0/dv_base_lockable_field_cov.sv:27
+  message: dv_base_lockable_field_cov's constructor does not start with super.new(...); the implicit super.new()
+    passes no name to uvm_object
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a uvm_object constructor without super.new: the object''s name
+    is dropped (the name goes only to a covergroup)'
+- at: opentitan/lowrisc_dv_dv_base_reg_0/dv_base_mubi_cov.sv:24
+  message: mubi_cov's constructor does not start with super.new(...); the implicit super.new() passes
+    no name to uvm_object
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a uvm_object constructor without super.new: the object''s name
+    is dropped (the name goes only to a covergroup)'
+- at: opentitan/lowrisc_dv_dv_base_reg_0/dv_base_mubi_cov.sv:54
+  message: mubi32_cov's constructor does not start with super.new(...); the implicit super.new() passes
+    no name to uvm_object
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a uvm_object constructor without super.new: the object''s name
+    is dropped (the name goes only to a covergroup)'
+- at: opentitan/lowrisc_dv_dv_base_reg_0/dv_base_shadowed_field_cov.sv:25
+  message: dv_base_shadowed_field_cov's constructor does not start with super.new(...); the implicit super.new()
+    passes no name to uvm_object
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a uvm_object constructor without super.new: the object''s name
+    is dropped (the name goes only to a covergroup)'

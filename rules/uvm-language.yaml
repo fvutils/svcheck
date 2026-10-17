@@ -1,0 +1,195 @@
+# UVM pack, SystemVerilog language in testbenches (sv-uvm-rules-assessment
+# §3.10; consensus pack §5.1: L3, L7, L12). svcheck-plan P2.5, batch 1.
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  define:
+    # Expression e is the constant 0, integral or real (`#0`, `#0ns`).
+    zero(e): >-
+      const_int(e) == optional.of(0) ||
+      (e.isa(Expr) && e.constKind == ConstKind.Real && e.constReal == 0.0)
+    # Block b is a fork.
+    is_fork(b): b.isa(Block) && b.kind != BlockKind.Sequential
+    # v reads a variable of a loop around the join_none fork it is in, and
+    # not as the initial value of a variable the fork itself declares (the
+    # idiom that copies it when the fork starts).
+    loop_var_in_join_none(v): >-
+      v.isa(NamedValue) && v.decl != null &&
+      ancestors(v).exists(b, b.isa(Block) && b.kind == BlockKind.JoinNone &&
+        in_loop_of(b, v.decl) && !ancestors(v).exists(d, d.isa(VarDecl) && parent(d) == b))
+    # Node n is in a loop that declares variable x.
+    in_loop_of(n, x): ancestors(n).exists(l, l.isa(Loop) && x in l.vars)
+    # `disable fork` after a join_any in the same block, not inside a fork
+    # that isolates it, in a phase method or a process: elsewhere the caller
+    # may isolate it (uvm_sequence_base::start does, for body()), and the
+    # callers are not visible.
+    unisolated_disable_fork(d): >-
+      d.isa(Disable) && d.isFork &&
+      before(d).exists(s, s.isa(Block) && s.kind == BlockKind.JoinAny) &&
+      !ancestors(d).exists(a, is_fork(a)) &&
+      (method(d) == null || method(d).name.endsWith("_phase"))
+    # `disable label`: a block or task, by name.
+    disable_by_name(d): d.isa(Disable) && !d.isFork
+    # The variable a NamedValue reads, the name a Disable names.
+    read_name(v): 'v.isa(NamedValue) ? v.name : ""'
+    target(d): 'd.isa(Disable) ? d.target : ""'
+  rules:
+    - id: SVCHK-UVM011
+      name: zero-delay
+      summary: A '#0' delay is used to order processes
+      tier: style
+      family: process
+      message: >-
+        #0 orders this process after the others in the time step only by luck of scheduling;
+        synchronise on an event or a clock edge
+      doc: |
+        A `#0` moves a process to the inactive region of the current time
+        step. It hides a race between processes instead of removing it: the
+        code works until another process also uses `#0`, or a simulator
+        orders the regions' processes differently. Wait for the event or
+        clock edge the code depends on (`@`, `wait`, a `uvm_event`, a
+        clocking block).
+
+        Sources: Mentor cookbook, Cummings.
+      match: { kind: Timed }
+      where: >-
+        !in_library(node) && node.kind == TimingKind.Delay && node.exprs.size() == 1 &&
+        zero(node.exprs[0])
+      examples:
+        - code: |
+            module tb;
+              logic a;
+              initial begin
+                #0 a = 1;           // expect: SVCHK-UVM011
+                #0ns;               // expect: SVCHK-UVM011
+              end
+            endmodule
+        - code: |
+            module tb;
+              logic a, clk;
+              initial begin
+                #1 a = 1;
+                #1ns;
+                @(posedge clk);
+              end
+            endmodule
+
+    - id: SVCHK-UVM012
+      name: forbidden-system-function
+      summary: A system function with a better replacement is called ($random, $psprintf, $dist_*)
+      tier: suspicious
+      family: process
+      message: >-
+        ${node.name} ${node.name == "$psprintf" ? "is not standard SystemVerilog; use $sformatf" :
+        node.name == "$srandom" ? "is not standard SystemVerilog; seed with srandom() or the simulator's seed" :
+        "draws from a generator that is not random-stable; use $urandom, $urandom_range or randomize()"}
+      doc: |
+        `$random` and the `$dist_*` functions draw from one generator per
+        call site that is not tied to the thread or object, so adding or
+        moving code changes every later value: a failing seed does not
+        reproduce once the testbench is edited. `$urandom`,
+        `$urandom_range` and `randomize()` are random-stable (IEEE 1800
+        §18.14). For a class member, declare it `rand` and randomize the
+        object.
+
+        `$psprintf` and `$srandom` are not standard: `$sformatf` and the
+        `srandom()` method are.
+
+        Sources: lowRISC DV, Verible, CORE-V-VERIF.
+      options:
+        functions:
+          type: string-list
+          default: [$random, $psprintf, $srandom, $dist_uniform, $dist_normal, $dist_exponential,
+                    $dist_poisson, $dist_chi_square, $dist_t, $dist_erlang]
+          help: The system functions to report
+      match: { kind: Call }
+      where: >-
+        !in_library(node) && node.isSystem && node.name in options.functions
+      examples:
+        - code: |
+            module tb;
+              int seed, a, b;
+              initial begin
+                a = $random;                          // expect: SVCHK-UVM012
+                b = $dist_uniform(seed, 0, 10);       // expect: SVCHK-UVM012
+              end
+            endmodule
+        - code: |
+            module tb;
+              int a, b;
+              initial begin
+                a = $urandom;
+                b = $urandom_range(0, 10);
+                $display("%s", $sformatf("%0d", a));
+              end
+            endmodule
+
+    - id: SVCHK-UVM013
+      name: fork-hazard
+      summary: A fork hazard (a loop variable read in join_none, an unisolated disable fork, a disable by name)
+      tier: suspicious
+      family: process
+      message: >-
+        ${loop_var_in_join_none(node) ?
+          "'" + read_name(node) + "' is the loop's variable, read by a join_none process after the loop has moved on; copy it to an automatic variable declared in the fork" :
+        unisolated_disable_fork(node) ?
+          "disable fork after join_any also kills every other process this one started; wrap the fork and the disable in fork begin ... end join" :
+          "disable " + target(node) + " kills every running instance of the block, in every thread; use disable fork, a flag or an event"}
+      doc: |
+        Three ways a `fork` goes wrong that a reader does not see:
+
+        - **A loop variable read by a `join_none` process.** The processes
+          start when the parent blocks, after the loop has finished, so every
+          one sees the variable's last value. Copy it to an `automatic`
+          variable declared in the fork itself (`fork automatic int j = i;
+          ... join_none`), which is initialised when the fork starts. One
+          declared inside a `begin ... end` in the fork is too late.
+        - **`disable fork` after `join_any`, not isolated.** It kills every
+          child process of the current process, not only the fork's: in a
+          `run_phase`, also processes started before. Wrap the fork and the
+          disable in `fork begin ... end join`. Reported only in a phase
+          method or a process (`initial`): in another task, the caller may
+          isolate the call (UVM's `start()` does, for a sequence's `body()`),
+          and callers are not checked.
+        - **`disable` by name.** It kills every active instance of the named
+          block or task, in every thread that is running it.
+
+        Sources: lowRISC DV, Verible, Verissimo, slang, Verilator.
+      match: { kind: [NamedValue, Disable] }
+      where: >-
+        !in_library(node) &&
+        (loop_var_in_join_none(node) || unisolated_disable_fork(node) || disable_by_name(node))
+      examples:
+        - code: |
+            module tb;
+              task automatic t();
+                for (int i = 0; i < 4; i++) fork
+                  $display("%0d", i);                    // expect: SVCHK-UVM013
+                join_none
+                begin : blk
+                  disable blk;                           // expect: SVCHK-UVM013
+                end
+              endtask
+              initial begin
+                fork #1; #2; join_any
+                disable fork;                            // expect: SVCHK-UVM013
+              end
+            endmodule
+        - code: |
+            module tb;
+              task automatic t();
+                for (int i = 0; i < 4; i++) fork
+                  automatic int j = i;
+                  $display("%0d", j);
+                join_none
+                for (int i = 0; i < 4; i++) begin
+                  $display("%0d", i);
+                end
+                fork begin
+                  fork #1; #2; join_any
+                  disable fork;
+                end join
+                fork #1; #2; join_any
+                disable fork;
+              endtask
+            endmodule

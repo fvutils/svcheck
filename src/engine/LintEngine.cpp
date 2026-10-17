@@ -66,6 +66,19 @@ const IRuleSet *LintEngine::loadRules(const LintSource &src, bool builtin) {
     return m_rulesets.back().get();
 }
 
+// A built-in file without `rules:` holds helpers that the packs name in
+// `uses:` (`uvm.yaml`, svcheck-plan P2.5).
+static bool isHelperFile(const LintSource &src) {
+    try {
+        yaml::NodeUP doc = yaml::parse(src.name, src.text);
+        const yaml::Node *top = doc && doc->kind == yaml::Node::Kind::Map
+            ? doc->get("sv-rules") : nullptr;
+        return top && top->kind == yaml::Node::Kind::Map && !top->get("rules");
+    } catch (const yaml::YamlError &) {
+        return false;       // loaded, so the error is reported
+    }
+}
+
 uint32_t LintEngine::loadBuiltinRules() {
     if (m_builtinLoaded) {
         return 0;
@@ -76,6 +89,9 @@ uint32_t LintEngine::loadBuiltinRules() {
         LintSource src;
         src.name = f->name;
         src.text.assign(f->text, f->size);
+        if (isHelperFile(src)) {
+            continue;       // read by the packs through `uses:`
+        }
         if (loadRules(src, true)) {
             n++;
         }

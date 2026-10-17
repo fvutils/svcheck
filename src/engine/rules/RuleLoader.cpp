@@ -25,6 +25,7 @@
 #include <unordered_set>
 #include "Reflect.h"
 #include "RuleLoader.h"
+#include "BuiltinRules.h"
 #include "../catalog/Catalog.h"
 #include "../cel/CelCheck.h"
 #include "../cel/CelNode.h"
@@ -338,6 +339,25 @@ bool splitTemplate(const std::string &s, std::vector<Piece> &out, uint32_t &errO
 
 // `rel`, a path a file named `from` gives, as a path from where `from` is:
 // relative to its directory, '/' separated, without '.' or '..' steps.
+static const std::string BUILTIN_PREFIX = "svcheck:rules/";
+
+static bool isBuiltinName(const std::string &path) {
+    return path.compare(0, BUILTIN_PREFIX.size(), BUILTIN_PREFIX) == 0;
+}
+
+// The built-in file named `path` ("svcheck:rules/<file>"), or null.
+static const BuiltinRuleFile *builtinFile(const std::string &path) {
+    if (!isBuiltinName(path)) {
+        return nullptr;
+    }
+    for (const BuiltinRuleFile *f = builtinRuleFiles(); f->name; f++) {
+        if (path == f->name) {
+            return f;
+        }
+    }
+    return nullptr;
+}
+
 std::string resolvePath(const std::string &from, const std::string &rel) {
     std::string p = rel;
     if (!(rel.size() && rel[0] == '/')) {
@@ -1024,6 +1044,17 @@ private:
                 continue;
             }
             std::string path = resolvePath(m_files[m_cur]->name, item->s);
+            // A built-in file's `uses:` reads the built-in table; a user
+            // file's bare name is a built-in helper file (`uvm.yaml`) when
+            // there is no such file beside it (svcheck-plan P2.5).
+            std::string text;
+            const BuiltinRuleFile *bf = builtinFile(path);
+            if (!bf && item->s.find('/') == std::string::npos
+                    && (!m_reader || !m_reader(path, text))) {
+                if ((bf = builtinFile(BUILTIN_PREFIX + item->s))) {
+                    path = bf->name;
+                }
+            }
             auto on = std::find(m_useStack.begin(), m_useStack.end(), path);
             if (on != m_useStack.end()) {
                 std::string chain;
@@ -1036,13 +1067,19 @@ private:
             if (!m_usedPaths.insert(path).second) {
                 continue;
             }
-            std::string text;
-            if (!m_reader) {
+            if (bf) {
+                text.assign(bf->text, bf->size);
+            } else if (isBuiltinName(path)) {
+                diag(code::FileStructure, item->mark, "'" + item->s + "' is not a built-in "
+                    "helper file");
+                continue;
+            } else if (!text.empty()) {
+                // read above, looking for a built-in
+            } else if (!m_reader) {
                 diag(code::FileStructure, item->mark, "cannot load '" + item->s + "': this "
                     "host reads no files for 'uses'");
                 continue;
-            }
-            if (!m_reader(path, text)) {
+            } else if (!m_reader(path, text)) {
                 diag(code::FileStructure, item->mark, "cannot read '" + path + "', which "
                     "'uses' names");
                 continue;

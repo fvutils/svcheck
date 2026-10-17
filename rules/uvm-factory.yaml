@@ -1,0 +1,571 @@
+# UVM pack, factory and registration (sv-uvm-rules-assessment §3.1; consensus
+# pack §5.1: F1, F2, F3, F5, F7, F9, F11, F13, F16). svcheck-plan P2.5, batch 2.
+# F1 and F5 absorb the spike's UVM001 and UVM010.
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  define:
+    # The registry a registered class declares: its own `type_id`'s type.
+    registry(c): typedef_type(c.members.filter(m, m.name == "type_id")[0])
+    typedef_type(d): "d.isa(Typedef) ? d.type : null"
+    # The class's parent argument of create() is `this`.
+    is_this(e): >-
+      (e.isa(NamedValue) && e.name == "this") ||
+      (e.isa(Conversion) && e.operand.isa(NamedValue) && e.operand.name == "this")
+    # The name an assignment's target has: a variable's, or a member's.
+    lhs_name(e): "e.isa(NamedValue) ? e.name : e.isa(MemberAccess) ? e.member : \"\""
+  rules:
+    - id: SVCHK-UVM015
+      name: unregistered-uvm-class
+      summary: A UVM object or component class is not registered with the factory
+      tier: suspicious
+      family: factory
+      message: >-
+        '${node.name}' is a ${is_component(node) ? "uvm_component" : "uvm_object"} but is
+        not registered; type_id::create and factory overrides cannot see it
+      doc: |
+        Add `` `uvm_component_utils(T) `` or `` `uvm_object_utils(T) ``
+        (`_param_utils` for a parameterised class). The rule looks for the
+        `type_id` the macros declare, so a hand-written registration or a
+        house wrapper macro also satisfies it. Only the class's own members
+        count: a `type_id` inherited from a registered base creates the base.
+
+        Not reported, as classes the factory is not meant to build:
+
+        - an abstract (`virtual`) class;
+        - a base library's class: one that a class in another package derives
+          from (lowRISC's `dv_base_reg`, extended by each generated register
+          package);
+        - a class that builds itself with `new()` in a static method of its
+          own, having chosen not to use the factory (a configuration
+          specialised by a virtual interface, published through `config_db`
+          as its registered base);
+        - a class declared inside a module or interface (an interface's
+          proxy object, built by the interface);
+        - subclasses of `exempt_bases`: UVM's policy classes and report
+          server, which are installed with `new()`, and the register layer,
+          whose classes a register generator writes and builds (a base library
+          over it, such as lowRISC's `dv_base_mem`, often registers nothing).
+
+        Sources: Easier UVM, Mentor cookbook, Erickson, lowRISC DV,
+        Sutherland/Fitzpatrick, Verissimo, Sigasi.
+      options:
+        exempt_bases:
+          type: string-list
+          default: [uvm_report_server, uvm_report_catcher, uvm_visitor, uvm_printer,
+                    uvm_comparer, uvm_packer, uvm_recorder, uvm_reg, uvm_reg_block,
+                    uvm_reg_file, uvm_mem, uvm_vreg]
+          help: UVM classes (without uvm_pkg::) whose subclasses need not be registered
+      match: { kind: Class }
+      where: >-
+        !node.inLibrary && !node.isAbstract && is(node, "uvm_object") && !registered(node) &&
+        !(node.carrier != null && node.carrier.isa(Definition)) &&
+        !subclasses(node).exists(s, s.carrier != node.carrier) &&
+        !descendants(node, NewClass).exists(n, n.type != null && n.type.classDecl == node &&
+          method(n) != null && method(n).isStatic) &&
+        !options.exempt_bases.exists(b, is(node, b))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;   // expect: SVCHK-UVM015
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_cmp extends uvm_component;        // expect: SVCHK-UVM015
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_param_item #(int W = 8) extends uvm_sequence_item;
+              `uvm_object_param_utils(my_param_item #(W))
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            virtual class my_base extends uvm_component;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_cfg extends uvm_object;
+              `uvm_object_utils(my_cfg)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_cfg_p #(type VIF = int) extends my_cfg;
+              VIF vif;
+              function new(string name = ""); super.new(name); endfunction
+              static function void set(uvm_component c, string f, VIF vif);
+                my_cfg_p #(VIF) cfg = new();
+                cfg.vif = vif;
+                uvm_config_db#(my_cfg)::set(c, "*", f, cfg);
+              endfunction
+            endclass
+            class my_server extends uvm_default_report_server;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            interface bus_if;
+              class proxy extends uvm_object;
+                function new(string name = ""); super.new(name); endfunction
+              endclass
+            endinterface
+            class plain;
+            endclass
+
+    - id: SVCHK-UVM016
+      name: registry-flavour
+      summary: A class registers with the wrong registry, component or object
+      tier: correctness
+      family: factory
+      message: >-
+        ${node.name} is a ${is_component(node) ? "uvm_component" : "uvm_object"} but registers
+        as ${is_component(node) ? "an object" : "a component"}; use
+        `uvm_${is_component(node) ? "component" : "object"}_utils
+      doc: |
+        A component registers with `uvm_component_registry` (the
+        `` `uvm_component_utils `` macros), any other object with
+        `uvm_object_registry` (`` `uvm_object_utils ``). The wrong macro
+        fails to compile unless the constructor's arguments have defaults; then
+        the component is built as an object, with no parent, by
+        `type_id::create(name)`, and the factory lists it with the objects.
+
+        Sources: Sigasi, draconian_uvm, Verissimo.
+      match: { kind: Class }
+      let:
+        r: "registered(node) ? registry(node).classDecl : null"
+      where: >-
+        !node.inLibrary && is(node, "uvm_object") && r != null &&
+        r.qname in ["uvm_pkg::uvm_component_registry", "uvm_pkg::uvm_object_registry"] &&
+        is_component(node) != (r.qname == "uvm_pkg::uvm_component_registry")
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_cmp extends uvm_component;           // expect: SVCHK-UVM016
+              `uvm_object_utils(my_cmp)
+              function new(string name = "", uvm_component parent = null); super.new(name, parent); endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_cmp extends uvm_component;
+              `uvm_component_utils(my_cmp)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+
+    - id: SVCHK-UVM017
+      name: registry-type-argument
+      summary: A class registers another class's type
+      tier: correctness
+      family: factory
+      message: >-
+        ${node.name} registers ${registry(node).args[0].name}, not itself; its type_id::create
+        builds ${registry(node).args[0].name}
+      doc: |
+        The utils macro's argument is the class it is in. A copied
+        registration that names another class (often the class it was copied
+        from) gives this class the other's `type_id`: `create` builds the
+        other class, and the factory name is the other's, so an override of
+        this class never applies.
+
+        Sources: Sigasi, Verissimo.
+      match: { kind: Class }
+      let:
+        r: "registered(node) ? registry(node) : null"
+      where: >-
+        !node.inLibrary && is(node, "uvm_object") && r != null && r.classDecl != null &&
+        r.classDecl.qname in ["uvm_pkg::uvm_component_registry", "uvm_pkg::uvm_object_registry"] &&
+        r.args.size() > 0 && r.args[0].classDecl != null && r.args[0].classDecl != node
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_item extends uvm_sequence_item;
+              `uvm_object_utils(a_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class b_item extends a_item;                  // expect: SVCHK-UVM017
+              `uvm_object_utils(a_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class a_item extends uvm_sequence_item;
+              `uvm_object_utils(a_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class p_item #(int W = 8) extends a_item;
+              typedef p_item #(W) this_t;
+              `uvm_object_param_utils(this_t)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+
+    - id: SVCHK-UVM018
+      name: uvm-object-new
+      summary: A UVM object or component is constructed with new() instead of the factory
+      tier: style
+      family: factory
+      message: >-
+        ${node.type.name} is constructed with new(); use
+        ${node.type.name}::type_id::create(...) so factory overrides apply
+      doc: |
+        Only a class that registers itself is reported: with no `type_id` of
+        its own there is no create() to use instead (SVCHK-UVM015 reports the
+        class), and an inherited one would create the base. In UVM 1.2 that
+        leaves out the TLM FIFOs and `uvm_event`, which are not registered
+        there. TLM ports, exports and FIFOs (`uvm_port_base`,
+        `uvm_tlm_fifo_base`) are built with `new()` by convention, and a class
+        may construct its own type (in its `create`, a clone or a static
+        constructor).
+
+        Sources: Easier UVM, Mentor cookbook, Verilab, lowRISC DV,
+        Sutherland/Fitzpatrick, Sigasi, Verissimo.
+      match: { kind: NewClass }
+      let:
+        t: node.type.classDecl
+      where: >-
+        !node.isSuper && !in_library(node) && t != null && is(t, "uvm_object") &&
+        registered(t) && !is(t, "uvm_port_base") && !is(t, "uvm_tlm_fifo_base") &&
+        t != cls(node) && (method(node) == null || method(node).name != "create")
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                my_item a = new("a");                   // expect: SVCHK-UVM018
+                my_item b;
+                uvm_analysis_port #(my_item) ap = new("ap", this);
+                uvm_tlm_analysis_fifo #(my_item) f = new("f", this);
+                b = my_item::type_id::create("b");
+              endfunction
+            endclass
+            module top;
+              initial begin
+                my_item i = new("i");                   // expect: SVCHK-UVM018
+              end
+            endmodule
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class cfg extends uvm_object;
+              `uvm_object_utils(cfg)
+              function new(string name = ""); super.new(name); endfunction
+              static function cfg make(); cfg c = new(); return c; endfunction
+            endclass
+            class cfg_p #(type T = int) extends cfg;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            module top;
+              initial begin
+                cfg_p #(bit) c = new();
+              end
+            endmodule
+
+    - id: SVCHK-UVM019
+      name: create-name-mismatch
+      summary: The name passed to create() differs from the variable it is assigned to
+      tier: style
+      family: factory
+      message: >-
+        '${v}' is created with the name "${n.value()}";
+        reports and config_db paths will show a different name
+      doc: |
+        A component's name is its element of the hierarchy's paths: what
+        reports print and what `config_db` and override paths match. When it
+        is the name of the variable that holds it, a path in a test reads like
+        the code. Only a constant name is compared; `ignore_prefixes` are
+        stripped from the variable's name first (`m_env` created as `"env"`).
+        Objects (items, sequences, configurations) are compared only with
+        `objects`: their names are not paths, and a register generator's
+        names come from the register map.
+
+        Sources: Easier UVM, Mentor cookbook, lowRISC DV, Verible, Sigasi.
+      options:
+        ignore_prefixes:
+          type: string-list
+          default: []
+          help: Prefixes of a variable's name that the instance name may leave out (m_)
+        objects:
+          type: bool
+          default: false
+          help: Also compare the names of objects other than components
+      match: { kind: Assign }
+      let:
+        v: lhs_name(node.lhs)
+        k: node.rhs
+        n: "k.isa(Call) && factory_create(k) && k.args.size() > 0 ? const_string(k.args[0]) : optional.none()"
+      where: >-
+        !in_library(node) && v != "" && n.hasValue() && n.value() != v &&
+        (options.objects || is_component(node.rhs.type.classDecl)) &&
+        !options.ignore_prefixes.exists(p, v.startsWith(p) && v.substring(p.size()) == n.value())
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_agent extends uvm_agent;
+              `uvm_component_utils(my_agent)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              my_agent agt;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                agt = my_agent::type_id::create("agent", this);   // expect: SVCHK-UVM019
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_agent extends uvm_agent;
+              `uvm_component_utils(my_agent)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              my_agent agt;
+              my_agent agts[2];
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                agt = my_agent::type_id::create("agt", this);
+                this.agt = my_agent::type_id::create("agt", this);
+                foreach (agts[i]) agts[i] = my_agent::type_id::create($sformatf("agt%0d", i), this);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM020
+      name: create-parent-not-this
+      summary: A component creates a child component whose parent is not itself
+      tier: suspicious
+      family: factory
+      message: >-
+        ${node.type.name} is created with a parent other than this; it is not a child of
+        ${cls(node).name}, so its path and config_db lookups are wrong
+      doc: |
+        A component built in a component's method is that component's child:
+        `create(name, this)`. A `null` or missing parent puts it under the top
+        of the hierarchy, and another component's handle hides it in that
+        component's subtree: either way its full name, and every `config_db`
+        and override path that names it, is not what the code reads as.
+        Only `create` called in a component's own method is checked.
+
+        Sources: Easier UVM, lowRISC DV, Sutherland/Fitzpatrick.
+      match: { kind: Call }
+      let:
+        c: cls(node)
+      where: >-
+        !in_library(node) && factory_create(node) && node.type != null &&
+        node.type.classDecl != null && is_component(node.type.classDecl) &&
+        c != null && is_component(c) && method(node) != null && !method(node).isStatic &&
+        node.args.size() > 1 && !is_this(node.args[1])
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_agent extends uvm_agent;
+              `uvm_component_utils(my_agent)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              my_agent a, b;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                a = my_agent::type_id::create("a", null);   // expect: SVCHK-UVM020
+                b = my_agent::type_id::create("b", a);      // expect: SVCHK-UVM020
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_agent extends uvm_agent;
+              `uvm_component_utils(my_agent)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              my_agent a;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                a = my_agent::type_id::create("a", this);
+              endfunction
+            endclass
+            module top;
+              my_env e;
+              initial e = my_env::type_id::create("e", null);
+            endmodule
+
+    - id: SVCHK-UVM021
+      name: override-by-name
+      summary: A factory override names its types by string
+      tier: style
+      family: factory
+      message: >-
+        ${node.name}() names the types by string; use the _by_type form with get_type(),
+        which the compiler checks
+      doc: |
+        The factory's `set_type_override_by_name` and
+        `set_inst_override_by_name`, and a component's `set_type_override`
+        and `set_inst_override`, take the types as strings: a typo, or a class that was renamed, compiles and
+        fails only when the test runs (or silently, if the name is
+        registered for another class). The type-based forms
+        (`set_type_override_by_type`, `T::type_id::set_type_override`) take
+        `get_type()` handles that the compiler checks.
+
+        Sources: Easier UVM, Verilab.
+      match: { kind: Call }
+      where: >-
+        !in_library(node) && node.subroutine != null && node.subroutine.qname in [
+          "uvm_pkg::uvm_factory::set_type_override_by_name",
+          "uvm_pkg::uvm_factory::set_inst_override_by_name",
+          "uvm_pkg::uvm_default_factory::set_type_override_by_name",
+          "uvm_pkg::uvm_default_factory::set_inst_override_by_name",
+          "uvm_pkg::uvm_component::set_type_override",
+          "uvm_pkg::uvm_component::set_inst_override"]
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                set_type_override("drv", "my_drv");                       // expect: SVCHK-UVM021
+                uvm_factory::get().set_inst_override_by_name("drv", "my_drv", "*");   // expect: SVCHK-UVM021
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class drv extends uvm_driver;
+              `uvm_component_utils(drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_drv extends drv;
+              `uvm_component_utils(my_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                drv::type_id::set_type_override(my_drv::get_type());
+                set_type_override_by_type(drv::get_type(), my_drv::get_type());
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM022
+      name: uvm-global-handle
+      summary: A uvm_pkg global handle is read where it may not be set
+      tier: portability
+      family: factory
+      message: >-
+        ${node.name == "uvm_top" ? "uvm_top is read in a static initialiser; in IEEE 1800.2 it is null until uvm_root::get() first runs: use uvm_root::get()" :
+        "uvm_pkg::factory is gone from UVM 1.2; use uvm_factory::get()"}
+      doc: |
+        UVM 1.1's global `factory` is gone from UVM 1.2 (it is reported when
+        it compiles, on a UVM 1.1 library): `uvm_factory::get()` works on
+        every library. IEEE 1800.2 keeps `uvm_top` only for compatibility,
+        and no longer as a constant: it is set the first time
+        `uvm_root::get()` runs, so a static initialiser (of a package or
+        class variable, or a module's) that reads it can see `null`. Read
+        in a method or a procedural block it is set, and not reported.
+
+        Sources: Easier UVM, Verissimo.
+      match: { kind: NamedValue }
+      where: >-
+        !in_library(node) && node.decl != null &&
+        (node.decl.qname == "uvm_pkg::factory" ||
+         (node.decl.qname == "uvm_pkg::uvm_top" && method(node) == null &&
+          enclosing(node, Process) == null))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package tb_pkg;
+              import uvm_pkg::*;
+              uvm_root top = uvm_top;                     // expect: SVCHK-UVM022
+            endpackage
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void end_of_elaboration_phase(uvm_phase phase);
+                uvm_root top = uvm_root::get();
+                top.print_topology();
+                uvm_top.print_topology();
+                uvm_factory::get().print();
+              endfunction
+            endclass
+            module tb;
+              initial uvm_top.finish_on_completion = 0;
+            endmodule
+
+    - id: SVCHK-UVM023
+      name: component-created-outside-build
+      summary: A component is created outside build_phase
+      tier: suspicious
+      family: factory
+      message: >-
+        ${node.type.name} is created in ${method(node).name}, not in build_phase; components
+        are built top-down in build_phase, before connect_phase runs
+      doc: |
+        UVM builds the hierarchy top-down in `build_phase`: a child created
+        there gets its configuration and is built, connected and run with its
+        siblings. Created in the constructor it misses configuration set by
+        its parent's `build_phase`; created later it misses the phases already
+        run, and UVM reports an error once `end_of_elaboration` has passed.
+
+        A helper that `build_phase` calls (in the same class) may create
+        components, as may methods named in `methods`. Only `create` in a
+        component's method is checked (a test is created by `run_test`).
+
+        Sources: Easier UVM, Verilab, lowRISC DV, Verissimo.
+      options:
+        methods:
+          type: string-list
+          default: [build_phase]
+          help: Methods that may create components
+      match: { kind: Call }
+      let:
+        m: method(node)
+        c: cls(node)
+      where: >-
+        !in_library(node) && factory_create(node) && node.type != null &&
+        node.type.classDecl != null && is_component(node.type.classDecl) &&
+        c != null && is_component(c) && m != null && !(m.name in options.methods) &&
+        !options.methods.exists(p, helper_of(m, c, p))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_agent extends uvm_agent;
+              `uvm_component_utils(my_agent)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              my_agent a, b;
+              function new(string name, uvm_component parent);
+                super.new(name, parent);
+                a = my_agent::type_id::create("a", this);   // expect: SVCHK-UVM023
+              endfunction
+              function void connect_phase(uvm_phase phase);
+                b = my_agent::type_id::create("b", this);   // expect: SVCHK-UVM023
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_agent extends uvm_agent;
+              `uvm_component_utils(my_agent)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              my_agent a, b;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                a = my_agent::type_id::create("a", this);
+                build_agents();
+              endfunction
+              function void build_agents();
+                b = my_agent::type_id::create("b", this);
+              endfunction
+            endclass

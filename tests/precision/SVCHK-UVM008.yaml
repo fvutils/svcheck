@@ -1,0 +1,85 @@
+# Precision review of SVCHK-UVM008 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM008
+findings:
+- at: opentitan/lowrisc_dv_alert_esc_agent_0/alert_esc_agent.sv:113
+  message: default_sequence starts a sequence implicitly; start it from the test with seq.start(sequencer)
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a reactive agent starts its own responder sequence on its own
+    sequencer: deliberate, agent-internal'
+- at: opentitan/lowrisc_dv_alert_esc_agent_0/alert_esc_agent.sv:123
+  message: default_sequence starts a sequence implicitly; start it from the test with seq.start(sequencer)
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a reactive agent starts its own responder sequence on its own
+    sequencer: deliberate, agent-internal'
+- at: opentitan/lowrisc_dv_entropy_src_xht_agent_0.1/entropy_src_xht_agent.sv:37
+  message: default_sequence starts a sequence implicitly; start it from the test with seq.start(sequencer)
+  corpora:
+  - opentitan-entropy_src
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a reactive agent starts its own responder sequence on its own
+    sequencer: deliberate, agent-internal'
+- at: opentitan/lowrisc_dv_push_pull_agent_0.1/push_pull_agent.sv:49
+  message: default_sequence starts a sequence implicitly; start it from the test with seq.start(sequencer)
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a reactive agent starts its own responder sequence on its own
+    sequencer: deliberate, agent-internal'

@@ -1,5 +1,5 @@
-"""The spike's 10 rules (svcheck-plan P1.6; rules/spike/): 3 Verible-equivalent,
-4 UVM, 3 fw-hdl.
+"""The spike's rules (svcheck-plan P1.6; rules/spike/): 3 Verible-equivalent and
+3 fw-hdl (its 4 UVM rules are now the pack's, P2.5).
 
 - Every rule's examples pass, on the curated model, with UVM 1800.2-2020.3.1
   and with UVM 1.2 (the second configuration, P1.7).
@@ -60,8 +60,10 @@ def model(request):
     h.close()
 
 
-def test_there_are_ten_rules():
-    assert len(list(_rules())) == 10
+def test_there_are_six_rules():
+    # Ten in P1.6; the four UVM rules became pack rules in P2.5 (UVM001,
+    # UVM010, UVM020, UVM030: SVCHK-UVM015, 018, 007, 024).
+    assert len(list(_rules())) == 6
 
 
 @pytest.mark.parametrize("name", _rule_files())

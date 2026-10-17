@@ -57,7 +57,10 @@ optional ``-TEAM`` qualifier, three digits; ``SVCHK`` is svcheck's own),
 ``examples``. A file may also have ``defaults:``, ``define:`` (helpers shared
 by its rules), ``options:`` (read by every rule and helper as
 ``options.<name>``), ``uses:`` (helper files, relative to the file naming
-them) and, experimentally, ``contexts:`` and ``applies_to:``.
+them; a bare name with no such file beside it is a built-in helper file, as
+``uses: [uvm.yaml]`` for the UVM pack's vocabulary: roles such as
+``is_component(c)`` and ``is_sequence(c)``, ``PHASES``, ``config_db(k)``) and,
+experimentally, ``contexts:`` and ``applies_to:``.
 
 What a rule can match
 =====================

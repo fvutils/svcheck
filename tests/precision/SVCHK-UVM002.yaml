@@ -1,0 +1,542 @@
+# Precision review of SVCHK-UVM002 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM002
+findings:
+- at: core-v-verif/cv32e40p/env/uvme/cov/uvme_cv32e40p_cov_model.sv:85
+  message: uvme_cv32e40p_cov_model_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/cov/uvme_cv32e40p_fp_instr_covg.sv:803
+  message: uvme_cv32e40p_fp_instr_covg's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/cov/uvme_cv32e40p_zfinx_instr_covg.sv:772
+  message: uvme_cv32e40p_zfinx_instr_covg's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/cov/uvme_debug_covg.sv:635
+  message: uvme_debug_covg's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/cov/uvme_interrupt_covg_v2.sv:111
+  message: uvme_interrupt_covg_v2's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/cov/uvme_rv32x_hwloop_covg.sv:315
+  message: uvme_rv32x_hwloop_covg's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/uvma_cv32e40p_core_cntrl_agent.sv:62
+  message: uvma_cv32e40p_core_cntrl_agent_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/uvma_cv32e40p_core_cntrl_drv.sv:39
+  message: uvma_cv32e40p_core_cntrl_drv_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/uvme_cv32e40p_env.sv:146
+  message: uvme_cv32e40p_env_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/uvme_cv32e40p_prd.sv:80
+  message: uvme_cv32e40p_prd_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/uvme_cv32e40p_sb.sv:78
+  message: uvme_cv32e40p_sb_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/env/uvme/uvme_cv32e40p_vsqr.sv:61
+  message: uvme_cv32e40p_vsqr_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/tests/uvmt/base-tests/uvmt_cv32e40p_base_test.sv:210
+  message: uvmt_cv32e40p_base_test_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/tests/uvmt/compliance-tests/uvmt_cv32e40p_firmware_test.sv:97
+  message: uvmt_cv32e40p_firmware_test_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/cv32e40p/tests/uvmt/compliance-tests/uvmt_cv32e40p_riscof_firmware_test.sv:99
+  message: uvmt_cv32e40p_riscof_firmware_test_c's constructor should be new(string name, uvm_component
+    parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/cov/uvma_clknrst_cov_model.sv:112
+  message: uvma_clknrst_cov_model_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/seq/uvma_clknrst_seq_item_logger.sv:39
+  message: uvma_clknrst_seq_item_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/seq/uvma_clknrst_seq_item_logger.sv:99
+  message: uvma_clknrst_seq_item_logger_json_c's constructor should be new(string name, uvm_component
+    parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_agent.sv:125
+  message: uvma_clknrst_agent_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_drv.sv:69
+  message: uvma_clknrst_drv_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_mon.sv:89
+  message: uvma_clknrst_mon_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_mon_trn_logger.sv:50
+  message: uvma_clknrst_mon_trn_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_mon_trn_logger.sv:115
+  message: uvma_clknrst_mon_trn_logger_json_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_clknrst/uvma_clknrst_sqr.sv:56
+  message: uvma_clknrst_sqr_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_core_cntrl/uvma_core_cntrl_agent.sv:112
+  message: uvma_core_cntrl_agent_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_core_cntrl/uvma_core_cntrl_drv.sv:64
+  message: uvma_core_cntrl_drv_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_core_cntrl/uvma_core_cntrl_sqr.sv:51
+  message: uvma_core_cntrl_sqr_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/cov/uvma_debug_cov_model.sv:94
+  message: uvma_debug_cov_model_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/seq/uvma_debug_seq_item_logger.sv:37
+  message: uvma_debug_seq_item_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/seq/uvma_debug_seq_item_logger.sv:79
+  message: uvma_debug_seq_item_logger_json_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/uvma_debug_agent.sv:117
+  message: uvma_debug_agent_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/uvma_debug_drv.sv:82
+  message: uvma_debug_drv_c's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/uvma_debug_mon.sv:89
+  message: uvma_debug_mon_c's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/uvma_debug_mon_trn_logger.sv:37
+  message: uvma_debug_mon_trn_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/uvma_debug_mon_trn_logger.sv:79
+  message: uvma_debug_mon_trn_logger_json_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_debug/uvma_debug_sqr.sv:57
+  message: uvma_debug_sqr_c's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/cov/uvma_interrupt_cov_model.sv:96
+  message: uvma_interrupt_cov_model_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/seq/uvma_interrupt_seq_item_logger.sv:36
+  message: uvma_interrupt_seq_item_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/seq/uvma_interrupt_seq_item_logger.sv:78
+  message: uvma_interrupt_seq_item_logger_json_c's constructor should be new(string name, uvm_component
+    parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/uvma_interrupt_agent.sv:125
+  message: uvma_interrupt_agent_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/uvma_interrupt_drv.sv:87
+  message: uvma_interrupt_drv_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/uvma_interrupt_mon.sv:75
+  message: uvma_interrupt_mon_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/uvma_interrupt_mon_trn_logger.sv:37
+  message: uvma_interrupt_mon_trn_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/uvma_interrupt_mon_trn_logger.sv:79
+  message: uvma_interrupt_mon_trn_logger_json_c's constructor should be new(string name, uvm_component
+    parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_interrupt/uvma_interrupt_sqr.sv:57
+  message: uvma_interrupt_sqr_c's constructor should be new(string name, uvm_component parent), with no
+    defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_agent.sv:120
+  message: uvma_obi_memory_agent_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_cov_model.sv:141
+  message: uvma_obi_memory_cov_model_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_drv.sv:142
+  message: uvma_obi_memory_drv_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_mon.sv:112
+  message: uvma_obi_memory_mon_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_mon_trn_logger.sv:39
+  message: uvma_obi_memory_mon_trn_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_mon_trn_logger.sv:135
+  message: uvma_obi_memory_mon_trn_logger_json_c's constructor should be new(string name, uvm_component
+    parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:39
+  message: uvma_obi_memory_seq_item_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_seq_item_logger.sv:191
+  message: uvma_obi_memory_seq_item_logger_json_c's constructor should be new(string name, uvm_component
+    parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/comps/uvma_obi_memory_sqr.sv:60
+  message: uvma_obi_memory_sqr_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_rvfi/uvma_rvfi_agent.sv:107
+  message: uvma_rvfi_agent_c's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_rvfi/uvma_rvfi_instr_mon.sv:76
+  message: uvma_rvfi_instr_mon_c's constructor should be new(string name, uvm_component parent), with
+    no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_agents/uvma_rvfi/uvma_rvfi_mon_trn_logger.sv:44
+  message: uvma_rvfi_mon_trn_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_libs/uvml_hrtbt/uvml_hrtbt_mon.sv:97
+  message: uvml_hrtbt_mon_c's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_libs/uvml_logs/uvml_logs_mon_trn_logger.sv:108
+  message: uvml_logs_mon_trn_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_libs/uvml_logs/uvml_logs_seq_item_logger.sv:108
+  message: uvml_logs_seq_item_logger_c's constructor should be new(string name, uvm_component parent),
+    with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: core-v-verif/lib/uvm_libs/uvml_sb/uvml_sb_simplex.sv:136
+  message: uvml_sb_simplex_c's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V-VERIF house style: every component constructor has defaults
+    (the core-v preset, P2.6)'
+- at: opentitan/lowrisc_dv_adc_ctrl_env_0.1/adc_ctrl_env_cov.sv:84
+  message: adc_ctrl_env_cov's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - opentitan-adc_ctrl
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a defaulted parent, against lowRISC''s own `uvm_component_new`
+    form used elsewhere'
+- at: opentitan/lowrisc_dv_cip_lib_0/cip_base_env.sv:42
+  message: cip_base_env's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a defaulted parent, against lowRISC''s own `uvm_component_new`
+    form used elsewhere'
+- at: opentitan/lowrisc_dv_dv_base_agent_0/dv_base_agent_cov.sv:16
+  message: dv_base_agent_cov's constructor should be new(string name, uvm_component parent), with no defaults
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a defaulted parent, against lowRISC''s own `uvm_component_new`
+    form used elsewhere'

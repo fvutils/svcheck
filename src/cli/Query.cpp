@@ -267,7 +267,14 @@ int explainRule(lint::LintEngine &engine, const std::string &name, const std::st
 }
 
 int checkRules(lint::LintEngine &engine, const LintOptions &opts, bool ruleErrors, bool none) {
-    if (none) {
+    // The named files' rules; with none named, the built-in packs.
+    std::vector<const lint::rules::Rule *> rules;
+    for (const lint::rules::Rule *r : engine.ruleList()) {
+        if (r->m_builtin == none) {
+            rules.push_back(r);
+        }
+    }
+    if (rules.empty() && none) {
         std::fprintf(stderr, "svcheck: --check-rules: no rule files (--rules, or `rules` in "
             "--config)\n");
         return 2;
@@ -281,7 +288,7 @@ int checkRules(lint::LintEngine &engine, const LintOptions &opts, bool ruleError
     size_t passed = 0, failed = 0;
     lint::JsonWriter w;
     w.beginObject().key("examples").beginArray();
-    for (const lint::rules::Rule *r : engine.ruleList()) {
+    for (const lint::rules::Rule *r : rules) {
         for (const lint::rules::Example &x : r->m_examples) {
             lint::run::ExampleResult res = lint::run::runExample(*r, x, compile,
                 engine.classifiers());
@@ -308,7 +315,7 @@ int checkRules(lint::LintEngine &engine, const LintOptions &opts, bool ruleError
         std::printf("%s\n", w.str().c_str());
     } else {
         std::fprintf(stderr, "svcheck: %zu rule%s, %zu example%s passed, %zu failed%s\n",
-            engine.ruleList().size(), engine.ruleList().size() == 1 ? "" : "s", passed,
+            rules.size(), rules.size() == 1 ? "" : "s", passed,
             passed == 1 ? "" : "s", failed, ruleErrors ? "; the rule files have errors" : "");
     }
     return (failed || ruleErrors) ? 1 : 0;

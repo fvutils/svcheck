@@ -1,0 +1,61 @@
+# The UVM vocabulary (svcheck-design §5.1; sv-uvm-rules-assessment §2.1): the
+# helpers the built-in UVM pack reads through `uses: [uvm.yaml]`. A user's rule
+# file names it the same way: a bare `uses:` name that is not a file beside the
+# rule file is a built-in helper file. Grown from rules/spike/uvm-vocab.yaml
+# (svcheck-plan P2.5). It holds no rules, so it is not loaded as a pack.
+sv-rules:
+  version: 1
+  define:
+    # c is the UVM class `base` or derives from it ("uvm_object", ...).
+    is(c, base): derives_from(c, "uvm_pkg::" + base)
+    # The class, and the subroutine, a node is in (null outside one).
+    cls(n): enclosing(n, Class)
+    method(n): enclosing(n, Subroutine)
+    # Method m of class c is called from c's `phase` method (a helper of that
+    # phase), one level deep.
+    helper_of(m, c, phase): >-
+      m != null && c != null && descendants(c, Call).exists(k,
+        k.subroutine == m && method(k) != null && method(k).name == phase)
+    # Class c registers itself with the factory: it declares its own
+    # `type_id`, as the utils macros do. An inherited one creates the base.
+    registered(c): c.members.exists(m, m.name == "type_id")
+
+    # ---- Roles. A component is also a uvm_object; is_object leaves it out.
+    is_component(c): is(c, "uvm_component")
+    is_object(c): is(c, "uvm_object") && !is(c, "uvm_component")
+    is_sequence(c): is(c, "uvm_sequence_base")
+    # A sequence item: not a sequence, which is also a uvm_sequence_item.
+    is_item(c): is(c, "uvm_sequence_item") && !is(c, "uvm_sequence_base")
+    is_driver(c): is(c, "uvm_driver")
+    is_monitor(c): is(c, "uvm_monitor")
+    is_env(c): is(c, "uvm_env")
+    is_test(c): is(c, "uvm_test")
+    is_scoreboard(c): is(c, "uvm_scoreboard")
+    # TLM ports, exports and imps: built with new() by convention.
+    is_port(c): is(c, "uvm_port_base")
+
+    # ---- Phases: the common phases, as methods of uvm_component.
+    PHASES: >-
+      ["build_phase", "connect_phase", "end_of_elaboration_phase",
+       "start_of_simulation_phase", "run_phase", "extract_phase", "check_phase",
+       "report_phase", "final_phase"]
+    # The run-time phases, which run in parallel with run_phase.
+    RUN_PHASES: >-
+      ["pre_reset_phase", "reset_phase", "post_reset_phase", "pre_configure_phase",
+       "configure_phase", "post_configure_phase", "pre_main_phase", "main_phase",
+       "post_main_phase", "pre_shutdown_phase", "shutdown_phase", "post_shutdown_phase"]
+
+    # ---- Calls.
+    # The value of call c is thrown away: a call statement, or a void cast.
+    discarded(c): parent(c).isa(ExprStmt) || void_cast(parent(c))
+    void_cast(e): e.isa(Conversion) && e.type.name == "void"
+    # Call k is a static method of uvm_config_db#(T): set, get, exists, wait_modified.
+    config_db(k): >-
+      k.classType != null && k.classType.classDecl != null &&
+      k.classType.classDecl.qname == "uvm_pkg::uvm_config_db"
+    # Call k is `T::type_id::create(...)`, the factory's create of a
+    # registered class; k.type is T.
+    factory_create(k): >-
+      k.isa(Call) && k.name == "create" && k.classType != null &&
+      k.classType.classDecl != null &&
+      k.classType.classDecl.qname in ["uvm_pkg::uvm_component_registry", "uvm_pkg::uvm_object_registry"]

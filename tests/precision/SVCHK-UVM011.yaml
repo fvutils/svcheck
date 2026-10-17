@@ -1,0 +1,246 @@
+# Precision review of SVCHK-UVM011 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM011
+findings:
+- at: fw-wb-dma/packages/fw-hdl/src/fw_clock_xtor_if.sv:27
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - fw-wb-dma
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_cip_lib_0/seq_lib/cip_base_vseq.sv:589
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_cip_lib_0/seq_lib/cip_base_vseq.sv:1487
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_csr_utils_0/csr_utils_pkg.sv:184
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_csr_utils_0/csr_utils_pkg.sv:331
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_csr_utils_0/csr_utils_pkg.sv:469
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_csr_utils_0/csr_utils_pkg.sv:645
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_csr_utils_0/csr_utils_pkg.sv:700
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_i2c_agent_0.1/seq_lib/i2c_base_seq.sv:96
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-i2c
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_keymgr_env_0.1/keymgr_scoreboard.sv:474
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-keymgr
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_kmac_env_0.1/kmac_scoreboard.sv:401
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_kmac_env_0.1/seq_lib/kmac_base_vseq.sv:965
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-kmac
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'
+- at: opentitan/lowrisc_dv_tl_agent_0/seq_lib/tl_device_seq.sv:79
+  message: '#0 orders this process after the others in the time step only by luck of scheduling; synchronise
+    on an event or a clock edge'
+  corpora:
+  - opentitan-adc_ctrl
+  - opentitan-aes
+  - opentitan-aon_timer
+  - opentitan-csrng
+  - opentitan-dma
+  - opentitan-edn
+  - opentitan-entropy_src
+  - opentitan-hmac
+  - opentitan-i2c
+  - opentitan-keymgr
+  - opentitan-kmac
+  - opentitan-pattgen
+  - opentitan-rv_timer
+  - opentitan-spi_device
+  - opentitan-spi_host
+  - opentitan-sysrst_ctrl
+  - opentitan-uart
+  - opentitan-usbdev
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a deliberate #0 to let same-time-step processes update (lowRISC
+    DV, fw-hdl tick(0)); nobody would change it'

@@ -1,0 +1,13 @@
+# Precision review of SVCHK-UVM025 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM025
+findings:
+- at: opentitan/lowrisc_dv_uart_env_0.1/seq_lib/uart_noise_filter_vseq.sv:23
+  message: dut_shutdown calls super.dut_init(); did it mean super.dut_shutdown()?
+  corpora:
+  - opentitan-uart
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a copied line: dut_shutdown overrides the base''s dut_shutdown
+    but calls super.dut_init(), so the base''s shutdown never runs and init runs again'

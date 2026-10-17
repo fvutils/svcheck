@@ -1,0 +1,30 @@
+# Precision review of SVCHK-UVM006 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM006
+findings:
+- at: opentitan/lowrisc_dv_usb20_agent_0.1/usb20_driver.sv:90
+  message: print() writes to standard output, around the report server; report its convert2string() with
+    `uvm_info
+  corpora:
+  - opentitan-aon_timer
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): pkt.print() in a driver, on every packet, to standard output'
+- at: opentitan/lowrisc_dv_usb20_agent_0.1/usb20_driver.sv:114
+  message: print() writes to standard output, around the report server; report its convert2string() with
+    `uvm_info
+  corpora:
+  - opentitan-aon_timer
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): pkt.print() in a driver, on every packet, to standard output'
+- at: opentitan/lowrisc_dv_usb20_agent_0.1/usb20_driver.sv:146
+  message: print() writes to standard output, around the report server; report its convert2string() with
+    `uvm_info
+  corpora:
+  - opentitan-aon_timer
+  - opentitan-usbdev
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): pkt.print() in a driver, on every packet, to standard output'

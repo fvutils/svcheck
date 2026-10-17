@@ -309,7 +309,15 @@ void writeFindingsJson(const std::vector<Finding> &found, const std::vector<Find
 }
 
 void writeSarif(const std::vector<Finding> &found, const std::vector<Finding> &waived,
-        const lint::LintEngine &engine) {
+        const lint::LintEngine &engine, const lint::yaml::Node *result) {
+    // The rules that ran (the result's stats), not every rule loaded: the
+    // built-in packs are loaded whether or not the selection enables them.
+    std::set<std::string> ran;
+    if (const lint::yaml::Node *stats = result ? result->get("stats") : nullptr) {
+        for (const lint::yaml::NodeUP &st : stats->items) {
+            ran.insert(str(st.get(), "id"));
+        }
+    }
     JsonWriter w;
     w.beginObject();
     w.kv("$schema", "https://json.schemastore.org/sarif-2.1.0.json").kv("version", "2.1.0");
@@ -320,6 +328,9 @@ void writeSarif(const std::vector<Finding> &found, const std::vector<Finding> &w
     w.key("rules").beginArray();
     std::set<std::string> described;
     for (const lint::rules::Rule *r : engine.ruleList()) {
+        if (!ran.count(r->m_id)) {
+            continue;
+        }
         w.beginObject().kv("id", r->m_id).kv("name", r->m_name);
         w.key("shortDescription").beginObject().kv("text", r->m_summary).endObject();
         w.endObject();
@@ -734,6 +745,12 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
 
     lint::LintEngine engine;
     engine.setReader(lint::rules::diskReader());
+    // The built-in packs (rules/*.yaml) follow the profile's tiers, so
+    // loading them changes nothing until a profile or selector asks. They
+    // read the model, so they are not loaded without it (--semantic=none).
+    if (opts.layer == host::SemanticLayer::Model) {
+        engine.loadBuiltinRules();
+    }
     bool ruleErrors = false;
     std::vector<std::string> rulePaths = cfg.rules;
     rulePaths.insert(rulePaths.end(), opts.rules.begin(), opts.rules.end());
@@ -1022,7 +1039,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     if (opts.format == "json") {
         writeFindingsJson(found, waived, lc, result.get(), opts.stats ? &rs : nullptr);
     } else if (opts.format == "sarif") {
-        writeSarif(found, waived, engine);
+        writeSarif(found, waived, engine, result.get());
     } else if (opts.format == "github") {
         writeGithub(found);
     } else {

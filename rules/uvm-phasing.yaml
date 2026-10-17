@@ -1,0 +1,373 @@
+# UVM pack, phasing, objections and end of test (sv-uvm-rules-assessment §3.5;
+# consensus pack §5.1: P1, P3, P4, P8, P10, P13, P14). svcheck-plan P2.5,
+# batch 2. P1 absorbs the spike's UVM030.
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  define:
+    # Statement list l sets finish_on_completion (run_test then returns).
+    sets_finish(l): >-
+      l.exists(s, descendants(s, MemberAccess).exists(m, m.member == "finish_on_completion"))
+  rules:
+    - id: SVCHK-UVM024
+      name: phase-missing-super
+      summary: An overridden phase method does not call the parent's implementation
+      tier: suspicious
+      family: uvm
+      message: >-
+        ${node.name} overrides ${node.overrides.qname} but never calls
+        super.${node.name}(); the parent's ${node.name} is skipped
+      doc: |
+        A phase method that overrides a user base class's replaces it: what
+        the base builds, connects or checks in that phase is skipped unless
+        the override calls `super`. Only an override of user code is
+        checked: `uvm_component`'s own phase methods are empty, so skipping
+        them is harmless (whether to call them anyway is a house choice,
+        assessment P2).
+
+        Sources: Easier UVM, lowRISC DV, Verilab, Sigasi, Verissimo,
+        draconian_uvm.
+      match: { kind: Subroutine }
+      where: >-
+        (node.name in PHASES || node.name in RUN_PHASES) && !node.inLibrary &&
+        cls(node) != null && is_component(cls(node)) &&
+        node.overrides != null && !node.overrides.inLibrary &&
+        !descendants(node, Call).exists(c, c.subroutine == node.overrides)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class base_drv extends uvm_component;
+              `uvm_component_utils(base_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+              endfunction
+              function void connect_phase(uvm_phase phase);
+              endfunction
+              task main_phase(uvm_phase phase);
+              endtask
+            endclass
+            class my_drv extends base_drv;
+              `uvm_component_utils(my_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);  // expect: SVCHK-UVM024
+              endfunction
+              function void connect_phase(uvm_phase phase);
+                super.connect_phase(phase);
+              endfunction
+              task main_phase(uvm_phase phase);            // expect: SVCHK-UVM024
+              endtask
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_drv extends uvm_component;
+              `uvm_component_utils(my_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM025
+      name: super-call-mismatch
+      summary: A method calls super of a different method
+      tier: suspicious
+      family: uvm
+      message: >-
+        ${method(node).name} calls super.${node.name}(); did it mean super.${method(node).name}()?
+      doc: |
+        `super.connect_phase(phase)` in `build_phase` (a copied line) runs the
+        base's connect too early, and skips the base's `build_phase`. Calling
+        a base method other than the one being overridden, through `super`,
+        is almost always this mistake. Only a call in a method that itself
+        overrides one is reported: a new helper that reaches a base method
+        through `super` (past this class's override of it) is deliberate.
+
+        Sources: draconian_uvm.
+      match: { kind: Call }
+      where: >-
+        node.isSuper && !in_library(node) && method(node) != null &&
+        method(node).overrides != null && node.name != method(node).name
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                super.connect_phase(phase);                 // expect: SVCHK-UVM025
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                super.build_phase(phase);
+              endfunction
+              function void report_phase(uvm_phase phase);
+                super.report_phase(phase);
+              endfunction
+              function void final_phase(uvm_phase phase);
+                report_twice();
+              endfunction
+              function void report_twice();
+                super.report_phase(null);
+                report_phase(null);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM026
+      name: runtime-phase-in-agent-part
+      summary: A driver, monitor or scoreboard uses a run-time sub-phase
+      tier: style
+      family: uvm
+      message: >-
+        ${cls(node).name} is a ${is_driver(cls(node)) ? "driver" : is_monitor(cls(node)) ?
+        "monitor" : "scoreboard"} but implements ${node.name}; use run_phase, which lasts the
+        whole test
+      doc: |
+        A driver, monitor or scoreboard works for the whole test, across
+        every reset and configuration a test steps through. In a run-time
+        sub-phase (`reset_phase`, `main_phase`, ...) it stops when that phase
+        ends, or is killed when a test jumps phases, with an item half
+        driven. Run-time phases belong to tests, environments and sequences
+        that want them (assessment P5); these components run in `run_phase`
+        and react to reset themselves.
+
+        Sources: Easier UVM, Mentor cookbook, Sutherland/Fitzpatrick,
+        Verissimo.
+      match: { kind: Subroutine }
+      let:
+        c: cls(node)
+      where: >-
+        node.name in RUN_PHASES && !node.inLibrary && c != null &&
+        (is_driver(c) || is_monitor(c) || is_scoreboard(c))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_drv extends uvm_driver;
+              `uvm_component_utils(my_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task main_phase(uvm_phase phase);           // expect: SVCHK-UVM026
+              endtask
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_drv extends uvm_driver;
+              `uvm_component_utils(my_drv)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+              endfunction
+              task run_phase(uvm_phase phase);
+              endtask
+            endclass
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task reset_phase(uvm_phase phase);
+              endtask
+            endclass
+
+    - id: SVCHK-UVM027
+      name: connect-outside-connect-phase
+      summary: A TLM port is connected outside connect_phase
+      tier: suspicious
+      family: uvm
+      message: >-
+        ${node.receiver.type.name}.connect() is called in ${method(node).name}, not in
+        connect_phase
+      doc: |
+        Ports are connected in `connect_phase`, after `build_phase` has built
+        the whole hierarchy: in `build_phase` the other end may not exist
+        yet (children are built after their parent's `build_phase` returns),
+        and after `end_of_elaboration` UVM refuses the connection. A helper
+        that `connect_phase` calls (in the same class) may connect, as may
+        methods named in `methods`.
+
+        Sources: Easier UVM, CORE-V-VERIF.
+      options:
+        methods:
+          type: string-list
+          default: [connect_phase]
+          help: Methods that may connect ports
+      match: { kind: Call }
+      let:
+        m: method(node)
+      where: >-
+        node.name == "connect" && !in_library(node) && node.receiver != null &&
+        node.receiver.type != null && node.receiver.type.classDecl != null &&
+        is_port(node.receiver.type.classDecl) && m != null && !(m.name in options.methods) &&
+        !options.methods.exists(p, helper_of(m, cls(node), p))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              uvm_analysis_port #(my_item) ap;
+              uvm_tlm_analysis_fifo #(my_item) f;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                ap = new("ap", this);
+                f = new("f", this);
+                ap.connect(f.analysis_export);              // expect: SVCHK-UVM027
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_item extends uvm_sequence_item;
+              `uvm_object_utils(my_item)
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              uvm_analysis_port #(my_item) ap;
+              uvm_tlm_analysis_fifo #(my_item) f;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                ap = new("ap", this);
+                f = new("f", this);
+              endfunction
+              function void connect_phase(uvm_phase phase);
+                ap.connect(f.analysis_export);
+                hook_up();
+              endfunction
+              function void hook_up();
+                ap.connect(f.analysis_export);
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM028
+      name: objection-without-description
+      summary: An objection is raised or dropped without a description
+      tier: style
+      family: uvm
+      message: >-
+        ${node.name}() has no description; a hung test's objection trace will not say who
+        holds it
+      doc: |
+        When a test does not end, `+UVM_OBJECTION_TRACE` and the objection
+        report list who holds an objection, by its description. Without one
+        an objection is a count against a component, and finding which of
+        its raises was not dropped means reading the code.
+
+        Sources: Easier UVM, lowRISC DV, Verissimo.
+      match: { kind: Call }
+      where: >-
+        node.name in ["raise_objection", "drop_objection"] && !in_library(node) &&
+        node.subroutine != null && node.subroutine.inLibrary && node.args.size() > 1 &&
+        (node.args[1].isDefault || const_string(node.args[1]) == optional.of(""))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task run_phase(uvm_phase phase);
+                phase.raise_objection(this);                // expect: SVCHK-UVM028
+                #10;
+                phase.drop_objection(this, "");             // expect: SVCHK-UVM028
+              endtask
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task run_phase(uvm_phase phase);
+                phase.raise_objection(this, "my_test: main stimulus");
+                #10;
+                phase.drop_objection(this, "my_test: main stimulus");
+              endtask
+            endclass
+
+    - id: SVCHK-UVM029
+      name: run-test-with-name
+      summary: run_test() is given a test name
+      tier: style
+      family: uvm
+      message: >-
+        run_test() is given a test name; leave it out and choose the test with
+        +UVM_TESTNAME
+      doc: |
+        A test name compiled into the bench is the default for every
+        simulation: a regression that forgets `+UVM_TESTNAME` runs it and
+        passes, and a bench meant to run many tests reads as if it ran one.
+        With no argument, `+UVM_TESTNAME` is required and a missing one is a
+        fatal error.
+
+        Sources: lowRISC DV, Sutherland/Fitzpatrick, Verissimo.
+      match: { kind: Call }
+      where: >-
+        node.name == "run_test" && !in_library(node) && node.subroutine != null &&
+        node.subroutine.inLibrary && node.args.size() > 0 && !node.args[0].isDefault &&
+        const_string(node.args[0]) != optional.of("")
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            module tb;
+              initial run_test("base_test");                // expect: SVCHK-UVM029
+            endmodule
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            module tb;
+              initial run_test();
+            endmodule
+
+    - id: SVCHK-UVM030
+      name: end-of-test-bypassed
+      summary: A class ends the simulation itself, or code follows run_test()
+      tier: suspicious
+      family: uvm
+      message: >-
+        ${node.name == "run_test" ? "code follows run_test(), which ends the simulation when the test is done; it never runs" :
+        node.name + " in a class ends the simulation without UVM's extract, check and report phases"}
+      doc: |
+        UVM ends a test: when the objections drop, it runs `extract_phase`,
+        `check_phase` and `report_phase` (the summary and the error count a
+        regression reads), then `run_test` calls `$finish`. A `$finish` or
+        `$stop` in a class skips all of that, and a test can end as a pass
+        with errors unreported. A statement after `run_test()` in the same
+        block never runs, unless `finish_on_completion` is cleared before the
+        call. Use `` `uvm_fatal `` to stop a test that cannot go on.
+
+        Sources: Mentor cookbook, Cummings, Sutherland/Fitzpatrick.
+      match: { kind: Call }
+      where: >-
+        !in_library(node) &&
+        ((node.isSystem && node.name in ["$finish", "$stop"] && cls(node) != null) ||
+         (node.name == "run_test" && node.subroutine != null && node.subroutine.inLibrary &&
+          after(node).size() > 0 && !sets_finish(before(node))))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_test extends uvm_test;
+              `uvm_component_utils(my_test)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task run_phase(uvm_phase phase);
+                $finish;                                    // expect: SVCHK-UVM030
+              endtask
+            endclass
+            module tb;
+              initial begin
+                run_test();                                 // expect: SVCHK-UVM030
+                $display("done");
+              end
+            endmodule
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            module tb;
+              initial begin
+                uvm_root::get().finish_on_completion = 0;
+                run_test();
+                $display("done");
+              end
+              initial begin
+                #100ns;
+                $finish;
+              end
+            endmodule

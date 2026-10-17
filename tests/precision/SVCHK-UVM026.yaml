@@ -1,0 +1,14 @@
+# Precision review of SVCHK-UVM026 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM026
+findings:
+- at: core-v-verif/lib/uvm_agents/uvma_core_cntrl/uvma_core_cntrl_drv.sv:88
+  message: uvma_core_cntrl_drv_c is a driver but implements reset_phase; use run_phase, which lasts the
+    whole test
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): CORE-V drives bootstrap pins once in reset_phase, a zero-time
+    setup; nothing is cut off when the phase ends'

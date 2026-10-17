@@ -1,0 +1,282 @@
+# Precision review of SVCHK-UVM028 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM028
+findings:
+- at: core-v-verif/cv32e40p/tests/uvmt/base-tests/uvmt_cv32e40p_base_test.sv:278
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: core-v-verif/cv32e40p/tests/uvmt/base-tests/uvmt_cv32e40p_base_test.sv:286
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: core-v-verif/cv32e40p/tests/uvmt/compliance-tests/uvmt_cv32e40p_firmware_test.sv:153
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: core-v-verif/cv32e40p/tests/uvmt/compliance-tests/uvmt_cv32e40p_firmware_test.sv:166
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: core-v-verif/cv32e40p/tests/uvmt/compliance-tests/uvmt_cv32e40p_riscof_firmware_test.sv:146
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: core-v-verif/cv32e40p/tests/uvmt/compliance-tests/uvmt_cv32e40p_riscof_firmware_test.sv:163
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: core-v-verif/lib/uvm_libs/uvml_hrtbt/uvml_hrtbt_mon.sv:224
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: core-v-verif/lib/uvm_libs/uvml_hrtbt/uvml_hrtbt_mon.sv:226
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_arb_eq_test.svh:16
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_arb_eq_test.svh:31
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_arb_test.svh:10
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_arb_test.svh:26
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_err_test.svh:12
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_err_test.svh:25
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_hol_test.svh:8
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_hol_test.svh:20
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_hw_hs_test.svh:8
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_hw_hs_test.svh:26
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_pause_arm_test.svh:16
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_pause_arm_test.svh:48
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_perf_test.svh:36
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_perf_test.svh:45
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_sw_copy_test.svh:9
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: fw-wb-dma/tests/uvm/tests/wb_dma_sw_copy_test.svh:28
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: opentitan/lowrisc_dv_aes_env_0.1/aes_scoreboard.sv:857
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - opentitan-aes
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a scoreboard''s drop_objection without a description'
+- at: uvm-tb-proto/out/tests/spi_ctl_clkdiv_test.svh:9
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_clkdiv_test.svh:20
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_cs_auto_test.svh:9
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_cs_auto_test.svh:20
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_irq_test.svh:9
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_irq_test.svh:20
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_modes_test.svh:9
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_modes_test.svh:20
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_ovr_test.svh:9
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_ovr_test.svh:20
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_smoke_test.svh:9
+  message: raise_objection() has no description; a hung test's objection trace will not say who holds
+    it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'
+- at: uvm-tb-proto/out/tests/spi_ctl_smoke_test.svh:27
+  message: drop_objection() has no description; a hung test's objection trace will not say who holds it
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): no description; CORE-V, the fwvip benches and the generated
+    bench do not follow this guideline (a style rule)'

@@ -13,7 +13,7 @@ import subprocess
 import pytest
 
 from svcheck import native_path
-from test_cli import AGENT, DRIVER, ENV, RULES, UVM
+from test_cli import AGENT, DRIVER, ENV, ROOT, RULES, UVM
 
 pytestmark = pytest.mark.skipif(not os.path.isfile(os.path.join(UVM, "uvm_pkg.sv")),
                                 reason="UVM is not in packages/ (ivpm update)")
@@ -327,7 +327,29 @@ sv-rules:
     assert r.returncode == 1
     assert "1 example passed, 1 failed" in r.stderr
     assert "ACME020" in r.stdout
-    assert svcheck(tb, "--check-rules").returncode == 2
+    # With no rule file, the built-in packs; without the model there are none.
+    assert svcheck(tb, "--check-rules", "--semantic=none").returncode == 2
+
+
+@pytest.mark.parametrize("uvm", ["uvm-core", "uvm-1.2"])
+def test_check_rules_builtin(tb, uvm):
+    # svcheck-plan P2.5: with no rule file, --check-rules checks the
+    # built-in packs' examples, on both UVM versions.
+    src = os.path.join(ROOT, "packages", uvm, "src")
+    if not os.path.isfile(os.path.join(src, "uvm_pkg.sv")):
+        pytest.skip("%s is not in packages/ (ivpm update)" % uvm)
+    r = svcheck(tb, "--check-rules", "--uvm", src)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "0 failed" in r.stderr
+
+
+def test_builtin_pack_follows_the_profile(tb):
+    # Loaded always, run only when the profile or a selector enables it.
+    (tb / "t.sv").write_text("module t; initial #0; endmodule\n")
+    r = svcheck(tb, "t.sv")
+    assert r.returncode == 0 and "SVCHK-UVM011" not in r.stdout
+    r = svcheck(tb, "t.sv", "--select", "SVCHK-UVM011", "--format", "json")
+    assert [f["code"] for f in json.loads(r.stdout)["findings"]] == ["SVCHK-UVM011"]
 
 
 def test_rules_for_and_show_config(tb):
@@ -431,3 +453,37 @@ sv-rules:
 """)
     r = svcheck(tb, "-f", "tb.f", "--rules", "l.yaml", "--format", "json")
     assert [f["message"] for f in json.loads(r.stdout)["findings"]] == ["aenv, benv"]
+
+
+@pytest.mark.skipif(not os.path.isfile(os.path.join(UVM, "uvm_pkg.sv")),
+                    reason="UVM is not in packages/ (ivpm update)")
+def test_uses_builtin_helpers(tb):
+    # A bare `uses:` name with no file beside the rule file is a built-in
+    # helper file (svcheck-plan P2.5).
+    (tb / "u.yaml").write_text("""\
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  rules:
+    - id: ACME030
+      name: no-components
+      tier: style
+      summary: s
+      message: m
+      match: { kind: Class }
+      where: "!node.inLibrary && is_component(node)"
+      examples:
+        - code: |
+            import uvm_pkg::*;
+            class c extends uvm_component;   // expect: ACME030
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+            endclass
+            class o extends uvm_object;
+              function new(string name = ""); super.new(name); endfunction
+            endclass
+""")
+    r = svcheck(tb, "--rules", "u.yaml", "--check-rules", "--uvm", UVM)
+    assert r.returncode == 0, r.stdout + r.stderr
+    (tb / "bad.yaml").write_text("sv-rules:\n  version: 1\n  uses: [nonesuch.yaml]\n  rules: []\n")
+    r = svcheck(tb, "--rules", "bad.yaml", "--check-rules")
+    assert r.returncode == 1 and "cannot read" in r.stderr

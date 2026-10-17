@@ -314,3 +314,14 @@ is compiled on its own; one that mentions ``uvm_`` is compiled with
 
 Also see :doc:`functions` for every function a rule can call, and
 :doc:`../model/index` for every model kind and field.
+
+For coding agents
+=================
+
+The wheel carries an agent skill, ``svcheck-rules``, that walks an agent
+through writing a rule from a plain-language description: this page's
+workflow, the model and function references, the UVM helpers and slang's
+syntax kinds. It is registered as an ``agent.skills`` entry point, so a tool
+that discovers skills from installed packages (IVPM) links it into
+``.claude/skills/`` and the like; its source is ``skills/svcheck-rules/`` in
+svcheck's repository.

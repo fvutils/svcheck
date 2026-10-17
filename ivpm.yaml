@@ -192,6 +192,8 @@ package:
       type: raw
     - name: pyastbuilder
       src: pypi
+      # gen-pyext's -libname and node owners (svcheck-plan P2.6b).
+      version: ">=0.0.9"
     - name: ninja
       src: pypi
     - name: ivpm-build

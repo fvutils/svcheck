@@ -23,6 +23,18 @@ message(STATUS "svcheck: PACKAGES_DIR=${PACKAGES_DIR}")
 set(FETCHCONTENT_SOURCE_DIR_FMT ${PACKAGES_DIR}/fmt CACHE PATH "" FORCE)
 set(FETCHCONTENT_FULLY_DISCONNECTED ON CACHE BOOL "" FORCE)
 
+# libsvcheck (svcheck-plan P2.6b) is a shared library, except on WASI,
+# which has none. Then everything is position-independent, slang and fmt too.
+if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  set(_svcheck_shared_default OFF)
+else()
+  set(_svcheck_shared_default ON)
+endif()
+option(SVCHECK_SHARED "Build libsvcheck as a shared library" ${_svcheck_shared_default})
+if (SVCHECK_SHARED)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
 set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
 set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
@@ -56,12 +68,57 @@ message(STATUS "svcheck: version ${SVCHECK_VERSION}")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
              ${CMAKE_SOURCE_DIR}/python/svcheck/__version__.py)
 
-add_executable(svcheck
-  src/cli/main.cpp
+# libsvcheck (svcheck-plan P2.6b): the command, the engine, the host, the
+# model and slang in one shared library, with the factory the Python
+# bindings load (src/api/include/svcheck/IFactory.h). The executable is a
+# main() on it. On WASI (SVCHECK_SHARED off) it is one static executable,
+# as before.
+
+set(_svcheck_lib_src
+  src/api/Factory.cpp
+  src/cli/Cli.cpp
   src/cli/Config.cpp
   src/cli/Lint.cpp
+  src/cli/Out.cpp
   src/cli/Query.cpp)
-target_compile_definitions(svcheck PRIVATE SVCHECK_VERSION="${SVCHECK_VERSION}")
-target_link_libraries(svcheck PRIVATE svcheck_host)
+if (SVCHECK_SHARED)
+  add_library(svcheck_lib SHARED ${_svcheck_lib_src})
+  set_target_properties(svcheck_lib PROPERTIES
+    OUTPUT_NAME svcheck
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    BUILD_RPATH_USE_ORIGIN ON)
+  target_compile_definitions(svcheck_lib PRIVATE SVCHECK_BUILD_DLL)
+  if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # A missing symbol fails the link, not the Python import.
+    target_link_options(svcheck_lib PRIVATE "-Wl,--no-undefined")
+  endif()
+else()
+  add_library(svcheck_lib STATIC ${_svcheck_lib_src})
+endif()
+target_include_directories(svcheck_lib PUBLIC
+  ${CMAKE_SOURCE_DIR}/src/api/include
+  ${CMAKE_SOURCE_DIR}/src/cli)
+target_compile_definitions(svcheck_lib PRIVATE SVCHECK_VERSION="${SVCHECK_VERSION}")
+target_link_libraries(svcheck_lib PUBLIC svcheck_host)
+
+add_executable(svcheck src/cli/main.cpp)
+target_link_libraries(svcheck PRIVATE svcheck_lib)
+if (SVCHECK_SHARED)
+  # build/bin/svcheck finds build/lib/libsvcheck.so; in the wheel,
+  # svcheck/bin/svcheck finds svcheck/libsvcheck.so.
+  if (APPLE)
+    set_target_properties(svcheck PROPERTIES
+      BUILD_RPATH "@loader_path/../lib;@loader_path/.."
+      INSTALL_RPATH "@loader_path/../lib;@loader_path/..")
+  else()
+    set_target_properties(svcheck PROPERTIES
+      BUILD_RPATH "\$ORIGIN/../lib:\$ORIGIN/.."
+      INSTALL_RPATH "\$ORIGIN/../lib:\$ORIGIN/..")
+  endif()
+endif()
 
 install(TARGETS svcheck RUNTIME DESTINATION bin)
+if (SVCHECK_SHARED)
+  install(TARGETS svcheck_lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
+endif()

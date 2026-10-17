@@ -60,6 +60,7 @@ struct LintOptions {
 
     // Selection and policy (P2.3).
     std::string                 config;         // --config FILE; "" for none
+    std::string                 preset;         // --preset NAME; "" for the config's
     std::string                 profile;        // --profile; "" for the config's
     std::vector<std::string>    select;         // --select, the command line's layer
     std::vector<std::string>    ignore;         // --ignore

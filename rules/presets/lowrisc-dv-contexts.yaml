@@ -1,0 +1,23 @@
+# Naming conventions of lowRISC DV (OpenTitan, hw/dv/sv and hw/ip/*/dv):
+# `<ip>_agent_pkg`, `<ip>_env_pkg`, `<ip>_test_pkg`, an agent under
+# `hw/dv/sv/<x>_agent/`, the bench module `tb`. Weak: they feed `--contexts`
+# and SVCHK-UVM039, never `applies_to` (Q-CX4). The preset lowrisc-dv.yaml
+# loads it.
+sv-rules:
+  version: 1
+  define:
+    dir(c): 'c.files.size() > 0 ? c.files[0] : ""'
+  contexts:
+    - { label: agent, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && (carrier.name.matches("_agent_pkg$") || dir(carrier).matches("/[a-z0-9_]+_agent[^/]*/[^/]*$"))' }
+    - { label: env, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_env_pkg$")' }
+    - { label: test, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_test_pkg$")' }
+    - label: tb-top
+      axis: unit
+      carrier: Definition
+      strength: weak
+      when: >-
+        !carrier.inLibrary && carrier.kind == DefinitionKind.Module && carrier.name == "tb"
+  rules: []

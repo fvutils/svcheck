@@ -1,0 +1,26 @@
+# Naming conventions of the Easier UVM code generator (Doulos): an agent's
+# package is `<agent>_pkg`, which names no kind, so classes carry it:
+# `<agent>_agent`, `top_env`, `<test>_test`; the bench is `top_tb` (with the
+# harness `top_th`) and the tests' package `top_test_pkg`. Weak: they feed
+# `--contexts` and SVCHK-UVM039, never `applies_to` (Q-CX4). The preset
+# easier-uvm.yaml loads it.
+sv-rules:
+  version: 1
+  contexts:
+    - { label: agent, axis: unit, carrier: Class, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_agent$")' }
+    - { label: env, axis: unit, carrier: Class, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_env$")' }
+    - { label: test, axis: unit, carrier: Class, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("_test$")' }
+    - { label: env, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name == "top_pkg"' }
+    - { label: test, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name == "top_test_pkg"' }
+    - label: tb-top
+      axis: unit
+      carrier: Definition
+      strength: weak
+      when: >-
+        !carrier.inLibrary && carrier.kind == DefinitionKind.Module && carrier.name == "top_tb"
+  rules: []

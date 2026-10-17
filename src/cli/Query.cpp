@@ -23,6 +23,7 @@
 #include "HookParser.h"
 #include "Lint.h"
 #include "Query.h"
+#include "Out.h"
 #include "SlangWarnings.h"
 #include "pipeline/Selection.h"
 #include "rules/Rule.h"
@@ -100,13 +101,13 @@ std::string valueText(const lint::yaml::Node *v) {
 int listMarkers(lint::LintEngine &engine, const std::string &format) {
     std::string cat = engine.catalogJson();
     if (format == "json") {
-        std::printf("%s\n", cat.c_str());
+        outf("%s\n", cat.c_str());
         return 0;
     }
     lint::yaml::NodeUP doc = parse(cat);
     const lint::yaml::Node *ms = doc ? doc->get("markers") : nullptr;
     if (!ms) {
-        std::fprintf(stderr, "svcheck: internal error: no catalogue\n");
+        errf("svcheck: internal error: no catalogue\n");
         return 3;
     }
     for (const lint::yaml::NodeUP &m : ms->items) {
@@ -114,7 +115,7 @@ int listMarkers(lint::LintEngine &engine, const std::string &format) {
         if (status != "active" && status != "deprecated") {
             continue;
         }
-        std::printf("%-12s %-36s %-12s %-10s %s%s\n", str(m.get(), "id").c_str(),
+        outf("%-12s %-36s %-12s %-10s %s%s\n", str(m.get(), "id").c_str(),
             str(m.get(), "name").c_str(), str(m.get(), "tier").c_str(),
             str(m.get(), "family").c_str(), str(m.get(), "source").c_str(),
             status == "deprecated" ? " (deprecated)" : "");
@@ -126,7 +127,7 @@ int explainRule(lint::LintEngine &engine, const std::string &name, const std::st
     lint::yaml::NodeUP doc = parse(engine.catalogJson());
     const lint::yaml::Node *ms = doc ? doc->get("markers") : nullptr;
     if (!ms) {
-        std::fprintf(stderr, "svcheck: internal error: no catalogue\n");
+        errf("svcheck: internal error: no catalogue\n");
         return 3;
     }
     const lint::yaml::Node *hit = nullptr;
@@ -150,7 +151,7 @@ int explainRule(lint::LintEngine &engine, const std::string &name, const std::st
     }
     if (!hit) {
         std::string near = lint::pipeline::suggest(name, spellings);
-        std::fprintf(stderr, "svcheck: no rule or marker '%s'%s\n", name.c_str(),
+        errf("svcheck: no rule or marker '%s'%s\n", name.c_str(),
             near.empty() ? "" : ("; did you mean '" + near + "'?").c_str());
         return 2;
     }
@@ -198,60 +199,60 @@ int explainRule(lint::LintEngine &engine, const std::string &name, const std::st
                 rule->m_mark.line));
         }
         w.endObject();
-        std::printf("%s\n", w.str().c_str());
+        outf("%s\n", w.str().c_str());
         return 0;
     }
 
-    std::printf("%s %s\n", id.c_str(), str(hit, "name").c_str());
+    outf("%s %s\n", id.c_str(), str(hit, "name").c_str());
     if (!summary.empty()) {
-        std::printf("  %s\n", summary.c_str());
+        outf("  %s\n", summary.c_str());
     }
-    std::printf("\n  tier:      %s (%s)\n", str(hit, "tier").c_str(), str(hit, "severity").c_str());
+    outf("\n  tier:      %s (%s)\n", str(hit, "tier").c_str(), str(hit, "severity").c_str());
     if (!str(hit, "family").empty()) {
-        std::printf("  family:    %s\n", str(hit, "family").c_str());
+        outf("  family:    %s\n", str(hit, "family").c_str());
     }
     if (str(hit, "status") != "active") {
-        std::printf("  status:    %s\n", str(hit, "status").c_str());
+        outf("  status:    %s\n", str(hit, "status").c_str());
     }
     if (!str(hit, "since").empty()) {
-        std::printf("  since:     %s\n", str(hit, "since").c_str());
+        outf("  since:     %s\n", str(hit, "since").c_str());
     }
     if (!list(hit, "aliases").empty()) {
-        std::printf("  formerly:  %s\n", list(hit, "aliases").c_str());
+        outf("  formerly:  %s\n", list(hit, "aliases").c_str());
     }
     if (slang) {
-        std::printf("  from:      slang's warning -W%s (on by default: %s)\n", slang->name,
+        outf("  from:      slang's warning -W%s (on by default: %s)\n", slang->name,
             slang->inDefault ? "yes" : "no");
     }
     if (rule && rj) {
         const lint::yaml::Node *m = rj->get("match");
-        std::printf("  matches:   %s\n", list(m, "kind").c_str());
-        std::printf("  level:     %s, scope %s\n", str(rj, "level").c_str(),
+        outf("  matches:   %s\n", list(m, "kind").c_str());
+        outf("  level:     %s, scope %s\n", str(rj, "level").c_str(),
             str(rj, "scope").c_str());
         if (const lint::yaml::Node *a = rj->get("applies_to"); a && !a->members.empty()) {
             std::string s;
             for (const lint::yaml::Node::Member &am : a->members) {
                 s += (s.empty() ? "" : "; ") + am.key + ": " + valueText(am.value.get());
             }
-            std::printf("  applies to: %s (experimental)\n", s.c_str());
+            outf("  applies to: %s (experimental)\n", s.c_str());
         }
-        std::printf("  defined in: %s:%u\n", shownPath(rule->m_file).c_str(), rule->m_mark.line);
+        outf("  defined in: %s:%u\n", shownPath(rule->m_file).c_str(), rule->m_mark.line);
         if (const lint::yaml::Node *os = rj->get("options"); os && !os->items.empty()) {
-            std::printf("  options:\n");
+            outf("  options:\n");
             for (const lint::yaml::NodeUP &o : os->items) {
-                std::printf("    %s (%s) = %s%s%s\n", str(o.get(), "name").c_str(),
+                outf("    %s (%s) = %s%s%s\n", str(o.get(), "name").c_str(),
                     str(o.get(), "type").c_str(), valueText(o->get("default")).c_str(),
                     str(o.get(), "help").empty() ? "" : ": ", str(o.get(), "help").c_str());
             }
         }
         if (!rule->m_doc.empty()) {
-            std::printf("\n");
+            outf("\n");
             size_t start = 0;
             while (start < rule->m_doc.size()) {
                 size_t nl = rule->m_doc.find('\n', start);
                 std::string line = rule->m_doc.substr(start, nl == std::string::npos
                     ? std::string::npos : nl - start);
-                std::printf("  %s\n", line.c_str());
+                outf("  %s\n", line.c_str());
                 if (nl == std::string::npos) {
                     break;
                 }
@@ -259,7 +260,7 @@ int explainRule(lint::LintEngine &engine, const std::string &name, const std::st
             }
         }
         if (!rule->m_examples.empty()) {
-            std::printf("\n  %zu example%s (svcheck --check-rules runs them)\n",
+            outf("\n  %zu example%s (svcheck --check-rules runs them)\n",
                 rule->m_examples.size(), rule->m_examples.size() == 1 ? "" : "s");
         }
     }
@@ -275,7 +276,7 @@ int checkRules(lint::LintEngine &engine, const LintOptions &opts, bool ruleError
         }
     }
     if (rules.empty() && none) {
-        std::fprintf(stderr, "svcheck: --check-rules: no rule files (--rules, or `rules` in "
+        errf("svcheck: --check-rules: no rule files (--rules, or `rules` in "
             "--config)\n");
         return 2;
     }
@@ -297,7 +298,7 @@ int checkRules(lint::LintEngine &engine, const LintOptions &opts, bool ruleError
             } else {
                 failed++;
                 if (opts.format != "json") {
-                    std::printf("%s\n", res.describe().c_str());
+                    outf("%s\n", res.describe().c_str());
                 }
             }
             w.beginObject().kv("rule", res.rule).kv("name", res.name)
@@ -312,9 +313,9 @@ int checkRules(lint::LintEngine &engine, const LintOptions &opts, bool ruleError
     }
     w.endArray().kv("rule_errors", ruleErrors).endObject();
     if (opts.format == "json") {
-        std::printf("%s\n", w.str().c_str());
+        outf("%s\n", w.str().c_str());
     } else {
-        std::fprintf(stderr, "svcheck: %zu rule%s, %zu example%s passed, %zu failed%s\n",
+        errf("svcheck: %zu rule%s, %zu example%s passed, %zu failed%s\n",
             rules.size(), rules.size() == 1 ? "" : "s", passed,
             passed == 1 ? "" : "s", failed, ruleErrors ? "; the rule files have errors" : "");
     }
@@ -324,21 +325,21 @@ int checkRules(lint::LintEngine &engine, const LintOptions &opts, bool ruleError
 int rulesFor(lint::LintEngine &engine, const std::string &selJson, const std::string &format) {
     std::string res = engine.resolveSelection(selJson);
     if (format == "json") {
-        std::printf("%s\n", res.c_str());
+        outf("%s\n", res.c_str());
         return 0;
     }
     lint::yaml::NodeUP doc = parse(res);
     const lint::yaml::Node *groups = doc ? doc->get("groups") : nullptr;
     const lint::yaml::Node *paths = doc ? doc->get("paths") : nullptr;
     if (!groups || !paths) {
-        std::fprintf(stderr, "svcheck: internal error: the selection did not resolve\n");
+        errf("svcheck: internal error: the selection did not resolve\n");
         return 3;
     }
     for (const lint::yaml::NodeUP &p : paths->items) {
         int64_t g = p->get("group") ? p->get("group")->i : 0;
         const lint::yaml::Node *grp = (g >= 0 && static_cast<size_t>(g) < groups->items.size())
             ? groups->items[g].get() : nullptr;
-        std::printf("%s: %s\n", shownPath(str(p.get(), "path")).c_str(), list(grp, "enabled")
+        outf("%s: %s\n", shownPath(str(p.get(), "path")).c_str(), list(grp, "enabled")
             .c_str());
     }
     return 0;

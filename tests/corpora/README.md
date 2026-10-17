@@ -10,7 +10,7 @@ ivpm update -d default-dev,corpora --force    # the public corpora (large, not i
 scripts/corpora/opentitan.py                  # export the OpenTitan IPs; writes opentitan-*.f
 scripts/precision.py                          # each rule's precision on the corpora
 scripts/measure.py                            # P1.7's tables (plan §6.1)
-svcheck --rules rules/trial/contexts.yaml -F tests/corpora/fw-wb-dma.f
+svcheck --select SVCHK-UVM --contexts -F tests/corpora/fw-wb-dma.f   # the UVM pack and its units
 ```
 
 `tests/host/test_corpora.py` checks that each corpus compiles without errors (or still has

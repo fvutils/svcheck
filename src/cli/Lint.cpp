@@ -25,6 +25,7 @@
 #include <sstream>
 #include <tuple>
 #include "Lint.h"
+#include "Out.h"
 #include "LintEngine.h"
 #include "SemModel.h"
 #include "SvContext.h"
@@ -34,6 +35,7 @@
 #include "Query.h"
 #include "../host/Lint.h"
 #include "cel/CelFunctions.h"
+#include "rules/BuiltinRules.h"
 #include "rules/RuleLoader.h"
 #include "run/Classify.h"
 #include "run/Walker.h"
@@ -149,10 +151,10 @@ void writeText(const std::vector<Finding> &found) {
     for (const Finding &f : found) {
         std::string waived = f.waived ? " [waived: " + f.waivedBy + "]" : "";
         if (f.file.empty()) {
-            std::printf("svcheck: %s: %s [%s]%s\n", f.severity.c_str(), f.message.c_str(),
+            outf("svcheck: %s: %s [%s]%s\n", f.severity.c_str(), f.message.c_str(),
                 f.code.c_str(), waived.c_str());
         } else {
-            std::printf("%s:%lld:%lld: %s: %s [%s]%s\n", shown(f.file).c_str(),
+            outf("%s:%lld:%lld: %s: %s [%s]%s\n", shown(f.file).c_str(),
                 static_cast<long long>(f.line), static_cast<long long>(f.col),
                 f.severity.c_str(), f.message.c_str(), f.code.c_str(), waived.c_str());
         }
@@ -181,7 +183,7 @@ void writeGithub(const std::vector<Finding> &found) {
             props = "file=" + esc(shown(f.file), true) + ",line=" + std::to_string(f.line)
                 + ",col=" + std::to_string(f.col) + "," + props;
         }
-        std::printf("::%s %s::%s\n", level, props.c_str(), esc(f.message, false).c_str());
+        outf("::%s %s::%s\n", level, props.c_str(), esc(f.message, false).c_str());
     }
 }
 
@@ -225,20 +227,20 @@ void writeStatsText(const RunStats &rs, const host::LintCompilation &lc,
         const lint::yaml::Node *result) {
     const host::LintCompilation::Stats &cs = lc.stats();
     auto mb = [](size_t b) { return static_cast<double>(b) / (1024.0 * 1024.0); };
-    std::fprintf(stderr, "svcheck: stats\n");
-    std::fprintf(stderr, "  parse      %8.3f s   heap %8.1f MB\n", rs.parseS, mb(rs.heapParsed));
-    std::fprintf(stderr, "  elaborate  %8.3f s   heap %8.1f MB\n", cs.elaborateS,
+    errf("svcheck: stats\n");
+    errf("  parse      %8.3f s   heap %8.1f MB\n", rs.parseS, mb(rs.heapParsed));
+    errf("  elaborate  %8.3f s   heap %8.1f MB\n", cs.elaborateS,
         mb(cs.heapElaborated));
-    std::fprintf(stderr, "  lower      %8.3f s   heap %8.1f MB\n", cs.lowerS,
+    errf("  lower      %8.3f s   heap %8.1f MB\n", cs.lowerS,
         mb(cs.heapLowered));
-    std::fprintf(stderr, "  index      %8.3f s\n", nsToS(num(result, "index_ns")));
-    std::fprintf(stderr, "  classify   %8.3f s\n", nsToS(num(result, "classify_ns")));
-    std::fprintf(stderr, "  rules      %8.3f s\n", nsToS(num(result, "run_ns")));
-    std::fprintf(stderr, "  total      %8.3f s   heap %8.1f MB, peak RSS %.1f MB\n",
+    errf("  index      %8.3f s\n", nsToS(num(result, "index_ns")));
+    errf("  classify   %8.3f s\n", nsToS(num(result, "classify_ns")));
+    errf("  rules      %8.3f s\n", nsToS(num(result, "run_ns")));
+    errf("  total      %8.3f s   heap %8.1f MB, peak RSS %.1f MB\n",
         rs.totalS, mb(rs.heapEnd), mb(host::peakRss()));
     if (const lint::yaml::Node *stats = result->get("stats")) {
         for (const lint::yaml::NodeUP &st : stats->items) {
-            std::fprintf(stderr, "    %-12s %8.3f s  %lld matches\n", str(st.get(), "id").c_str(),
+            errf("    %-12s %8.3f s  %lld matches\n", str(st.get(), "id").c_str(),
                 nsToS(num(st.get(), "ns")), static_cast<long long>(num(st.get(), "matches")));
         }
     }
@@ -305,7 +307,7 @@ void writeFindingsJson(const std::vector<Finding> &found, const std::vector<Find
         writeStatsJson(w, *rs, lc, result);
     }
     w.endObject();
-    std::printf("%s\n", w.str().c_str());
+    outf("%s\n", w.str().c_str());
 }
 
 void writeSarif(const std::vector<Finding> &found, const std::vector<Finding> &waived,
@@ -391,7 +393,7 @@ void writeSarif(const std::vector<Finding> &found, const std::vector<Finding> &w
     w.endArray();
     w.endObject().endArray();
     w.endObject();
-    std::printf("%s\n", w.str().c_str());
+    outf("%s\n", w.str().c_str());
 }
 
 const char *depKindName(sem::UnitDepKind k) {
@@ -435,7 +437,7 @@ int printContexts(lint::LintEngine &engine, host::LintCompilation &lc,
         const std::string &format, bool builtin) {
     host::SvContext *sv = lc.svContext();
     if (!sv) {
-        std::fprintf(stderr, "svcheck: no contexts: %s\n", lc.errors()
+        errf("svcheck: no contexts: %s\n", lc.errors()
             ? ("the compilation has " + std::to_string(lc.errors()) + " errors").c_str()
             : "contexts are classified on the curated model (--semantic=model)");
         return 1;
@@ -496,12 +498,12 @@ int printContexts(lint::LintEngine &engine, host::LintCompilation &lc,
             w.beginObject().kv("where", noteWhere(n)).kv("message", n.message).endObject();
         }
         w.endArray().endObject();
-        std::printf("%s\n", w.str().c_str());
+        outf("%s\n", w.str().c_str());
         return 0;
     }
 
     if (design->getUnits().empty()) {
-        std::printf("no units: no classifier labelled a carrier\n");
+        outf("no units: no classifier labelled a carrier\n");
     }
     for (const sem::IUnitUP &u : design->getUnits()) {
         std::string labels;
@@ -516,30 +518,30 @@ int printContexts(lint::LintEngine &engine, host::LintCompilation &lc,
         if (!conv.empty()) {
             labels += (labels.empty() ? "" : "; ") + std::string("convention only: ") + conv;
         }
-        std::printf("unit %s: %s\n", u->getName().c_str(), labels.c_str());
+        outf("unit %s: %s\n", u->getName().c_str(), labels.c_str());
         for (sem::IDecl *d : u->getCarriers()) {
-            std::printf("  %s %s  %s:%d\n", kindOf(d).c_str(), d->getQname().c_str(),
+            outf("  %s %s  %s:%d\n", kindOf(d).c_str(), d->getQname().c_str(),
                 pathOf(d->getLocation().fileid).c_str(), d->getLocation().lineno);
         }
         for (const std::string &e : u->getEvidence()) {
-            std::printf("    %s\n", e.c_str());
+            outf("    %s\n", e.c_str());
         }
         for (const std::string &e : u->getDisagreements()) {
-            std::printf("    disagreement: %s\n", e.c_str());
+            outf("    disagreement: %s\n", e.c_str());
         }
     }
     if (!design->getDeps().empty()) {
-        std::printf("dependencies:\n");
+        outf("dependencies:\n");
         for (const sem::IUnitDepUP &d : design->getDeps()) {
-            std::printf("  %s -> %s (%s)\n", d->getFrom()->getName().c_str(),
+            outf("  %s -> %s (%s)\n", d->getFrom()->getName().c_str(),
                 d->getTo()->getName().c_str(), depKindName(d->getKind()));
         }
     }
     if (!found.notes.empty()) {
-        std::printf("notes:\n");
+        outf("notes:\n");
         for (const lint::run::ContextNote &n : found.notes) {
             std::string where = noteWhere(n);
-            std::printf("  %s%s%s\n", where.c_str(), where.empty() ? "" : ": ",
+            outf("  %s%s%s\n", where.c_str(), where.empty() ? "" : ": ",
                 n.message.c_str());
         }
     }
@@ -621,7 +623,7 @@ bool loadRuleSources(lint::LintEngine &engine, const std::vector<std::string> &p
             lint::LintSource src;
             src.name = f;
             if (!readFile(f, src.text)) {
-                std::fprintf(stderr, "svcheck: cannot read rule file '%s'\n", f.c_str());
+                errf("svcheck: cannot read rule file '%s'\n", f.c_str());
                 return false;
             }
             // In a directory, a file without `sv-rules` is not a rule file,
@@ -663,6 +665,16 @@ std::string selectionJson(const LintOptions &opts, const Config &cfg,
         writeJson(w, n);
     }
     w.endObject();
+    if (const lint::yaml::Node *pr = cfg.presetDef.root) {
+        w.key("preset").beginObject().kv("name", cfg.presetDef.name);
+        for (const char *k : {"select", "ignore", "rule"}) {
+            if (const lint::yaml::Node *n = pr->get(k)) {
+                w.key(k);
+                writeJson(w, n);
+            }
+        }
+        w.endObject();
+    }
     w.key("command_line").beginObject();
     w.key("select").beginArray();
     for (const std::string &x : opts.select) {
@@ -741,13 +753,13 @@ std::vector<std::string> sourcePaths(slang::driver::Driver &driver) {
     return out;
 }
 
-void printStatistics(const std::vector<Finding> &found, FILE *out) {
+void printStatistics(const std::vector<Finding> &found, bool toErr) {
     std::map<std::string, size_t> n;
     for (const Finding &f : found) {
         n[f.code]++;
     }
     for (const auto &c : n) {
-        std::fprintf(out, "%6zu  %s\n", c.second, c.first.c_str());
+        (toErr ? errf : outf)("%6zu  %s\n", c.second, c.first.c_str());
     }
 }
 
@@ -761,8 +773,23 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     if (!opts.config.empty()) {
         std::string err;
         if (!readConfig(opts.config, cfg, err)) {
-            std::fprintf(stderr, "%s", err.c_str());
-            std::fprintf(stderr, "svcheck: the configuration has errors; nothing was checked\n");
+            errf("%s", err.c_str());
+            errf("svcheck: the configuration has errors; nothing was checked\n");
+            return 2;
+        }
+    }
+
+    // A preset (svcheck-plan P2.6): --preset, or the configuration's. It
+    // selects the built-in pack, which reads the model.
+    std::string presetName = opts.preset.empty() ? cfg.preset : opts.preset;
+    if (!presetName.empty()) {
+        std::string err;
+        if (!readPreset(presetName, cfg.presetDef, err)) {
+            errf("svcheck: %s", err.c_str());
+            return 2;
+        }
+        if (opts.layer != host::SemanticLayer::Model) {
+            errf("svcheck: --preset needs the model (not --semantic=none)\n");
             return 2;
         }
     }
@@ -774,6 +801,23 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     // read the model, so they are not loaded without it (--semantic=none).
     if (opts.layer == host::SemanticLayer::Model) {
         engine.loadBuiltinRules();
+        // The preset's classifier files: built in, so their classifiers run
+        // with the pack's.
+        for (const std::string &name : cfg.presetDef.rules) {
+            const lint::rules::BuiltinRuleFile *f = lint::rules::builtinRuleFiles();
+            while (f->name && name != f->name) {
+                f++;
+            }
+            if (!f->name) {
+                errf("svcheck: %s: no built-in rule file '%s'\n",
+                    cfg.presetDef.file.c_str(), name.c_str());
+                return 3;
+            }
+            lint::LintSource src;
+            src.name = f->name;
+            src.text.assign(f->text, f->size);
+            engine.loadRules(src, true);
+        }
     }
     bool ruleErrors = false;
     std::vector<std::string> rulePaths = cfg.rules;
@@ -783,7 +827,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     }
     static const char *sevNames[] = {"error", "warning", "info"};
     for (const lint::RuleDiagnostic &d : engine.diagnostics()) {
-        std::fprintf(stderr, "%s:%u:%u: %s: %s [%s]\n", d.file.c_str(), d.line, d.col,
+        errf("%s:%u:%u: %s: %s [%s]\n", d.file.c_str(), d.line, d.col,
             sevNames[static_cast<int>(d.severity)], d.message.c_str(), d.code.c_str());
         ruleErrors |= d.severity == lint::RuleDiagnostic::Severity::Error;
     }
@@ -791,7 +835,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
         return checkRules(engine, opts, ruleErrors, rulePaths.empty());
     }
     if (ruleErrors) {
-        std::fprintf(stderr, "svcheck: the rule files have errors; nothing was checked\n");
+        errf("svcheck: the rule files have errors; nothing was checked\n");
         return 2;
     }
 
@@ -801,15 +845,15 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     std::string selJson = selectionJson(opts, cfg, nullptr);
     lint::yaml::NodeUP selRes = parseJson("<selection>", engine.resolveSelection(selJson));
     if (!selRes || !selRes->get("ok") || !selRes->get("ok")->b) {
-        std::fprintf(stderr, "svcheck: internal error: the selection did not resolve\n");
+        errf("svcheck: internal error: the selection did not resolve\n");
         return 3;
     }
     if (const lint::yaml::Node *errs = selRes->get("errors"); errs && !errs->items.empty()) {
         for (const lint::yaml::NodeUP &e : errs->items) {
-            std::fprintf(stderr, "svcheck: %s: %s\n", str(e.get(), "key").c_str(),
+            errf("svcheck: %s: %s\n", str(e.get(), "key").c_str(),
                 str(e.get(), "message").c_str());
         }
-        std::fprintf(stderr, "svcheck: the selection has errors; nothing was checked\n");
+        errf("svcheck: the selection has errors; nothing was checked\n");
         return 2;
     }
     if (opts.listMarkers) {
@@ -819,7 +863,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
         return explainRule(engine, opts.explain, opts.format);
     }
     if (opts.showConfig) {
-        std::printf("%s\n", engine.resolveSelection(selJson).c_str());
+        outf("%s\n", engine.resolveSelection(selJson).c_str());
         return 0;
     }
 
@@ -869,7 +913,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     host::LintCompilation lc(driver, opts.layer, opts.libraryDirs);
     (void)driver.reportDiagnostics(/*quiet*/ true);
     for (const std::string &u : lc.unparsed()) {
-        std::fprintf(stderr, "svcheck: %s has syntax errors; its findings are not shown\n",
+        errf("svcheck: %s has syntax errors; its findings are not shown\n",
             shown(u).c_str());
     }
     if (host::SvContext *sv = lc.svContext(); sv && !cfg.contexts.empty()) {
@@ -904,12 +948,12 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     std::string out = engine.run(lc.roots(), req.str(), &lc.context());
     lint::yaml::NodeUP result = parseJson("<lint result>", out);
     if (!result || !result->get("ok") || !result->get("ok")->b) {
-        std::fprintf(stderr, "svcheck: internal error: %s\n", out.c_str());
+        errf("svcheck: internal error: %s\n", out.c_str());
         return 3;
     }
     if (const lint::yaml::Node *ps = result->get("problems")) {
         for (const lint::yaml::NodeUP &p : ps->items) {
-            std::fprintf(stderr, "svcheck: %s\n", p->s.c_str());
+            errf("svcheck: %s\n", p->s.c_str());
         }
     }
 
@@ -1007,7 +1051,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
         fr.endArray().endObject();
         lint::yaml::NodeUP res = parseJson("<finish>", engine.finish(fr.str()));
         if (!res || !res->get("ok") || !res->get("ok")->b) {
-            std::fprintf(stderr, "svcheck: internal error: the findings did not finish\n");
+            errf("svcheck: internal error: the findings did not finish\n");
             return 3;
         }
         std::vector<std::string> reasons;
@@ -1075,7 +1119,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
         writeText(shownFindings);
     }
     if (opts.statistics) {
-        printStatistics(found, opts.format == "text" ? stdout : stderr);
+        printStatistics(found, opts.format != "text");
     }
     if (opts.stats && opts.format != "json") {
         writeStatsText(rs, lc, result.get());
@@ -1091,7 +1135,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
         std::string compile = lc.errors() ? "; the compilation has "
             + std::to_string(lc.errors()) + (lc.errors() == 1 ? " error" : " errors") : "";
         std::string w = waived.empty() ? "" : ", " + std::to_string(waived.size()) + " waived";
-        std::fprintf(stderr, "svcheck: %zu error%s, %zu warning%s%s%s\n", errors,
+        errf("svcheck: %zu error%s, %zu warning%s%s%s\n", errors,
             errors == 1 ? "" : "s", warnings, warnings == 1 ? "" : "s", w.c_str(),
             compile.c_str());
     }

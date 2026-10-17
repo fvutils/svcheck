@@ -1,7 +1,7 @@
 # svcheck
 
 SystemVerilog checker: declarative rules (`sv-rules`, YAML + CEL) over slang's model.
-C++ core on slang; Python is packaging only.
+C++ core on slang; Python is packaging and in-process bindings (P2.6b).
 
 - Design: `docs/design/svcheck-design.md`. Plan and progress: `docs/design/svcheck-plan.md`.
   Update the plan's item status and its §7 log when an item starts or ends.
@@ -51,18 +51,19 @@ labels the classify stage leaves on `run::Context`. The engine hooks hold whole 
 (`factory.mkLintEngine()` in `tests/engine/conftest.py`).
 
 P1.6 added the spike's 10 rules, in `rules/spike/` (provisional IDs; its four UVM rules are now
-pack rules, P2.5, and `uvm-vocab.yaml` is left for `rules/trial/`), tested by `tests/host/test_spike_rules.py` (examples, predicate
+pack rules, P2.5; `fw-hdl.yaml` and `verible.yaml` are left), tested by `tests/host/test_spike_rules.py` (examples, predicate
 length, a Verible fixture). `scripts/verible_equiv.py -- <svcheck file args>` diffs the
 Verible-equivalent rules against Verible (`packages/verible`, from ivpm), and
 `scripts/mk_filelist.py` writes a `-f` list for a source tree that has none. The lint JSON lists
 the compilation's user files (`compilation.files`). Findings in a file with a syntax error, or in
 library code, are not shown; this works per file, `--single-unit` included.
 
-P1.6b ran the contexts trial: `rules/trial/` (three CTX rules; `contexts.yaml` uses the content
-classifier set, `classify-convention.yaml` adds the weak one as a second `--rules`), run by
-`scripts/ctx_trial.py` on `tests/corpora/*.f`. Those lists name local snapshots in `packages/`
-(not ivpm deps; how to rebuild them, and their fixes, in `tests/corpora/README.md`). Results:
-`docs/design/sv-contexts-trial.md`. The model has `Process` (procedural blocks), and the library
+P1.6b ran the contexts trial (three CTX rules and two classifier sets, on `tests/corpora/*.f`;
+results in `docs/design/sv-contexts-trial.md`). P2.5 (e) retired it: the content set is
+`rules/uvm.yaml`'s, CTX001/CTX002 are `SVCHK-UVM037`/`038`, CTX003 was dropped, and the
+convention set is a test fixture, `tests/data/classify-convention.yaml`, until P2.6
+(`tests/host/test_uvm_contexts.py`). Some corpus lists name local snapshots in `packages/`
+(not ivpm deps; how to rebuild them, and their fixes, in `tests/corpora/README.md`). The model has `Process` (procedural blocks), and the library
 `subclasses(c)`.
 
 P1.7 measured the corpora: `svcheck --stats` (phase times and heap; `stats` in the JSON), and
@@ -109,7 +110,7 @@ P2.4: a convention-only label never selects (`Unit.conventionLabels`; disagreeme
 `Unit.disagreements`); a labelled class joins its package's unit unless the package is mixed,
 where an unlabelled inner carrier has no context (`run::Context::carrierAt`); `contexts:` in
 `--config` declares labels on any axis (provenance); `specializations(c)` serves the
-config-class join in `rules/trial/classify-content.yaml`.
+config-class join in `rules/uvm.yaml`'s classifiers.
 
 P2.4b brought the ten OpenTitan exception corpora in (`docs/design/lrm-relaxations.md`):
 `scripts/corpora/opentitan.py` reads the sim cfg as dvsim does (its `sim_tops` as more `--top`s,
@@ -121,7 +122,7 @@ svcheck's and also slang's when X is a slang option (`takeWarningPolicy`).
 To change a slang patch: rebuild a git tree of pristine slang (`packages/.download/v11.0.tar.gz`)
 with the patches as commits, edit there, and regenerate each patch as one commit's diff.
 
-P2.5 (active) is the built-in UVM pack, `SVCHK-UVM###`: `rules/*.yaml` (embedded at build
+P2.5 is the built-in UVM pack, `SVCHK-UVM###`: `rules/*.yaml` (embedded at build
 time; a file without `rules:` is a helper, `rules/uvm.yaml`, which any rule file names as
 `uses: [uvm.yaml]`). The CLI loads them on every run with the model; they follow the profile
 (none in `minimal`), so `--select SVCHK-UVM` runs them. `svcheck --check-rules --uvm DIR` with no
@@ -134,7 +135,44 @@ the loader's list (`uvm`, `factory`, `class`, `process`, ...); a rule below its 
 `tier: nursery` (needs `since: "YYYY.N"`). `uvm.yaml` holds the pack's content classifiers (unit
 axis: agent, env, test, tb-top, seq-lib, regmodel, base-lib); a built-in file's classifiers run
 only when the selection enables a built-in rule (`LintEngine::classifiers(builtin)`), so
-`--contexts` alone needs `--rules` or `--select SVCHK-UVM`.
+`--contexts` alone needs `--rules` or `--select SVCHK-UVM`. Rule names are one namespace with
+the user's files: a user rule named as a pack rule is a load error (SVCHK217), so test rule files
+must not reuse a pack name.
+
+P2.6 added the presets: `rules/presets/<name>.yaml` (embedded; an `svcheck:` fragment with
+`select`/`ignore`/`rule` and `rules:` naming its classifier file beside it, `<name>-contexts.yaml`,
+which holds the house's naming conventions). `--preset NAME` or `preset:` in `--config`
+(`src/cli/Config.cpp` reads them); the engine's selection has a `preset` layer under the
+project's (`Selection::build`). Naming a preset selects the pack; conventions come only with a
+preset and feed only `SVCHK-UVM039` and `--contexts`. `scripts/presets.py` runs every preset on
+the corpora; tests: `tests/host/test_presets.py`, the CLI page's Presets section.
+
+The agent skill `svcheck-rules` (`skills/svcheck-rules/`: writing rules from a description) ships
+in the wheel (setup.py copies it to `svcheck/share/skills/`) and is an `agent.skills` entry point
+(`python/svcheck/skills.py`; one entry point per skill, named as its directory). Its
+`references/{model,functions,uvm-helpers,syntax-kinds}.md` are generated: rerun
+`scripts/gen_skill_refs.py` after changing the model, a library function, `rules/uvm.yaml` or
+slang, or `tests/host/test_skills.py` fails. That test also runs `--check-rules` on every
+`yaml` block holding `sv-rules:` (tag a fragment `yaml no-check`) and checks the flags and IDs
+the text names. The skill must not cite `docs/design/` (unpublished); the generator strips such
+references from what it copies.
+
+P2.6b put svcheck in-process. `libsvcheck` (shared; static on WASI, `SVCHECK_SHARED`) holds the
+command (`src/cli/`, `cli::main`), engine, host, model and slang, all PIC; the executable is
+`src/cli/main.cpp` on it. The entry point is `svcheck_getFactory()`
+(`src/api/include/svcheck/IFactory.h`: `runCli`, `compile`). The CLI writes only through
+`src/cli/Out.h` (slang's `OS::print`), so a run in-process is captured; never `printf` there.
+Python: `svcheck.sem`, gen-pyext's module (`-libname svcheck`; pyastbuilder >= 0.0.9),
+generated at configure time by `gen_sem_model.py` into `build/src/ast/gen/pyext`, which setup.py
+copies into `python/svcheck/` (gitignored); `python/svcheck/core.pyx` by hand, which sets
+gen-pyext's `_owner` on the root it hands out, so every node keeps its `core.Compilation` alive;
+`svcheck.compile()`, `lint()`, `run_cli()`. Neither extension links the library: both
+ctypes-load it (a checkout's `build/lib` first). A `P<...>` field in `src/ast/*.yaml` is not a
+child: a link back up is `rel: parent`, any other reference `visit: false`, or the visitors
+loop. pyastbuilder issues are fixed in `packages/pyastbuilder` (a clone), not worked around
+here. An extension's `.pxd` dependencies are listed in setup.py (`ext()`). Wheels
+are per-CPython (`build-wheel.sh`: CMake once, then `SVCHECK_PREBUILT=1` for the other
+Pythons). Tests: `tests/python/`; docs: `docs/python.rst`.
 
 ## Build and test
 

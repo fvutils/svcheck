@@ -4,6 +4,7 @@ requires = [
     "wheel",
     "ivpm-build",
     "ninja",
+    "cython>=3",
 ]
 build-backend = "setuptools.build_meta"
 

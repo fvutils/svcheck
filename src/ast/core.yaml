@@ -6,6 +6,12 @@
 #* lowered in full; library code (uvm_pkg, VIP) as declarations only: no
 #* subroutine bodies. What the model does not curate is an Opaque node, so
 #* nothing is dropped silently.
+#*
+#* A P<...> field is not a child, so the generated visitors (C++ VisitorBase,
+#* Python sem.VisitorBase) must not follow it: they walk the ownership tree
+#* only and never loop. A link back to the owner is `rel: parent`, which
+#* pyastbuilder does not visit (a decl's carrier); any other reference (a
+#* class's base, a call's subroutine) has `visit: false`.
 #****************************************************************************
 structs:
 - Location:

@@ -99,7 +99,16 @@ sv-rules:
         the top of the hierarchy instead of its environment, and its path
         names and configuration lookups are wrong.
 
+        CORE-V-VERIF gives both arguments defaults throughout (`name =
+        "uvma_x_agent"`, `parent = null`); `allow_defaults` accepts them (the
+        `core-v` preset sets it).
+
         Sources: Easier UVM, lowRISC DV, Sigasi.
+      options:
+        allow_defaults:
+          type: bool
+          default: false
+          help: Accept defaults on the two arguments
       match: { kind: Subroutine }
       let:
         c: cls(node)
@@ -108,7 +117,7 @@ sv-rules:
         (node.args.size() != 2 || !node.args[0].type.isString ||
          node.args[1].type.classDecl == null ||
          node.args[1].type.classDecl.qname != "uvm_pkg::uvm_component" ||
-         node.args.exists(a, a.init != null))
+         (!options.allow_defaults && node.args.exists(a, a.init != null)))
       examples:
         - code: |
             import uvm_pkg::*; `include "uvm_macros.svh"

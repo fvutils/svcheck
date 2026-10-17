@@ -1,0 +1,22 @@
+# Naming conventions of CORE-V-VERIF: the package prefixes `uvma_` (an
+# agent), `uvme_` (an env), `uvmt_` (the tests and the bench, whose top
+# module is `uvmt_<core>_tb`). `uvml_` packages are libraries of no one
+# kind, so they get no label. Weak: they feed `--contexts` and SVCHK-UVM039,
+# never `applies_to` (Q-CX4). The preset core-v.yaml loads it.
+sv-rules:
+  version: 1
+  contexts:
+    - { label: agent, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("^uvma_")' }
+    - { label: env, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("^uvme_")' }
+    - { label: test, axis: unit, carrier: Package, strength: weak,
+        when: '!carrier.inLibrary && carrier.name.matches("^uvmt_")' }
+    - label: tb-top
+      axis: unit
+      carrier: Definition
+      strength: weak
+      when: >-
+        !carrier.inLibrary && carrier.kind == DefinitionKind.Module &&
+        carrier.name.matches("^uvmt_.*_tb$")
+  rules: []

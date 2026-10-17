@@ -48,6 +48,40 @@ a file named this way runs unless something narrows it:
 ``--rules-for FILE...`` prints the rules each file gets, and ``--show-config``
 the resolved selection, without compiling anything.
 
+Presets
+=======
+
+The UVM guides disagree on a few points: who may raise objections, which
+scope a virtual interface is set for, how a component's constructor is
+written. Where they do, the rule has an option, and a **preset** sets the
+options, and the exclusions, of one house style. ``--preset NAME`` (or
+``preset: NAME`` in the configuration; ``--preset`` wins) runs the UVM pack as
+that house would:
+
+``uvm-consensus``
+   The 36 rules no source contradicts, at their default options.
+``easier-uvm``
+   Doulos' Easier UVM, with the Mentor cookbook where they agree: objections
+   only in the test (``SVCHK-UVM037`` accepts neither an agent's default
+   sequence nor a drain watchdog), virtual interfaces set for
+   ``uvm_test_top`` only (``SVCHK-UVM033``).
+``lowrisc-dv``
+   lowRISC's DV methodology (OpenTitan): ``SVCHK-UVM035`` is off, since its
+   scoreboards wait on the clock by design.
+``core-v``
+   CORE-V-VERIF: a component constructor may give its two arguments defaults
+   (``SVCHK-UVM002``).
+
+A preset is a layer under the configuration's and the command line's: a
+``select``, ``ignore`` or rule option there overrides the preset's. With
+``--show-config`` the result shows the preset and the options it set.
+
+A preset also brings its house's naming conventions (``*_agent_pkg``,
+``uvma_*``, ``top_tb``, ...). A name never decides which rules apply to a
+unit: that is its content. Where name and content disagree, as with an env
+class in a package named ``*_agent_pkg``, ``SVCHK-UVM039`` reports it.
+``--contexts`` shows each unit's labels from naming beside those from content.
+
 Configuration
 =============
 
@@ -59,6 +93,7 @@ discovery of a project file are to come.
 
    svcheck:
      rules: [rules/]
+     preset: lowrisc-dv                     # a house style (Presets, above)
      profile: recommended
      ignore: [style]
      severity: { SVCHK-UVM020: error }

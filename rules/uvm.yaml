@@ -1,7 +1,7 @@
 # The UVM vocabulary (svcheck-design §5.1; sv-uvm-rules-assessment §2.1): the
 # helpers the built-in UVM pack reads through `uses: [uvm.yaml]`. A user's rule
 # file names it the same way: a bare `uses:` name that is not a file beside the
-# rule file is a built-in helper file. Grown from rules/spike/uvm-vocab.yaml
+# rule file is a built-in helper file. Grown from the spike's uvm-vocab.yaml
 # (svcheck-plan P2.5). It holds no rules, so it is not loaded as a pack. Its
 # classifiers (`contexts:`, at the end) take part in a run that selects a
 # rule of a built-in file (the pack's), or of a user file that uses it.

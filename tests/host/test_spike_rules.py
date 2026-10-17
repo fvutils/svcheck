@@ -33,7 +33,7 @@ pytestmark = pytest.mark.skipif(not os.path.isfile(os.path.join(UVM, "uvm_pkg.sv
 
 
 def _rule_files():
-    """The spike's rule files: those with rules (uvm-vocab.yaml only has helpers)."""
+    """The spike's rule files: those with rules."""
     out = []
     for f in sorted(os.listdir(SPIKE)):
         if f.endswith(".yaml"):

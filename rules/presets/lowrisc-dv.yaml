@@ -1,0 +1,10 @@
+# Preset lowrisc-dv (svcheck-plan P2.6; sv-uvm-rules-assessment §5.2):
+# lowRISC's DV methodology, as OpenTitan's hw/ip/*/dv follows it. The pack,
+# less 035: lowRISC's scoreboards are cycle-aware by design (they wait on the
+# clock and reset interfaces), which is 56 of its 63 findings on OpenTitan
+# (svcheck-plan P2-24). Its names: lowrisc-dv-contexts.yaml.
+svcheck:
+  summary: lowRISC DV, as OpenTitan (cycle-aware scoreboards; *_agent_pkg names)
+  select: [SVCHK-UVM]
+  ignore: [SVCHK-UVM035]
+  rules: [lowrisc-dv-contexts.yaml]

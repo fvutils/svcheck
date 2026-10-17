@@ -1,5 +1,6 @@
 # UVM pack, components and agents (sv-uvm-rules-assessment §3.7; consensus
-# pack §5.1: A4, A7, A12). svcheck-plan P2.5, batch 3. A4 is the
+# pack §5.1: A4, A7, A12). svcheck-plan P2.5, batch 3; 038 is the contexts
+# trial's CTX002 (P2.5 (e)), 039 the consistency rule (P2.6). A4 is the
 # assessment's UVM050 sketch (§4).
 sv-rules:
   version: 1
@@ -11,6 +12,9 @@ sv-rules:
     # value (`logic`, a wire), not the handle itself, nor a 2-state variable
     # (`bit`, `int`), which a testbench keeps in an interface for itself.
     vif_signal(e): via_vif(e) && e.type != null && e.type.isFourState
+    # The unit kinds of unit u, as the pack's classifiers give them.
+    UNIT_KINDS: '["agent", "env", "test", "tb-top"]'
+    unit_kinds(u): u.labels.filter(l, l in UNIT_KINDS)
   rules:
     - id: SVCHK-UVM034
       name: monitor-drives-interface
@@ -217,3 +221,114 @@ sv-rules:
             class helper;
               function void show(); $display("not a UVM class"); endfunction
             endclass
+
+    # Unit structure (sv-contexts §4.3); the contexts trial's CTX002
+    # (svcheck-plan P1.6b, P2.5 (e)).
+    - id: SVCHK-UVM038
+      name: mixed-unit-kinds
+      summary: One package holds more than one kind of unit
+      tier: style
+      family: uvm
+      message: >-
+        package ${node.name} holds ${unit_kinds(node)} content; a reusable
+        testbench keeps each in its own package
+      doc: |
+        A package that holds an agent and an env, or an env and its tests,
+        cannot be reused without the rest: a second bench that wants the
+        agent compiles the env too. Small and generated testbenches often put
+        everything in one `tb_pkg`, and an env package that holds an agent
+        only it uses (a control agent) is a house choice, so the rule is
+        `style`.
+
+        A unit's kinds are the pack's classifiers', by content (sv-contexts):
+        agent, env, test and tb-top. A base library (a package whose classes
+        other packages derive from) is not a mix.
+
+        Sources: Mentor UVM Cookbook, Easier UVM, lowRISC DV.
+      match: { kind: Unit }
+      where: >-
+        node.carriers.exists(c, c.isa(Package) && !c.inLibrary) && unit_kinds(node).size() > 1
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package tb_pkg;                              // expect: SVCHK-UVM038
+              import uvm_pkg::*;
+              class my_agent extends uvm_agent;
+                `uvm_component_utils(my_agent)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+              class my_env extends uvm_env;
+                `uvm_component_utils(my_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package b_agent_pkg;
+              import uvm_pkg::*;
+              class b_agent extends uvm_agent;
+                `uvm_component_utils(b_agent)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+            package b_env_pkg;
+              import uvm_pkg::*;
+              import b_agent_pkg::*;
+              class b_env extends uvm_env;
+                `uvm_component_utils(b_env)
+                b_agent agent;
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+
+    # Classification consistency (sv-contexts §4.4; Q-CX4): the contexts
+    # trial's disagreement note as a rule (svcheck-plan P2.6). It replaces
+    # CTX003, which only fired through a convention's mislabel.
+    - id: SVCHK-UVM039
+      name: unit-kind-disagreement
+      summary: A unit's name or context tag says one kind, its content another
+      tier: suspicious
+      family: uvm
+      message: >-
+        ${node.name}: ${node.disagreements.join("; ")}; rename or move it, or fix the tag
+      doc: |
+        A unit's kind comes from its content: what its classes derive from.
+        A context tag (`// svcheck context: agent`) overrides content, and a
+        house's naming convention (a preset's, such as lowRISC's
+        `*_agent_pkg` or CORE-V's `uvma_*`) never selects a rule. When
+        either disagrees with the content, one of them is out of date: code
+        moved into the wrong package, a package was renamed, or a tag was
+        left behind.
+
+        Without a preset there are no conventions, so the rule reports tags
+        only. A base library (a package whose classes other packages derive
+        from, such as lowRISC's `dv_base_agent_pkg`) is not reported: its
+        name says what it is the base of.
+
+        Sources: sv-contexts (classification consistency), lowRISC DV and
+        CORE-V naming.
+      match: { kind: Unit }
+      where: >-
+        node.carriers.exists(c, !c.inLibrary) && node.disagreements.size() > 0 &&
+        !("base-lib" in node.labels)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            // svcheck context: agent
+            package a_pkg;                               // expect: SVCHK-UVM039
+              import uvm_pkg::*;
+              class a_env extends uvm_env;
+                `uvm_component_utils(a_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            // svcheck context: env
+            package b_pkg;
+              import uvm_pkg::*;
+              class b_env extends uvm_env;
+                `uvm_component_utils(b_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage

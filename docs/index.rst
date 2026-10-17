@@ -9,6 +9,7 @@ semantic model of the elaborated design.
    :maxdepth: 2
 
    cli
+   python
    rules/authoring
    rules/functions
    model/index

@@ -10,9 +10,10 @@
 # remapped to git.dvkit.org plus the internal-identifier check. The build
 # itself is scripts/ci/build-wheel.sh, shared by both.
 #
-# svcheck's wheel is native (py3-none-manylinux_2_28_x86_64: one executable,
-# no extension module), so the build runs in the manylinux_2_28 image rather
-# than on the bare runner as the template does.
+# svcheck's wheels are native (cpXY-cpXY-manylinux_2_28_x86_64, one per
+# CPython: the executable, libsvcheck and the extension modules), so the build
+# runs in the manylinux_2_28 image rather than on the bare runner as the
+# template does.
 #
 # Publish jobs FAIL CLOSED on an unreachable release-authority switch on a tag
 # (template decision, 2026-08-30).

@@ -104,6 +104,10 @@ size_t peakRss() {
 #endif
 }
 
+sem::IDesign *LintCompilation::design() const {
+    return m_impl->design.get();
+}
+
 LintCompilation::LintCompilation(slang::driver::Driver &driver, SemanticLayer layer,
         const std::vector<std::string> &libraryDirs) : m_impl(new Impl()) {
     using Clock = std::chrono::steady_clock;

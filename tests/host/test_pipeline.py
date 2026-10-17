@@ -75,7 +75,8 @@ def lint(tb, *args):
 def test_a_rule_file_runs_under_the_default_profile(tb):
     # Naming the file asks for its rules: they are in every profile but none.
     assert codes(lint(tb)) == ["ACME001", "ACME003", "ACME001", "ACME003"]
-    assert codes(lint(tb, "--profile", "strict")) == codes(lint(tb))
+    # strict also runs the built-in pack (its SVCHK-UVM037 fires here too).
+    assert codes(lint(tb, "--profile", "strict", "--ignore", "SVCHK-UVM")) == codes(lint(tb))
     r = lint(tb, "--profile", "none")
     assert (r.returncode, codes(r)) == (0, [])
 
@@ -100,7 +101,7 @@ def test_an_unknown_selector_is_a_usage_error(tb):
     ([], "warning"),
     (["-Werror"], "error"),
     (["-Werror=ACME001"], "error"),
-    (["-W", "error=objection-in-agent"], "error"),
+    (["-W", "error=agent-objection"], "error"),
     (["-Werror", "-Wno-error=ACME001"], "warning"),
 ])
 def test_warning_policy(tb, args, sev):
@@ -142,7 +143,7 @@ def test_a_waiver_alone_on_its_line_covers_the_next(tb):
     p = tb / "agent" / "apb_driver.svh"
     p.write_text(p.read_text().replace(
         "    phase.raise_objection(this);",
-        "    // svcheck waive objection-in-agent, ACME003: drains the bus\n"
+        "    // svcheck waive agent-objection, ACME003: drains the bus\n"
         "    phase.raise_objection(this);"))
     # The env's objection is not under the waiver.
     assert [(f[0], f[2], f[3]) for f in found(lint(tb))] == [
@@ -294,10 +295,10 @@ def test_list_markers(tb):
 
 
 def test_explain(tb):
-    r = svcheck(tb, "--rules", "r.yaml", "--explain", "objection-in-agent")
+    r = svcheck(tb, "--rules", "r.yaml", "--explain", "agent-objection")
     assert r.returncode == 0
     lines = r.stdout.splitlines()
-    assert lines[0] == "ACME001 objection-in-agent"
+    assert lines[0] == "ACME001 agent-objection"
     assert "  applies to: unit: [\"agent\"] (experimental)" in lines
     assert "  defined in: r.yaml:13" in lines
     r = svcheck(tb, "--rules", "r.yaml", "--explain", "ACME01")

@@ -1,0 +1,13 @@
+# Preset uvm-consensus (svcheck-plan P2.6; sv-uvm-rules-assessment §5.1): the
+# 36 rules no source contradicts, at their default options, and no naming
+# convention. The pack's later rules (037 on) are left out.
+svcheck:
+  summary: the 36 consensus rules only (assessment §5.1), default options
+  select: [SVCHK-UVM001, SVCHK-UVM002, SVCHK-UVM003, SVCHK-UVM004, SVCHK-UVM005,
+           SVCHK-UVM006, SVCHK-UVM007, SVCHK-UVM008, SVCHK-UVM009, SVCHK-UVM010,
+           SVCHK-UVM011, SVCHK-UVM012, SVCHK-UVM013, SVCHK-UVM014, SVCHK-UVM015,
+           SVCHK-UVM016, SVCHK-UVM017, SVCHK-UVM018, SVCHK-UVM019, SVCHK-UVM020,
+           SVCHK-UVM021, SVCHK-UVM022, SVCHK-UVM023, SVCHK-UVM024, SVCHK-UVM025,
+           SVCHK-UVM026, SVCHK-UVM027, SVCHK-UVM028, SVCHK-UVM029, SVCHK-UVM030,
+           SVCHK-UVM031, SVCHK-UVM032, SVCHK-UVM033, SVCHK-UVM034, SVCHK-UVM035,
+           SVCHK-UVM036]

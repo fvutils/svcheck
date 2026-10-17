@@ -48,6 +48,10 @@ class Rule;
 }
 }
 
+namespace sem {
+class IDesign;
+}
+
 namespace host {
 
 namespace rf = svcheck::ast::reflect;
@@ -89,6 +93,9 @@ public:
 
     /** The run's context: the model's (SvContext) when it compiled, else a plain one. */
     lint::run::Context &context() { return *m_context; }
+
+    /** The model's root; null when there is no model. */
+    sem::IDesign *design() const;
 
     /** The model's context; null when there is no model. */
     SvContext *svContext() const { return m_sv; }

@@ -1,5 +1,5 @@
 // One package for the whole bench, as a quick-start bench often is: the agent,
-// the env and the test together. CTX002 should report the package; CTX001 the
+// the env and the test together. SVCHK-UVM038 should report the package; 037 the
 // monitor's objection, and not the scoreboard's or the sequence's.
 package tb_pkg;
   import uvm_pkg::*;
@@ -93,7 +93,7 @@ package tb_pkg;
   endclass
 
   // A scoreboard and a sequence that raise objections: neither is in an
-  // agent, so CTX001 must not report them, though the package holds an agent
+  // agent, so SVCHK-UVM037 must not report them, though the package holds an agent
   // (svcheck-plan P2.4: in a mixed package a class's context is its own).
   class apb_scoreboard extends uvm_scoreboard;
     `uvm_component_utils(apb_scoreboard)

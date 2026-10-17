@@ -1,39 +1,32 @@
-"""The contexts trial (svcheck-plan P1.6b; rules/trial/, scripts/ctx_trial.py).
+"""The UVM pack's contexts (rules/uvm.yaml's classifiers; svcheck-plan P1.6b,
+P2.4, P2.5), which the contexts trial's rules/trial/ became at P2.5 (e).
 
-- The three trial rules' examples pass, with the content set they use.
-- The convention set loads beside them, and a convention alone labels.
+- The pack's content classifiers label units, with `--select SVCHK-UVM`.
+- The convention set (tests/data/classify-convention.yaml, P2.6's to ship)
+  loads beside them; a convention alone labels, but never selects.
 - What the trial added to the host: `subclasses(c)`, procedural blocks in the
   model (`Process`, so `run_test()` in an `initial` block is a call), and a
   place for findings on a Unit or a UnitDep.
-- Each corpus of tests/corpora/ compiles without errors, when its snapshot is
-  in packages/ (tests/corpora/README.md); skipped otherwise.
+- The trial's rules, now the pack's SVCHK-UVM037 (CTX001) and 038 (CTX002),
+  on the positive corpus. Their examples are test_cli's (`--check-rules`).
 """
 import json
 import os
 import subprocess
-import sys
 
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-sys.path.insert(0, os.path.join(ROOT, "tests", "engine"))
-
-from hooks import EngineHooks, check_examples  # noqa: E402
 from svcheck import native_path  # noqa: E402
 
 UVM = os.path.join(ROOT, "packages", "uvm-core", "src")
-TRIAL = os.path.join(ROOT, "rules", "trial")
+CONVENTION = os.path.join(ROOT, "tests", "data", "classify-convention.yaml")
+# The built-in UVM pack, which brings its classifiers.
+PACK = ["--select", "SVCHK-UVM"]
 CORPORA = os.path.join(ROOT, "tests", "corpora")
 pytestmark = pytest.mark.skipif(not os.path.isfile(os.path.join(UVM, "uvm_pkg.sv")),
                                 reason="UVM is not in packages/ (ivpm update)")
-
-
-@pytest.fixture(scope="module")
-def model():
-    h = EngineHooks(semantic="model", uvm=UVM)
-    yield h
-    h.close()
 
 
 def _lint(files, *rules, extra=()):
@@ -62,13 +55,6 @@ def _rule_file(d, text):
     with open(p, "w", encoding="utf-8") as fp:
         fp.write(text)
     return p
-
-
-def test_trial_rule_examples(model):
-    path = os.path.join(TRIAL, "contexts.yaml")
-    with open(path, encoding="utf-8") as fp:
-        results = check_examples(model, path, fp.read())
-    assert len(results) == 3
 
 
 BENCH = """\
@@ -118,7 +104,7 @@ def _units(ctx):
 
 
 def test_content_set_labels_a_base_library_as_such():
-    ctx = _lint({"tb.sv": BENCH}, os.path.join(TRIAL, "contexts.yaml"), extra=["--contexts"])
+    ctx = _lint({"tb.sv": BENCH}, extra=PACK + ["--contexts"])
     units = _units(ctx)
     # Another package derives from its classes: a base library, not an env or test.
     assert units["base_pkg"] == ["base-lib"]
@@ -133,8 +119,7 @@ def test_content_set_labels_a_base_library_as_such():
 def test_convention_alone_labels_and_disagreement_is_noted():
     ctx = _lint({"tb.sv": BENCH.replace("package base_pkg;", "package base_agent_pkg;")
                  .replace("import base_pkg::*;", "import base_agent_pkg::*;")},
-                os.path.join(TRIAL, "contexts.yaml"),
-                os.path.join(TRIAL, "classify-convention.yaml"), extra=["--contexts"])
+                CONVENTION, extra=PACK + ["--contexts"])
     units = _units(ctx)
     conv = {u["name"]: sorted(u["convention_labels"]) for u in ctx["units"]}
     # Class names alone: my_base_env, my_base_test, and a class named *_test
@@ -154,13 +139,13 @@ def test_unit_and_unitdep_findings_have_a_place(tmp_path):
     rules = _rule_file(str(tmp_path), """\
 sv-rules:
   version: 1
-  uses: [%s]
+  uses: [uvm.yaml]
   rules:
     - { id: ACME001, name: u, tier: suspicious, summary: s, message: "${node.name}",
         match: { kind: Unit }, where: 'node.name == "top_env_pkg"' }
     - { id: ACME002, name: d, tier: suspicious, summary: s, message: "${node.to.name}",
         match: { kind: UnitDep }, where: 'node.from.name == "top_test_pkg"' }
-""" % os.path.join(TRIAL, "classify-content.yaml"))
+""")
     out = _lint({"tb.sv": BENCH}, rules)
     found = sorted((f["code"], f["line"], f["message"]) for f in out["findings"])
     assert found == [("ACME001", 18, "top_env_pkg"), ("ACME002", 25, "base_pkg")]
@@ -192,11 +177,12 @@ def test_the_positive_corpus_fires():
     the monitor raises an objection (tests/corpora/ctx-positive.f). P2.4: in
     that mixed package, the scoreboard's and a sequence's objections are not
     in an agent; the monitor's are, for being a monitor."""
-    r = subprocess.run([native_path(), "--rules", os.path.join(TRIAL, "contexts.yaml"),
-                        "-F", os.path.join(CORPORA, "ctx-positive.f"), "--format", "json"],
+    r = subprocess.run([native_path()] + PACK + ["-F", os.path.join(CORPORA, "ctx-positive.f"), "--format", "json"],
                        capture_output=True, text=True, timeout=300, cwd=ROOT)
     out = json.loads(r.stdout)
     assert out["compilation"]["errors"] == 0, r.stderr
-    assert [(f["code"], os.path.basename(f["file"]), f["line"]) for f in out["findings"]] == [
-        ("CTX002", "tb_pkg.sv", 4), ("CTX001", "tb_pkg.sv", 68), ("CTX001", "tb_pkg.sv", 72)]
-    assert all("in agent apb_monitor" in f["message"] for f in out["findings"][1:])
+    found = [f for f in out["findings"] if f["code"] in ("SVCHK-UVM037", "SVCHK-UVM038")]
+    assert [(f["code"], os.path.basename(f["file"]), f["line"]) for f in found] == [
+        ("SVCHK-UVM038", "tb_pkg.sv", 4), ("SVCHK-UVM037", "tb_pkg.sv", 68),
+        ("SVCHK-UVM037", "tb_pkg.sv", 72)]
+    assert all("in agent apb_monitor" in f["message"] for f in found[1:])

@@ -8,7 +8,15 @@ rule engine reads) into OUT_DIR:
 - ``OUT_DIR/include/svcheck/sem/I*.h``: the interfaces, which the lowering
   pass (``src/lower``) and the host include;
 - ``OUT_DIR/*.{h,cpp}``: the implementation classes and the factory;
-- ``OUT_DIR/reflect/Reflect.cpp``: the class, field, enum and struct tables.
+- ``OUT_DIR/reflect/Reflect.cpp``: the class, field, enum and struct tables;
+- ``OUT_DIR/pyext/``: the ``svcheck.sem`` Cython module (``gen-pyext``;
+  svcheck-plan P2.6b), which setup.py copies into ``python/svcheck/``.
+
+The module loads ``libsvcheck`` (``-libname``), which holds the model and
+exports ``sem_getFactory``. Every node wrapper carries gen-pyext's
+``_owner``: ``svcheck.core`` sets it to the ``Compilation`` on the root it
+hands out, and every node reached from there gets it, so no wrapper outlives
+the model. Both need pyastbuilder 0.0.9.
 
 gen-reflect also writes a ``Reflect.h`` that declares its own ``Node``,
 ``Value`` and table types. The engine has the same types already
@@ -138,6 +146,10 @@ def main(argv):
              "-o", refl, "-namespace", "svcheck::sem"], env, tmp)
         # Not used: svcheck builds the sources into its own target.
         os.remove(os.path.join(cpp, "CMakeLists.txt"))
+        pyext = os.path.join(cpp, "pyext")
+        run([sys.executable, "-m", "astbuilder", "gen-pyext", "-astdir", ast_dir,
+             "-o", pyext, "-namespace", "svcheck::sem", "-name", "sem",
+             "-package", "svcheck.sem", "-libname", "svcheck"], env, tmp)
 
         with open(os.path.join(refl, "Reflect.h"), encoding="utf-8") as fp:
             m = re.search(r"constexpr uint16_t NumClasses = (\d+);", fp.read())

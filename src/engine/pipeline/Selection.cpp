@@ -512,7 +512,7 @@ Selection::Selection(Catalogue &cat, const yaml::Node &input) : m_cat(cat) {
         error("request", "", "the selection is not a JSON object");
     }
     static const std::vector<std::string> topKeys = {
-        "lint", "command_line", "severity", "warnings", "base_dir", "paths"};
+        "lint", "preset", "command_line", "severity", "warnings", "base_dir", "paths"};
     for (const yaml::Node::Member &m : input.members) {
         if (!contains(topKeys, m.key)) {
             error("request", m.key, "unknown key '" + m.key + "'");
@@ -564,12 +564,23 @@ Selection::Selection(Catalogue &cat, const yaml::Node &input) : m_cat(cat) {
         lint = nullptr;
     }
     readLayer(lint, "lint", m_base, false);
+    // A preset (svcheck-plan P2.6, Q-UVM3): a layer under the project's,
+    // which the project's select and ignore, then the command line's, override.
+    if (const yaml::Node *pr = input.get("preset"); pr && pr->kind != NK::Null) {
+        m_hasPreset = true;
+        readLayer(pr, "preset", m_preset, false);
+        if (const yaml::Node *nm = pr->kind == NK::Map ? pr->get("name") : nullptr;
+                nm && nm->kind == NK::String) {
+            m_presetName = nm->s;
+        }
+    }
     const yaml::Node *cli = input.get("command_line");
     if (cli && cli->kind == NK::Map) {
         readLayer(cli, "command_line", m_cli, false);
     } else if (cli && cli->kind != NK::Null) {
         error("request", "command_line", "command_line: not an object");
     }
+    readOptions(m_preset.rule, "preset.rule");
     readOptions(m_base.rule, "lint.rule");
     if (lint) {
         if (const yaml::Node *ovs = lint->get("overrides")) {
@@ -654,8 +665,9 @@ void Selection::readLayer(const yaml::Node *n, const std::string &key, Layer &l,
     static const std::vector<std::string> overrideKeys = {
         "files", "context", "profile", "select", "ignore", "rule"};
     static const std::vector<std::string> cliKeys = {"select", "ignore"};
+    static const std::vector<std::string> presetKeys = {"name", "select", "ignore", "rule"};
     const std::vector<std::string> &known = isOverride ? overrideKeys
-        : (key == "command_line") ? cliKeys : lintKeys;
+        : (key == "command_line") ? cliKeys : (key == "preset") ? presetKeys : lintKeys;
     for (const yaml::Node::Member &m : n->members) {
         if (!contains(known, m.key)) {
             error("request", key + "." + m.key, key + ": unknown key '" + m.key + "'");
@@ -844,18 +856,20 @@ void Selection::build(SelectionGroup &g) {
         }
     }
     // The profile is the base, at profile specificity; then the project's
-    // select and ignore.
+    // select and ignore. With a preset, the profile and the preset's select
+    // and ignore are the base, and the project's a layer over it.
+    const Layer &base = m_hasPreset ? m_preset : m_base;
     std::vector<Selector> on;
     Selector p;
     p.text = g.profile;
     p.kind = Selector::Kind::Profile;
     p.value = g.profile;
     on.push_back(p);
-    on.insert(on.end(), m_base.select.begin(), m_base.select.end());
+    on.insert(on.end(), base.select.begin(), base.select.end());
     for (const MarkerMeta *m : m_cat.lint()) {
         const Selector *w = nullptr;
         int bOn = m_cat.best(on, *m, &w);
-        int bOff = m_cat.best(m_base.ignore, *m);
+        int bOff = m_cat.best(base.ignore, *m);
         if (bOn >= 0 && bOn > bOff) {
             g.enabled.insert(m->id);
             if (w->isExplicit()) {
@@ -863,13 +877,16 @@ void Selection::build(SelectionGroup &g) {
             }
         }
     }
+    if (m_hasPreset) {
+        overlay(m_base, g.enabled, g.explicitIds);
+    }
     for (uint32_t i : g.overrides) {
         overlay(m_overrides[i], g.enabled, g.explicitIds);
     }
     overlay(m_cli, g.enabled, g.explicitIds);
     g.heldBack = m_cat.heldBack(g.profile);
 
-    std::vector<const yaml::Node *> tables = {m_base.rule};
+    std::vector<const yaml::Node *> tables = {m_preset.rule, m_base.rule};
     for (uint32_t i : g.overrides) {
         tables.push_back(m_overrides[i].rule);
     }
@@ -964,6 +981,9 @@ void Selection::toJson(JsonWriter &w, const std::vector<std::string> &paths) {
     }
     w.beginObject();
     w.kv("ok", true);
+    if (m_hasPreset) {
+        w.kv("preset", m_presetName);
+    }
     w.key("errors").beginArray();
     for (const SelectionError &e : m_errors) {
         w.beginObject().kv("key", e.key).kv("text", e.text).kv("message", e.message)

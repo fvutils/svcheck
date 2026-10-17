@@ -46,8 +46,7 @@ import yaml  # noqa: E402
 
 ROOT = registry.ROOT
 REVIEWS = os.path.join(ROOT, "tests", "precision")
-RULES = ["rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml",
-         "rules/trial/contexts.yaml"]
+RULES = ["rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml"]
 # The built-in packs, which follow the profile's tiers, are selected by
 # namespace (svcheck-plan P2.5).
 SELECT = ["SVCHK-UVM"]

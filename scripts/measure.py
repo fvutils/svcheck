@@ -11,11 +11,12 @@ Each configuration runs N times (default 5) with `--stats`; each phase's
 time is the minimum over the runs, the heap is the last run's. The tables:
 
 1. **Phases** on the curated model, with the spike's fw-hdl and Verible rules and the
-   contexts trial's (content classifiers): parse, elaborate (slang's
+   UVM pack (`--select SVCHK-UVM`, with its content classifiers): parse, elaborate (slang's
    compile and bind, every diagnostic), lower, classify, rules; and the
    heap after each. *Lower %* is lowering against parse + elaborate, Q-SC5's
    criterion (design §3.6: adopt the model under about 20%).
-2. **Classify**: the classify stage with each classifier set of the trial.
+2. **Classify**: the classify stage with the pack's classifiers (content), and with
+   the convention set (tests/data/classify-convention.yaml) beside them.
 
 The Q-SC5 table (the 4 UVM rules on each semantic layer) went with the
 slang layer at P1.8; its last output is in svcheck-plan §6.1.
@@ -31,14 +32,15 @@ import registry  # noqa: E402
 
 ROOT = registry.ROOT
 SPIKE = ["rules/spike/fw-hdl.yaml", "rules/spike/verible.yaml"]
-TRIAL = "rules/trial/contexts.yaml"
-CONVENTION = "rules/trial/classify-convention.yaml"
+# The built-in UVM pack (svcheck-plan P2.5), and its classifiers with it.
+PACK = ["--select", "SVCHK-UVM"]
+CONVENTION = "tests/data/classify-convention.yaml"
 PHASES = ["parse_s", "elaborate_s", "lower_s", "classify_s", "rules_s", "index_s", "total_s"]
 MB = 1024.0 * 1024.0
 
 
 def run(svcheck, corpus, rules, layer="model"):
-    cmd = [svcheck]
+    cmd = [svcheck] + PACK
     for r in rules:
         cmd += ["--rules", r]
     cmd += ["-F", os.path.relpath(registry.load([corpus])[0]["path"], ROOT), "--format", "json",
@@ -76,12 +78,12 @@ def main():
 
     phases, classify = [], []
     for c in args.corpora:
-        out = best(args.svcheck, args.runs, c, SPIKE + [TRIAL])
+        out = best(args.svcheck, args.runs, c, SPIKE)
         phases.append((c, out))
-        conv = best(args.svcheck, args.runs, c, [TRIAL, CONVENTION])
+        conv = best(args.svcheck, args.runs, c, [CONVENTION])
         classify.append((c, out, conv))
 
-    print("### Phases: curated model, the spike rules (fw-hdl, verible) and the 3 trial rules "
+    print("### Phases: curated model, the spike rules (fw-hdl, verible) and the UVM pack "
           "(ms, min of %d)\n" % args.runs)
     print("| Corpus | Files | Parse | Elaborate | Lower | Lower % | Classify | Index | Rules "
           "| Total | Heap: elaborated → lowered (MB) | Model heap % | Peak RSS (MB) |")
@@ -104,7 +106,7 @@ def main():
         t = {r["id"]: r["s"] for r in out["stats"]["rules"]}
         print("| %s | " % c + " | ".join(ms(t[i]) for i in ids) + " |")
 
-    print("\n### Classify: the trial's classifier sets (ms, min of %d)\n" % args.runs)
+    print("\n### Classify: the pack's classifiers, and convention beside them (ms, min of %d)\n" % args.runs)
     print("| Corpus | Content | Content + convention |")
     print("|---|---|---|")
     for c, content, conv in classify:

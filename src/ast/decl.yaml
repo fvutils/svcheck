@@ -60,6 +60,7 @@ classes:
         init: false
     - carrier:
         type: P<Decl>
+        rel: parent
         is_ctor: false
     - tags:
         type: list<string>
@@ -77,6 +78,7 @@ classes:
     data:
     - imports:
         type: list<P<Package>>
+        visit: false
         is_ctor: false
     - files:
         type: list<string>
@@ -103,6 +105,7 @@ classes:
         init: DefinitionKind::Module
     - imports:
         type: list<P<Package>>
+        visit: false
         is_ctor: false
     - files:
         type: list<string>
@@ -128,12 +131,15 @@ classes:
     data:
     - base:
         type: P<Class>
+        visit: false
         is_ctor: false
     - supers:
         type: list<P<Class>>
+        visit: false
         is_ctor: false
     - interfaces:
         type: list<P<Class>>
+        visit: false
         is_ctor: false
     - isAbstract:
         type: bool
@@ -157,6 +163,7 @@ classes:
     data:
     - type:
         type: P<TypeRef>
+        visit: false
         is_ctor: false
 
 - Variable:
@@ -175,6 +182,7 @@ classes:
     data:
     - type:
         type: P<TypeRef>
+        visit: false
         is_ctor: false
     - isRand:
         type: bool
@@ -229,9 +237,11 @@ classes:
         init: false
     - overrides:
         type: P<Subroutine>
+        visit: false
         is_ctor: false
     - returnType:
         type: P<TypeRef>
+        visit: false
         is_ctor: false
     - args:
         type: list<UP<Variable>>

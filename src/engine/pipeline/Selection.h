@@ -184,6 +184,7 @@ struct SelectionGroup {
  *             "rule": {name: {opt: value}},
  *             "overrides": [{"files": [glob...], "context": [label...],
  *                            "profile", "select", "ignore", "rule"}]},
+ *    "preset": {"name", "select", "ignore", "rule"},
  *    "command_line": {"select", "ignore"},
  *    "severity": {selector: severity},
  *    "warnings": {"error": [selector...] | true, "no-error": [selector...],
@@ -274,6 +275,9 @@ private:
     Catalogue                                       &m_cat;
     std::vector<SelectionError>                     m_errors;
     Layer                                           m_base;
+    Layer                                           m_preset;
+    bool                                            m_hasPreset = false;
+    std::string                                     m_presetName;
     std::vector<Layer>                              m_overrides;
     Layer                                           m_cli;
     std::string                                     m_baseDir;

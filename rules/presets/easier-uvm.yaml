@@ -1,0 +1,12 @@
+# Preset easier-uvm (svcheck-plan P2.6; sv-uvm-rules-assessment §5.2): Doulos'
+# Easier UVM, with the Mentor cookbook where the two agree. The pack, with:
+# objections in the test only (037 accepts neither a default sequence nor a
+# drain watchdog in an agent), virtual interfaces set for the test only
+# (033), and the generator's naming (easier-uvm-contexts.yaml).
+svcheck:
+  summary: Doulos Easier UVM (objections and interfaces in the test; its generator's names)
+  select: [SVCHK-UVM]
+  rule:
+    SVCHK-UVM033: { scope: '^uvm_test_top(\..*)?$' }
+    SVCHK-UVM037: { sequences: false, ready_to_end: false }
+  rules: [easier-uvm-contexts.yaml]

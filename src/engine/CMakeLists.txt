@@ -36,12 +36,13 @@ file(GLOB_RECURSE _engine_src CONFIGURE_DEPENDS "${_engine_dir}/*.cpp")
 
 #****************************************************************************
 #* Built-in rule files (pssparser C4.3): rules/*.yaml at the repository
-#* root, embedded as bytes. None yet (P2); the generator then writes the
-#* empty table.
+#* root, and the presets in rules/presets/ (svcheck-plan P2.6), embedded as
+#* bytes.
 #****************************************************************************
 set(_builtin_dir "${CMAKE_CURRENT_BINARY_DIR}/builtin")
 file(GLOB _builtin_rules CONFIGURE_DEPENDS
-  "${CMAKE_SOURCE_DIR}/rules/*.yaml" "${CMAKE_SOURCE_DIR}/rules/*.yml")
+  "${CMAKE_SOURCE_DIR}/rules/*.yaml" "${CMAKE_SOURCE_DIR}/rules/*.yml"
+  "${CMAKE_SOURCE_DIR}/rules/presets/*.yaml")
 add_custom_command(
   OUTPUT "${_builtin_dir}/BuiltinRules.cpp"
   COMMAND "${Python3_EXECUTABLE}" "${_engine_dir}/rules/mk_builtin_rules.py"

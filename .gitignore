@@ -231,3 +231,13 @@ __marimo__/
 # Local design docs and reference material, never tracked
 /docs/design/
 /lowrisc-style-guides/
+# The model's Cython module, generated (build/src/ast/gen/pyext) and
+# copied here by setup.py, and Cython's output
+/python/svcheck/sem.pyx
+/python/svcheck/sem.pxd
+/python/svcheck/sem_decl.pxd
+/python/svcheck/sem.pyi
+/python/svcheck/PyBaseVisitor.*
+/python/svcheck/sem.cpp
+/python/svcheck/core.cpp
+/python/svcheck/*.h

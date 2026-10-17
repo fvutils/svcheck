@@ -92,6 +92,9 @@ uint32_t LintEngine::loadBuiltinRules() {
         if (isHelperFile(src)) {
             continue;       // read by the packs through `uses:`
         }
+        if (src.name.rfind("svcheck:rules/presets/", 0) == 0) {
+            continue;       // a preset's, loaded when it is named (svcheck-plan P2.6)
+        }
         if (loadRules(src, true)) {
             n++;
         }

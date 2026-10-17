@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Embed the built-in rule files (``rules/*.yaml``) in the core.
+"""Embed the built-in rule files (``rules/*.yaml``, ``rules/presets/*.yaml``) in the core.
 
 lint-core-plan.md C4.3; pss-rules-format.md §6.2.  Writes a C++ source that
 defines ``svcheck::lint::rules::builtinRuleFiles()`` (declared in
@@ -57,14 +57,25 @@ NAME_PREFIX = "svcheck:rules/"
 EXTENSIONS = (".yaml", ".yml")
 
 
+#: Subdirectories embedded too, as "<dir>/<file>": the presets
+#: (svcheck-plan P2.6), which the CLI reads by name.
+SUBDIRS = ("presets",)
+
+
 def rule_files(rules_dir):
     """The built-in rule files, sorted: listdir order is filesystem-dependent,
     and the output must be the same on every machine."""
     if not os.path.isdir(rules_dir):
         return []
-    return [f for f in sorted(os.listdir(rules_dir))
-            if os.path.splitext(f)[1] in EXTENSIONS
-            and os.path.isfile(os.path.join(rules_dir, f))]
+    out = []
+    for sub in ("",) + SUBDIRS:
+        d = os.path.join(rules_dir, sub)
+        if not os.path.isdir(d):
+            continue
+        out += [(sub + "/" if sub else "") + f for f in os.listdir(d)
+                if os.path.splitext(f)[1] in EXTENSIONS
+                and os.path.isfile(os.path.join(d, f))]
+    return sorted(out)
 
 
 def generate(rules_dir):

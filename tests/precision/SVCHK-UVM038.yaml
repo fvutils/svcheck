@@ -1,8 +1,8 @@
-# Precision review of CTX002 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# Precision review of SVCHK-UVM038 (scripts/precision.py; svcheck-plan P2.1). Each finding
 # is the file and line, as its source, and the message; `corpora` says where it was
 # found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
 # rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
-rule: CTX002
+rule: SVCHK-UVM038
 findings:
 - at: core-v-verif/cv32e40p/env/uvme/uvme_cv32e40p_pkg.sv:35
   message: package uvme_cv32e40p_pkg holds agent, env content; a reusable testbench keeps each in its

@@ -21,6 +21,8 @@
 #include <fstream>
 #include <sstream>
 #include "Config.h"
+#include "Out.h"
+#include "rules/BuiltinRules.h"
 #include "util/JsonWriter.h"
 
 namespace svcheck {
@@ -109,10 +111,17 @@ bool readConfig(const std::string &path, Config &out, std::string &err) {
     }
     out.root = root;
     static const std::vector<std::string> keys = {"rules", "profile", "select", "ignore",
-        "rules-version", "rule", "severity", "warnings", "overrides", "contexts"};
+        "rules-version", "rule", "severity", "warnings", "overrides", "contexts", "preset"};
     for (const lint::yaml::Node::Member &m : root->members) {
         if (std::find(keys.begin(), keys.end(), m.key) == keys.end()) {
             err += path + ": svcheck." + m.key + ": unknown key\n";
+        }
+    }
+    if (const lint::yaml::Node *p = root->get("preset")) {
+        if (p->kind == NK::String && !p->s.empty()) {
+            out.preset = p->s;
+        } else if (p->kind != NK::Null) {
+            err += path + ": svcheck.preset: not a preset name\n";
         }
     }
     std::vector<std::string> rules;
@@ -167,6 +176,89 @@ bool readConfig(const std::string &path, Config &out, std::string &err) {
         }
     }
     return err.empty();
+}
+
+namespace {
+
+const std::string PRESET_DIR = "svcheck:rules/presets/";
+
+// The `svcheck:` mapping of built-in file `f`, or null when it is not a
+// preset (a preset's classifier file is a rule file, under `sv-rules:`).
+lint::yaml::NodeUP presetDoc(const lint::rules::BuiltinRuleFile *f) {
+    std::string name = f->name;
+    if (name.compare(0, PRESET_DIR.size(), PRESET_DIR) != 0) {
+        return nullptr;
+    }
+    try {
+        lint::yaml::NodeUP doc = lint::yaml::parse(name, std::string(f->text, f->size));
+        if (doc && doc->kind == NK::Map && doc->get("svcheck")) {
+            return doc;
+        }
+    } catch (const lint::yaml::YamlError &) {
+    }
+    return nullptr;
+}
+
+std::string presetName(const std::string &file) {
+    std::string n = file.substr(PRESET_DIR.size());
+    return n.substr(0, n.find_last_of('.'));
+}
+
+}
+
+std::vector<std::string> presetNames() {
+    std::vector<std::string> out;
+    for (const lint::rules::BuiltinRuleFile *f = lint::rules::builtinRuleFiles(); f->name; f++) {
+        if (presetDoc(f)) {
+            out.push_back(presetName(f->name));
+        }
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+bool readPreset(const std::string &name, Preset &out, std::string &err) {
+    for (const lint::rules::BuiltinRuleFile *f = lint::rules::builtinRuleFiles(); f->name; f++) {
+        if (presetName(f->name) != name) {
+            continue;
+        }
+        lint::yaml::NodeUP doc = presetDoc(f);
+        if (!doc) {
+            continue;
+        }
+        out.name = name;
+        out.file = f->name;
+        out.doc = std::move(doc);
+        out.root = out.doc->get("svcheck");
+        if (out.root->kind != NK::Map) {
+            err = out.file + ": a preset is a mapping under `svcheck:`\n";
+            return false;
+        }
+        static const std::vector<std::string> keys = {"summary", "select", "ignore", "rule",
+            "rules"};
+        for (const lint::yaml::Node::Member &m : out.root->members) {
+            if (std::find(keys.begin(), keys.end(), m.key) == keys.end()) {
+                err += out.file + ": svcheck." + m.key + ": unknown key\n";
+            }
+        }
+        if (const lint::yaml::Node *s = out.root->get("summary"); s && s->kind == NK::String) {
+            out.summary = s->s;
+        }
+        std::vector<std::string> rules;
+        strings(out.root->get("rules"), out.file + ": svcheck.rules", rules, err);
+        for (const std::string &r : rules) {
+            out.rules.push_back(PRESET_DIR + r);
+        }
+        return err.empty();
+    }
+    err = "unknown preset '" + name + "'; the presets are:\n";
+    for (const std::string &n : presetNames()) {
+        Preset p;
+        std::string e;
+        readPreset(n, p, e);
+        err += "  " + n + (p.summary.empty() ? "" : ": " + p.summary) + "\n";
+    }
+    return false;
 }
 
 }

@@ -26,6 +26,7 @@ classes:
     data:
     - type:
         type: P<TypeRef>
+        visit: false
         is_ctor: false
     - constKind:
         type: ConstKind
@@ -67,6 +68,7 @@ classes:
         is_ctor: false
     - subroutine:
         type: P<Subroutine>
+        visit: false
         is_ctor: false
     - isSystem:
         type: bool
@@ -78,6 +80,7 @@ classes:
         init: false
     - classType:
         type: P<TypeRef>
+        visit: false
         is_ctor: false
     - receiver:
         type: UP<Expr>
@@ -129,6 +132,7 @@ classes:
         is_ctor: false
     - decl:
         type: P<Decl>
+        visit: false
         is_ctor: false
 
 - MemberAccess:
@@ -143,6 +147,7 @@ classes:
         is_ctor: false
     - decl:
         type: P<Decl>
+        visit: false
         is_ctor: false
 
 - Literal:

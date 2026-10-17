@@ -75,7 +75,7 @@ sv-rules:
       when: '!carrier.inLibrary && classes(carrier).exists(c, derives_from(c, "uvm_pkg::uvm_env"))'
   rules:
     - id: ACME001
-      name: objection-in-agent
+      name: agent-objection
       tier: suspicious
       summary: An agent raises or drops an objection
       message: "${node.subroutine.name} in an agent"
@@ -181,7 +181,7 @@ def test_a_broken_compilation_runs_only_syntax_rules(tb):
     r = svcheck(tb, "-f", "tb.f", "bad.sv", "--rules", "r.yaml")
     assert r.returncode == 1
     assert r.stdout.splitlines() == [
-        "svcheck: info: rule ACME001 (objection-in-agent) not run: it needs the compilation, "
+        "svcheck: info: rule ACME001 (agent-objection) not run: it needs the compilation, "
         "which has 1 error [SVCHK231]",
         "bad.sv:1:9: warning: package 'bad' does not end in _pkg [ACME002]",
     ]
@@ -217,7 +217,7 @@ def test_applies_to_with_no_classifiers_is_not_run(tb):
     (tb / "r.yaml").write_text(rules)
     r = svcheck(tb, "-f", "tb.f", "--rules", "r.yaml")
     assert r.stdout.splitlines() == [
-        "svcheck: info: rule ACME001 (objection-in-agent) not run: no unit has a context on "
+        "svcheck: info: rule ACME001 (agent-objection) not run: no unit has a context on "
         "axis 'unit' [SVCHK231]"]
     assert r.returncode == 0
 

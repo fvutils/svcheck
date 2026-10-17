@@ -1,10 +1,11 @@
-# Classifier set 2 of the contexts trial (svcheck-plan P1.6b): content plus
-# convention. Loaded beside contexts.yaml, which brings set 1's classifiers,
-# it adds weak ones from names and directories
-# in the styles of sv-contexts.md §1 (lowRISC `_agent_pkg`, CORE-V `uvma_`,
-# UVMF `hvl_top`, a directory named `env`). Content outranks a convention
-# that disagrees with it, which is noted (Q-CX4); a convention alone labels
-# the carrier.
+# Convention classifiers, in the styles of sv-contexts.md §1 (lowRISC
+# `_agent_pkg`, CORE-V `uvma_`, UVMF `hvl_top`, a directory named `env`): the
+# contexts trial's set 2 (svcheck-plan P1.6b), every house's names at once,
+# kept as a test fixture; the presets (rules/presets/, P2.6) carry each
+# house's own. Loaded beside the UVM pack
+# (`--rules` this file, `--select SVCHK-UVM`), whose classifiers are by
+# content. Convention never selects (Q-CX4): a label from it alone is a
+# unit's `conventionLabels`, and one content contradicts is a disagreement.
 sv-rules:
   version: 1
   define:

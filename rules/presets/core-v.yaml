@@ -1,0 +1,11 @@
+# Preset core-v (svcheck-plan P2.6; sv-uvm-rules-assessment §5.2):
+# CORE-V-VERIF's house style (OpenHW Group). The pack, with: defaults on a
+# component constructor's two arguments accepted (002; 61 of its 64 findings
+# on CV32E40P, svcheck-plan P2-22). Objections in default sequences are
+# accepted by the pack already (037). Its names: core-v-contexts.yaml.
+svcheck:
+  summary: CORE-V-VERIF (uvma_/uvme_/uvmt_ names, defaulted constructor arguments)
+  select: [SVCHK-UVM]
+  rule:
+    SVCHK-UVM002: { allow_defaults: true }
+  rules: [core-v-contexts.yaml]

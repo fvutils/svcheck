@@ -155,10 +155,12 @@ public:
 
     /**
      * Resolves a rule selection (C7.1; lint-framework L3, F2.5): profile,
-     * select and ignore, the per-path overrides, the command line's layer,
+     * a preset's layer under the project's, select and ignore, the per-path
+     * overrides, the command line's layer,
      * `[severity]` and `-W` groups. The input is the configuration as JSON
      * (pipeline/Selection.h) plus "paths", the files to place. The result:
      *   {"ok": true,
+     *    "preset": "name",                           with a preset only
      *    "errors": [{"key", "text", "message"}],    unknown selectors, rules
      *    "lint_ids": [...],                          every lint rule
      *    "groups": [{"overrides": [i...], "profile", "enabled": [...],

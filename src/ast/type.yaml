@@ -31,9 +31,11 @@ classes:
         init: false
     - classDecl:
         type: P<Class>
+        visit: false
         is_ctor: false
     - args:
         type: list<P<TypeRef>>
+        visit: false
         is_ctor: false
     - isVirtualInterface:
         type: bool
@@ -41,6 +43,7 @@ classes:
         init: false
     - ifaceDecl:
         type: P<Definition>
+        visit: false
         is_ctor: false
     - isIntegral:
         type: bool

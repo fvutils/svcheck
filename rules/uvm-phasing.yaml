@@ -1,6 +1,7 @@
 # UVM pack, phasing, objections and end of test (sv-uvm-rules-assessment §3.5;
 # consensus pack §5.1: P1, P3, P4, P8, P10, P13, P14). svcheck-plan P2.5,
-# batch 2. P1 absorbs the spike's UVM030.
+# batch 2. P1 absorbs the spike's UVM030; P12 (037) the contexts trial's
+# CTX001 (P2.5 (e)).
 sv-rules:
   version: 1
   uses: [uvm.yaml]
@@ -371,3 +372,119 @@ sv-rules:
                 $finish;
               end
             endmodule
+
+    # P12 (assessment §3.5); the contexts trial's CTX001 (svcheck-plan P1.6b,
+    # P2.5 (e)).
+    - id: SVCHK-UVM037
+      name: objection-in-agent
+      summary: An agent's component raises or drops a phase objection
+      tier: suspicious
+      family: uvm
+      message: >-
+        ${node.name}() in agent ${context(node, "unit").name}; an agent cannot know
+        when the test is done, so objections belong to the test or its sequences
+      doc: |
+        An agent is reused under tests it does not know, so it cannot know
+        when stimulus is done: a driver or monitor that raises an objection
+        keeps every test that uses it from ending, or ends it early when it
+        drops. Objections belong to the test (Mentor, Verification Academy)
+        or to the sequences it starts (CORE-V).
+
+        Two exceptions are not reported by default: a sequence of the agent
+        (a default sequence, raising on its starting phase; CORE-V), and a
+        component's `phase_ready_to_end`, or a method it calls, which holds
+        the phase open while the agent drains (lowRISC's monitor watchdog,
+        which waits for `ok_to_end`). The options `sequences` and
+        `ready_to_end` turn them off: the `easier-uvm` preset does, since
+        Easier UVM and the Mentor cookbook keep objections in the test.
+
+        The rule runs in agent units only (`applies_to`): it reads the
+        pack's classifiers, by content (sv-contexts).
+
+        Sources: Mentor UVM Cookbook, CORE-V, lowRISC DV.
+      options:
+        sequences:
+          type: bool
+          default: true
+          help: Accept objections in the agent's sequences (default sequences)
+        ready_to_end:
+          type: bool
+          default: true
+          help: Accept objections in phase_ready_to_end and the methods it calls (drain watchdogs)
+      applies_to: { unit: agent }
+      match: { kind: Call }
+      where: >-
+        node.name in ["raise_objection", "drop_objection"] && !in_library(node) &&
+        node.subroutine != null && node.subroutine.inLibrary &&
+        cls(node) != null && !(options.sequences && is_sequence(cls(node))) &&
+        !(options.ready_to_end && method(node) != null &&
+          (method(node).name == "phase_ready_to_end" ||
+           helper_of(method(node), cls(node), "phase_ready_to_end")))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package a_agent_pkg;
+              import uvm_pkg::*;
+              class a_drv extends uvm_driver;
+                `uvm_component_utils(a_drv)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  phase.raise_objection(this, "a_drv");     // expect: SVCHK-UVM037
+                  #10;
+                  phase.drop_objection(this, "a_drv");      // expect: SVCHK-UVM037
+                endtask
+              endclass
+              class a_agent extends uvm_agent;
+                `uvm_component_utils(a_agent)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            package b_agent_pkg;
+              import uvm_pkg::*;
+              class b_item extends uvm_sequence_item;
+                `uvm_object_utils(b_item)
+                function new(string name = "b_item"); super.new(name); endfunction
+              endclass
+              class b_default_seq extends uvm_sequence #(b_item);
+                `uvm_object_utils(b_default_seq)
+                function new(string name = "b_default_seq"); super.new(name); endfunction
+                task body();
+                  uvm_phase p = get_starting_phase();
+                  if (p != null) p.raise_objection(this, "b_default_seq");
+                  #10;
+                  if (p != null) p.drop_objection(this, "b_default_seq");
+                endtask
+              endclass
+              class b_mon extends uvm_monitor;
+                `uvm_component_utils(b_mon)
+                bit ok_to_end = 1;
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                virtual function void phase_ready_to_end(uvm_phase phase);
+                  if (phase.get_name() != "run") return;
+                  fork drain(phase); join_none
+                endfunction
+                virtual task drain(uvm_phase phase);
+                  phase.raise_objection(this, "b_mon: draining");
+                  wait (ok_to_end);
+                  phase.drop_objection(this, "b_mon: drained");
+                endtask
+              endclass
+              class b_agent extends uvm_agent;
+                `uvm_component_utils(b_agent)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+            package b_test_pkg;
+              import uvm_pkg::*;
+              class b_test extends uvm_test;
+                `uvm_component_utils(b_test)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  phase.raise_objection(this, "b_test");
+                  #10;
+                  phase.drop_objection(this, "b_test");
+                endtask
+              endclass
+            endpackage

@@ -405,10 +405,34 @@ const char *depKindName(sem::UnitDepKind k) {
     return "?";
 }
 
+// The resolved selection enables a built-in rule in some group: the built-in
+// packs' classifiers then join the classify stage, as they do in the run.
+bool selectsBuiltin(lint::LintEngine &engine, const lint::yaml::Node &sel) {
+    std::set<std::string> builtin;
+    for (const lint::rules::Rule *r : engine.ruleList()) {
+        if (r->m_builtin) {
+            builtin.insert(r->m_id);
+        }
+    }
+    if (const lint::yaml::Node *gs = sel.get("groups")) {
+        for (const lint::yaml::NodeUP &g : gs->items) {
+            if (const lint::yaml::Node *en = g->get("enabled")) {
+                for (const lint::yaml::NodeUP &id : en->items) {
+                    if (builtin.count(id->s)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
 // `--contexts` (sv-contexts.md §3.2): each unit, its labels, its carriers and
 // the evidence for each label; the dependencies between units; the notes.
+// The classifiers are the run's: a built-in pack's only when `builtin`.
 int printContexts(lint::LintEngine &engine, host::LintCompilation &lc,
-        const std::string &format) {
+        const std::string &format, bool builtin) {
     host::SvContext *sv = lc.svContext();
     if (!sv) {
         std::fprintf(stderr, "svcheck: no contexts: %s\n", lc.errors()
@@ -416,7 +440,7 @@ int printContexts(lint::LintEngine &engine, host::LintCompilation &lc,
             : "contexts are classified on the curated model (--semantic=model)");
         return 1;
     }
-    lint::run::Contexts found = engine.classify(lc.roots(), lc.context());
+    lint::run::Contexts found = engine.classify(lc.roots(), lc.context(), 1000000, builtin);
     sem::IDesign *design = sv->design();
     auto pathOf = [&lc](int32_t fileid) {
         return (fileid >= 0 && static_cast<size_t>(fileid) < lc.paths().size())
@@ -859,7 +883,7 @@ int runLint(slang::driver::Driver &driver, const LintOptions &opts) {
     }
 
     if (opts.contexts) {
-        return printContexts(engine, lc, opts.format);
+        return printContexts(engine, lc, opts.format, selectsBuiltin(engine, *selRes));
     }
 
     // Design §3.3: a rule that needs the compilation does not run on a

@@ -1,0 +1,86 @@
+# Precision review of SVCHK-UVM033 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM033
+findings:
+- at: core-v-verif/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb.sv:641
+  message: virtual interface "vp_status_vif" is set for "*", so every component can take it; set it for
+    the test ("uvm_test_top") or for the component that uses it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): the bench sets four interfaces for every component ("*"), one
+    with a comment that both the test and env pick it up; uvm_test_top would serve'
+- at: core-v-verif/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb.sv:645
+  message: virtual interface "core_cntrl_vif" is set for "*", so every component can take it; set it for
+    the test ("uvm_test_top") or for the component that uses it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): the bench sets four interfaces for every component ("*"), one
+    with a comment that both the test and env pick it up; uvm_test_top would serve'
+- at: core-v-verif/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb.sv:646
+  message: virtual interface "core_status_vif" is set for "*", so every component can take it; set it
+    for the test ("uvm_test_top") or for the component that uses it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): the bench sets four interfaces for every component ("*"), one
+    with a comment that both the test and env pick it up; uvm_test_top would serve'
+- at: core-v-verif/cv32e40p/tb/uvmt/uvmt_cv32e40p_tb.sv:647
+  message: virtual interface "isa_covg_vif" is set for "*", so every component can take it; set it for
+    the test ("uvm_test_top") or for the component that uses it
+  corpora:
+  - core-v-cv32e40p
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): the bench sets four interfaces for every component ("*"), one
+    with a comment that both the test and env pick it up; uvm_test_top would serve'
+- at: opentitan/lowrisc_dv_aes_err_injection_0.1/fi_cipher_fsm_wrapper.sv:23
+  message: virtual interface "" is set for "*", so every component can take it; set it for the test ("uvm_test_top")
+    or for the component that uses it
+  corpora:
+  - opentitan-aes
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a bound fault-injection wrapper sets its force_if for "*" under
+    a computed field name; it cannot know the path, but uvm_test_top would serve'
+- at: opentitan/lowrisc_dv_aes_err_injection_0.1/fi_control_fsm_wrapper.sv:23
+  message: virtual interface "" is set for "*", so every component can take it; set it for the test ("uvm_test_top")
+    or for the component that uses it
+  corpora:
+  - opentitan-aes
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a bound fault-injection wrapper sets its force_if for "*" under
+    a computed field name; it cannot know the path, but uvm_test_top would serve'
+- at: opentitan/lowrisc_dv_aes_err_injection_0.1/fi_core_wrapper.sv:23
+  message: virtual interface "aes_core_fi_vif" is set for "*", so every component can take it; set it
+    for the test ("uvm_test_top") or for the component that uses it
+  corpora:
+  - opentitan-aes
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a bound fault-injection wrapper sets its force_if for "*" under
+    a computed field name; it cannot know the path, but uvm_test_top would serve'
+- at: opentitan/lowrisc_dv_aes_err_injection_0.1/fi_ctr_fsm_wrapper.sv:23
+  message: virtual interface "" is set for "*", so every component can take it; set it for the test ("uvm_test_top")
+    or for the component that uses it
+  corpora:
+  - opentitan-aes
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a bound fault-injection wrapper sets its force_if for "*" under
+    a computed field name; it cannot know the path, but uvm_test_top would serve'
+- at: opentitan/lowrisc_dv_aes_err_injection_0.1/signal_force.sv:23
+  message: virtual interface "" is set for "*", so every component can take it; set it for the test ("uvm_test_top")
+    or for the component that uses it
+  corpora:
+  - opentitan-aes
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a bound fault-injection wrapper sets its force_if for "*" under
+    a computed field name; it cannot know the path, but uvm_test_top would serve'
+- at: opentitan/lowrisc_dv_keymgr_sim_0.1/tb.sv:85
+  message: virtual interface "vif" is set for "*env.m_kmac_agent*", so every component can take it; set
+    it for the test ("uvm_test_top") or for the component that uses it
+  corpora:
+  - opentitan-keymgr
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): "*env.m_kmac_agent*" (no dot after the first *) is not a named
+    path, so it is reported; it matches more than the agent (any *env)'

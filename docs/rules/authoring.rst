@@ -59,8 +59,9 @@ by its rules), ``options:`` (read by every rule and helper as
 ``options.<name>``), ``uses:`` (helper files, relative to the file naming
 them; a bare name with no such file beside it is a built-in helper file, as
 ``uses: [uvm.yaml]`` for the UVM pack's vocabulary: roles such as
-``is_component(c)`` and ``is_sequence(c)``, ``PHASES``, ``config_db(k)``) and,
-experimentally, ``contexts:`` and ``applies_to:``.
+``is_component(c)`` and ``is_sequence(c)``, ``PHASES``, ``config_db(k)``, and
+its content classifiers on the ``unit`` axis) and, experimentally,
+``contexts:`` and ``applies_to:``.
 
 What a rule can match
 =====================

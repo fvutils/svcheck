@@ -1,0 +1,177 @@
+# UVM pack, configuration (sv-uvm-rules-assessment §3.6; consensus pack §5.1:
+# G2, G3, G6). svcheck-plan P2.5, batch 3.
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  define:
+    # A config_db call's constant string argument i, or "" when it is not one.
+    str_arg(k, i): "k.args.size() > i ? const_string(k.args[i]).orValue(\"\") : \"\""
+    # What is wrong with a config_db set/get's names, or "".
+    name_problem(k): >-
+      str_arg(k, 2).matches("[*?\\[\\]{}()+^$|]")
+        ? "field name \"" + str_arg(k, 2) + "\" has a wildcard or regex character; field names are matched exactly, so it matches nothing"
+        : str_arg(k, 2).matches("\\s") || str_arg(k, 1).matches("\\s")
+        ? "the " + (str_arg(k, 2).matches("\\s") ? "field" : "instance") + " name has whitespace, which no component's name can match"
+        : is_this(k.args[0]) && str_arg(k, 1).startsWith("uvm_test_top")
+        ? "instance name \"" + str_arg(k, 1) + "\" is absolute but is appended to this component's own path; pass null as the context, or a relative name"
+        : ""
+  rules:
+    - id: SVCHK-UVM031
+      name: unchecked-config-db-get
+      summary: The result of uvm_config_db::get is ignored
+      tier: suspicious
+      family: uvm
+      message: >-
+        uvm_config_db::get of "${str_arg(node, 2)}" ignores its result; if nothing
+        set it, the variable keeps its old value silently
+      doc: |
+        `get` returns 0 when no `set` matches, and leaves the variable as it
+        was. A missing `set` (a typo in a path or field name, a test that
+        forgot one) then shows up later, as a null handle or a wrong default.
+        Check the result and report an error, or make an optional setting
+        explicit with `void'(...)`, which this rule accepts.
+
+        Sources: Easier UVM, lowRISC DV, Verissimo; Cooper.
+      match: { kind: Call }
+      where: >-
+        config_db(node) && node.name == "get" && !in_library(node) && unchecked(node)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_drv extends uvm_component;
+              `uvm_component_utils(my_drv)
+              int n;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                uvm_config_db#(int)::get(this, "", "n", n);       // expect: SVCHK-UVM031
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_drv extends uvm_component;
+              `uvm_component_utils(my_drv)
+              int n, m;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                if (!uvm_config_db#(int)::get(this, "", "n", n))
+                  `uvm_fatal("CFG", "n not set")
+                void'(uvm_config_db#(int)::get(this, "", "m", m));
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM032
+      name: config-db-name
+      summary: A config_db field or instance name can never match
+      tier: suspicious
+      family: uvm
+      message: "uvm_config_db::${node.name}: ${name_problem(node)}"
+      doc: |
+        uvm_config_db matches the instance name (the context's path, then
+        the second argument) as a glob, but the field name exactly. So:
+
+        - a wildcard or regex character in a field name (`"*_vif"`) matches
+          no `get`;
+        - whitespace in either name matches no component;
+        - an absolute instance name (`"uvm_test_top.env"`) with `this` as
+          the context is appended to the component's own path, and matches
+          nothing; it needs `null` as the context.
+
+        Only constant names are checked.
+
+        Sources: lowRISC DV, Easier UVM, Spear, Verissimo, Easier UVM's
+        coding guidelines.
+      match: { kind: Call }
+      where: >-
+        config_db(node) && node.name in ["set", "get"] && !in_library(node) &&
+        node.args.size() > 2 && name_problem(node) != ""
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_env extends uvm_component;
+              `uvm_component_utils(my_env)
+              int n;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                uvm_config_db#(int)::set(this, "*", "n*", 1);                 // expect: SVCHK-UVM032
+                uvm_config_db#(int)::set(this, "agt ", "n", 1);               // expect: SVCHK-UVM032
+                uvm_config_db#(int)::set(this, "uvm_test_top.agt", "n", 1);   // expect: SVCHK-UVM032
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_env extends uvm_component;
+              `uvm_component_utils(my_env)
+              int n;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void build_phase(uvm_phase phase);
+                uvm_config_db#(int)::set(this, "*", "n", 1);
+                uvm_config_db#(int)::set(this, "agt*", "n", 1);
+                uvm_config_db#(int)::set(null, "uvm_test_top.agt", "n", 1);
+                if (!uvm_config_db#(int)::get(this, "", "n", n)) `uvm_fatal("CFG", "n")
+              endfunction
+            endclass
+
+    - id: SVCHK-UVM033
+      name: vif-set-scope
+      summary: A testbench module sets a virtual interface for every component
+      tier: style
+      family: uvm
+      message: >-
+        virtual interface "${str_arg(node, 2)}" is set for "${str_arg(node, 1)}",
+        so every component can take it; set it for the test ("uvm_test_top") or
+        for the component that uses it
+      doc: |
+        A module's `set` of a virtual interface for `"*"` makes it visible
+        to every component, so any component can take it and nothing shows
+        which ones do. Set it for the test (`"uvm_test_top"`), and let the
+        test or env hand it to its agents through their configuration
+        objects, or for the component that takes it.
+
+        The scopes accepted are an option, an RE2 pattern matched against
+        the instance name. By default it accepts `uvm_test_top` and paths
+        under it, and a wildcard path that names a component
+        (`"*.env.m_uart_agent*"`), which OpenTitan and CORE-V-VERIF set
+        their interfaces for throughout; the Mentor cookbook's and Easier
+        UVM's stricter form is `^uvm_test_top$`.
+
+        Only a `set` in a module or interface, with a constant instance
+        name, is checked.
+
+        Sources: Mentor cookbook, Easier UVM, Verissimo.
+      options:
+        scope:
+          type: string
+          default: '^(uvm_test_top(\..*)?|\*\..+)$'
+          help: RE2 pattern a virtual interface's instance name must match (anchor it)
+      match: { kind: Call }
+      where: >-
+        config_db(node) && node.name == "set" && !in_library(node) &&
+        enclosing(node, Definition) != null && cls(node) == null &&
+        node.classType.args.size() > 0 && node.classType.args[0].isVirtualInterface &&
+        node.args.size() > 2 && const_string(node.args[1]).hasValue() &&
+        !str_arg(node, 1).matches(options.scope)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            interface bus_if; logic a; endinterface
+            module tb;
+              bus_if b();
+              initial begin
+                uvm_config_db#(virtual bus_if)::set(null, "*", "vif", b);           // expect: SVCHK-UVM033
+                uvm_config_db#(virtual bus_if)::set(null, "env.agt", "vif", b);     // expect: SVCHK-UVM033
+                run_test();
+              end
+            endmodule
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            interface bus_if; logic a; endinterface
+            module tb;
+              bus_if b();
+              initial begin
+                uvm_config_db#(virtual bus_if)::set(null, "uvm_test_top", "vif", b);
+                uvm_config_db#(virtual bus_if)::set(null, "uvm_test_top.env.agt*", "vif2", b);
+                uvm_config_db#(virtual bus_if)::set(null, "*.env.agt", "vif3", b);
+                uvm_config_db#(int)::set(null, "*", "n", 1);
+                run_test();
+              end
+            endmodule

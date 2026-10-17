@@ -127,11 +127,14 @@ std::vector<const rules::Rule *> LintEngine::ruleList() const {
     return out;
 }
 
-std::vector<const rules::Classifier *> LintEngine::classifiers() const {
+std::vector<const rules::Classifier *> LintEngine::classifiers(bool builtin) const {
     // A file several rule files use gives its classifiers to each: once here.
     std::vector<const rules::Classifier *> out;
     std::set<std::tuple<std::string, uint32_t, uint32_t>> seen;
     for (const rules::RuleSetUP &s : m_rulesets) {
+        if (s->builtin() && !builtin) {
+            continue;
+        }
         for (const rules::ClassifierUP &c : s->m_classifiers) {
             if (seen.insert(std::make_tuple(c->file, c->mark.line, c->mark.col)).second) {
                 out.push_back(c.get());
@@ -142,14 +145,14 @@ std::vector<const rules::Classifier *> LintEngine::classifiers() const {
 }
 
 run::Contexts LintEngine::classify(const std::vector<ast::reflect::Node> &roots,
-        run::Context &ctx, uint64_t maxSteps) {
+        run::Context &ctx, uint64_t maxSteps, bool builtin) {
     if (ctx.classified()) {
         return run::Contexts();
     }
     for (const ast::reflect::Node &r : roots) {
         ctx.index(r);
     }
-    std::vector<const rules::Classifier *> cls = classifiers();
+    std::vector<const rules::Classifier *> cls = classifiers(builtin);
     if (cls.empty() && ctx.declaredContexts().empty()) {
         ctx.setLabels({});
         return run::Contexts();
@@ -1021,7 +1024,11 @@ std::string LintEngine::run(const std::vector<ast::reflect::Node> &roots,
         }
         uint64_t indexed = opts.context->indexNs();
         auto t1 = Clock::now();
-        classify(roots, *opts.context, opts.maxSteps);
+        // A built-in pack's classifiers run only for the pack's rules: with
+        // none selected (the minimal profile), the user's files' alone.
+        bool builtin = std::any_of(on.begin(), on.end(),
+            [](const rules::Rule *r) { return r->m_builtin; });
+        classify(roots, *opts.context, opts.maxSteps, builtin);
         classifyNs = nsBetween(t1, Clock::now()) - (opts.context->indexNs() - indexed);
         // A rule whose applies_to names an axis no carrier has a label on
         // would run nowhere: unknown is reported, not guessed (sv-contexts §3.2).

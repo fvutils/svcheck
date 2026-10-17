@@ -1,0 +1,219 @@
+# UVM pack, components and agents (sv-uvm-rules-assessment §3.7; consensus
+# pack §5.1: A4, A7, A12). svcheck-plan P2.5, batch 3. A4 is the
+# assessment's UVM050 sketch (§4).
+sv-rules:
+  version: 1
+  uses: [uvm.yaml]
+  define:
+    # Expression e reaches a virtual interface: `vif.sig`, `cfg.vif.cb.sig`.
+    via_vif(e): access_path(e).exists(p, p.type != null && p.type.isVirtualInterface)
+    # Expression e is a signal reached through a virtual interface: a 4-state
+    # value (`logic`, a wire), not the handle itself, nor a 2-state variable
+    # (`bit`, `int`), which a testbench keeps in an interface for itself.
+    vif_signal(e): via_vif(e) && e.type != null && e.type.isFourState
+  rules:
+    - id: SVCHK-UVM034
+      name: monitor-drives-interface
+      summary: A monitor assigns a signal through a virtual interface
+      tier: suspicious
+      family: uvm
+      message: >-
+        monitor '${cls(node).name}' assigns through a virtual interface; a monitor
+        only observes, and a passive agent's monitor drives a signal nobody owns
+      doc: |
+        A monitor runs in active and passive agents alike. Driving a signal
+        from it fights the DUT or the driver in a passive agent, and hides a
+        driver's job in the monitor. Move the assignment to the driver.
+
+        Only a 4-state signal (`logic`, a net) is checked: a 2-state
+        variable (`bit`, `int`) in an interface is the testbench's own
+        bookkeeping, such as a bit clock or a debug copy for waves, which
+        OpenTitan's monitors keep there. Only an assignment written in the
+        monitor class is seen, not one in a task it calls on another class.
+
+        A 4-state debug copy in an interface (OpenTitan's spi_if
+        `host_byte`) is still reported: telling it from a signal the DUT
+        sees needs the interface's ports and continuous assignments, which
+        the model does not have yet. Waive such a line.
+
+        Sources: Easier UVM, Sunburst, Verissimo.
+      match: { kind: Assign }
+      where: >-
+        !in_library(node) && cls(node) != null && is_monitor(cls(node)) && vif_signal(node.lhs)
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            interface bus_if(input logic clk); logic data; clocking cb @(posedge clk); output data; endclocking endinterface
+            class my_mon extends uvm_monitor;
+              `uvm_component_utils(my_mon)
+              virtual bus_if vif;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task run_phase(uvm_phase phase);
+                vif.data = 0;                   // expect: SVCHK-UVM034
+                vif.cb.data <= 1;               // expect: SVCHK-UVM034
+              endtask
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            interface bus_if(input logic clk); logic data; bit mon_bit; endinterface
+            class my_mon extends uvm_monitor;
+              `uvm_component_utils(my_mon)
+              virtual bus_if vif, vif2;
+              logic seen;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task run_phase(uvm_phase phase);
+                @(posedge vif.clk);
+                seen = vif.data;
+                vif.mon_bit = 1;
+                vif2 = vif;
+              endtask
+            endclass
+            class my_drv extends uvm_driver;
+              `uvm_component_utils(my_drv)
+              virtual bus_if vif;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              task run_phase(uvm_phase phase);
+                vif.data = 0;
+              endtask
+            endclass
+
+    - id: SVCHK-UVM035
+      name: time-outside-driver-monitor
+      summary: An agent or env component other than a driver or monitor consumes time
+      tier: style
+      family: uvm
+      message: >-
+        ${cls(node).name} waits on ${node.kind == TimingKind.Event ? "the interface's clock" : "a delay"};
+        only drivers and monitors deal with the DUT's time
+      doc: |
+        In an agent or env, only drivers and monitors touch the DUT's
+        signals, and so its time. A scoreboard, sequencer or env that waits
+        a delay (`#10ns`, `##2`) or a clock edge of a virtual interface
+        either hides a race (waiting for a transaction to "arrive"), or does
+        the driver's or monitor's job. Wait on a TLM port, an event or a
+        FIFO instead.
+
+        Tests and their virtual sequences are not checked (the rule applies
+        in agent and env units only), nor are waits on a named event.
+
+        This is Easier UVM's and Verissimo's view. lowRISC DV disagrees:
+        OpenTitan's scoreboards are cycle-aware, waiting on the clock and
+        reset interfaces to predict the DUT, so the rule is `style`.
+
+        Sources: Easier UVM, Verissimo.
+      applies_to: { unit: [agent, env] }
+      match: { kind: Timed }
+      where: >-
+        !in_library(node) && cls(node) != null && is_component(cls(node)) &&
+        !is_driver(cls(node)) && !is_monitor(cls(node)) &&
+        (node.kind in [TimingKind.Delay, TimingKind.Cycle] ||
+         (node.kind == TimingKind.Event && node.exprs.exists(e, descendants(e, Expr).exists(x,
+           x.type != null && x.type.isVirtualInterface))))
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            interface bus_if(input logic clk); endinterface
+            package env_pkg;
+              import uvm_pkg::*;
+              class my_sb extends uvm_scoreboard;
+                `uvm_component_utils(my_sb)
+                virtual bus_if vif;
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  #10ns;                          // expect: SVCHK-UVM035
+                  @(posedge vif.clk);             // expect: SVCHK-UVM035
+                endtask
+              endclass
+              class my_env extends uvm_env;
+                `uvm_component_utils(my_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            interface bus_if(input logic clk); endinterface
+            package env_pkg;
+              import uvm_pkg::*;
+              class my_mon extends uvm_monitor;
+                `uvm_component_utils(my_mon)
+                virtual bus_if vif;
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  @(posedge vif.clk);
+                endtask
+              endclass
+              class my_sb extends uvm_scoreboard;
+                `uvm_component_utils(my_sb)
+                event done;
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  @(done);
+                endtask
+              endclass
+              class my_env extends uvm_env;
+                `uvm_component_utils(my_env)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              endclass
+            endpackage
+            package test_pkg;
+              import uvm_pkg::*;
+              class my_test extends uvm_test;
+                `uvm_component_utils(my_test)
+                function new(string name, uvm_component parent); super.new(name, parent); endfunction
+                task run_phase(uvm_phase phase);
+                  #100ns;
+                endtask
+              endclass
+            endpackage
+
+    - id: SVCHK-UVM036
+      name: display-in-uvm-class
+      summary: A UVM class prints with $display or $write
+      tier: style
+      family: uvm
+      message: >-
+        ${node.name} in ${cls(node).name}; use `uvm_info (or another report
+        macro), which carries an ID and verbosity and is counted and filtered
+      doc: |
+        `$display` output in a UVM class bypasses the report server: it has
+        no ID, severity or verbosity, so it cannot be filtered, counted,
+        redirected or made fatal, and it is not in the end-of-test summary.
+        Use `` `uvm_info `` and its siblings. Printing to a file
+        (`$fdisplay`) is not reported. The functions are an option.
+
+        Sources: Easier UVM, Mentor cookbook, AMIQ, lowRISC DV, Sigasi,
+        draconian_uvm, Verissimo.
+      options:
+        functions:
+          type: string-list
+          default: ["$display", "$displayb", "$displayh", "$displayo",
+                    "$write", "$writeb", "$writeh", "$writeo"]
+          help: System tasks reported in a UVM class
+      match: { kind: Call }
+      where: >-
+        node.isSystem && node.name in options.functions && !in_library(node) &&
+        cls(node) != null && is(cls(node), "uvm_object")
+      examples:
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void report_phase(uvm_phase phase);
+                $display("done");               // expect: SVCHK-UVM036
+              endfunction
+            endclass
+        - code: |
+            import uvm_pkg::*; `include "uvm_macros.svh"
+            class my_env extends uvm_env;
+              `uvm_component_utils(my_env)
+              int fd;
+              function new(string name, uvm_component parent); super.new(name, parent); endfunction
+              function void report_phase(uvm_phase phase);
+                `uvm_info("ENV", "done", UVM_LOW)
+                $fdisplay(fd, "done");
+              endfunction
+            endclass
+            class helper;
+              function void show(); $display("not a UVM class"); endfunction
+            endclass

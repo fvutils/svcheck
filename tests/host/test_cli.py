@@ -249,6 +249,17 @@ def test_contexts_json(tb):
     assert doc["notes"] == []
 
 
+def test_builtin_classifiers_follow_the_selection(tb):
+    # The UVM pack's classifiers (rules/uvm.yaml) join a run that selects one
+    # of its rules; with none selected (above), the user's alone classify.
+    r = svcheck(tb, "-f", "tb.f", "--select", "SVCHK-UVM", "--contexts")
+    assert r.returncode == 0, r.stderr
+    lines = r.stdout.splitlines()
+    assert [l for l in lines if l.startswith("unit ")] == [
+        "unit apb_agent_pkg: agent", "unit env_pkg: env"]
+    assert all("(svcheck:rules/uvm.yaml:" in l for l in lines if ": Content (" in l)
+
+
 def test_library_dir_is_not_linted(tb):
     (tb / "r.yaml").write_text(RULES.replace("endsWith(\"_pkg\")", "endsWith(\"_none\")"))
     r = svcheck(tb, "-f", "tb.f", "--rules", "r.yaml", "--library-dir", "agent")
@@ -270,7 +281,8 @@ def test_bad_rule_file_checks_nothing(tb):
 @pytest.mark.parametrize("args, message", [
     (["--format", "xml"], "svcheck: unknown --format 'xml' (text, json, sarif, github)"),
     (["--semantic", "deep"], "svcheck: unknown --semantic 'deep' (model, none)"),
-    (["--contexts"], "svcheck: --contexts needs --rules: the classifiers are in the rule files"),
+    (["--contexts"], "svcheck: --contexts needs classifiers: --rules, or a selection that "
+                     "runs a built-in pack (--select SVCHK-UVM)"),
 ])
 def test_usage_errors(tb, args, message):
     r = svcheck(tb, "-f", "tb.f", *args)

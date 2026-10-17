@@ -83,16 +83,20 @@ public:
     /** Every loaded rule, in load order: what the runner (C5) dispatches. */
     std::vector<const rules::Rule *> ruleList() const;
 
-    /** The loaded files' `contexts:` classifiers, in load order, each once. */
-    std::vector<const rules::Classifier *> classifiers() const;
+    /**
+     * The loaded files' `contexts:` classifiers, in load order, each once. A
+     * built-in rule file's are left out unless `builtin`: they belong to its
+     * pack, and join a run that selects one of the pack's rules.
+     */
+    std::vector<const rules::Classifier *> classifiers(bool builtin=true) const;
 
     /**
      * The classify stage (run/Classify.h) over `roots`, which it indexes in
      * `ctx`: once per context, so run() does not repeat it. Nothing when
-     * no classifiers are loaded.
+     * no classifiers are loaded. `builtin` as for classifiers().
      */
     run::Contexts classify(const std::vector<ast::reflect::Node> &roots, run::Context &ctx,
-        uint64_t maxSteps=1000000);
+        uint64_t maxSteps=1000000, bool builtin=true);
 
     /** How the files a rule file's `uses:` names are read; none by default. */
     void setReader(rules::FileReader reader) { m_reader = std::move(reader); }

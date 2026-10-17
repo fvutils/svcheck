@@ -1,0 +1,24 @@
+# Precision review of SVCHK-UVM034 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM034
+findings:
+- at: opentitan/lowrisc_dv_spi_agent_0.1/spi_monitor.sv:217
+  message: monitor 'spi_monitor' assigns through a virtual interface; a monitor only observes, and a passive
+    agent's monitor drives a signal nobody owns
+  corpora:
+  - opentitan-spi_device
+  - opentitan-spi_host
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): spi_if''s host_byte/device_byte are logic debug copies for waves,
+    read by nothing in the interface; the DUT never sees them'
+- at: opentitan/lowrisc_dv_spi_agent_0.1/spi_monitor.sv:224
+  message: monitor 'spi_monitor' assigns through a virtual interface; a monitor only observes, and a passive
+    agent's monitor drives a signal nobody owns
+  corpora:
+  - opentitan-spi_device
+  - opentitan-spi_host
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): spi_if''s host_byte/device_byte are logic debug copies for waves,
+    read by nothing in the interface; the DUT never sees them'

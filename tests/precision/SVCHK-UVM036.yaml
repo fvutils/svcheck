@@ -1,0 +1,301 @@
+# Precision review of SVCHK-UVM036 (scripts/precision.py; svcheck-plan P2.1). Each finding
+# is the file and line, as its source, and the message; `corpora` says where it was
+# found. verdict: true (worth acting on), false (wrong), out-of-scope (right by the
+# rule's letter, but nobody would act on it), or unreviewed. Say why in `note`.
+rule: SVCHK-UVM036
+findings:
+- at: core-v-verif/cv32e40p/tests/uvmt/base-tests/uvmt_cv32e40p_base_test.sv:480
+  message: $display in uvmt_cv32e40p_base_test_c; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a test-name banner printed at start; formatting on purpose,
+    not a report'
+- at: core-v-verif/cv32e40p/tests/uvmt/base-tests/uvmt_cv32e40p_base_test.sv:481
+  message: $display in uvmt_cv32e40p_base_test_c; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a test-name banner printed at start; formatting on purpose,
+    not a report'
+- at: core-v-verif/cv32e40p/tests/uvmt/base-tests/uvmt_cv32e40p_base_test.sv:482
+  message: $display in uvmt_cv32e40p_base_test_c; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a test-name banner printed at start; formatting on purpose,
+    not a report'
+- at: core-v-verif/cv32e40p/tests/uvmt/base-tests/uvmt_cv32e40p_base_test.sv:483
+  message: $display in uvmt_cv32e40p_base_test_c; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a test-name banner printed at start; formatting on purpose,
+    not a report'
+- at: core-v-verif/lib/uvm_agents/uvma_obi_memory/src/seq/uvma_obi_memory_vp_virtual_printer_seq.sv:75
+  message: $write in uvma_obi_memory_vp_virtual_printer_seq_c; use `uvm_info (or another report macro),
+    which carries an ID and verbosity and is counted and filtered
+  corpora:
+  - core-v-cv32e40p
+  verdict: out-of-scope
+  note: 'first pass (Claude, 2026-10-17): a virtual console: prints the DUT''s characters as they arrive,
+    which uvm_info''s prefix would break'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_target.svh:21
+  message: $display in fwvip_wb_target; use `uvm_info (or another report macro), which carries an ID and
+    verbosity and is counted and filtered
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_target.svh:23
+  message: $display in fwvip_wb_target; use `uvm_info (or another report macro), which carries an ID and
+    verbosity and is counted and filtered
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: fw-wb-dma/packages/fwvip-wb/src/uvm/fwvip_wb_target.svh:25
+  message: $display in fwvip_wb_target; use `uvm_info (or another report macro), which carries an ID and
+    verbosity and is counted and filtered
+  corpora:
+  - fw-wb-dma
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: opentitan/lowrisc_dv_keymgr_env_0.1/keymgr_scoreboard.sv:798
+  message: $display in keymgr_scoreboard; use `uvm_info (or another report macro), which carries an ID
+    and verbosity and is counted and filtered
+  corpora:
+  - opentitan-keymgr
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): a leftover debug print ("cindydebyg...") in the scoreboard'
+- at: opentitan/lowrisc_dv_spi_device_env_0.1/spi_device_env_cfg.sv:72
+  message: $display in spi_device_env_cfg; use `uvm_info (or another report macro), which carries an ID
+    and verbosity and is counted and filtered
+  corpora:
+  - opentitan-spi_device
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: opentitan/lowrisc_dv_spi_device_env_0.1/spi_device_scoreboard.sv:416
+  message: $display in spi_device_scoreboard; use `uvm_info (or another report macro), which carries an
+    ID and verbosity and is counted and filtered
+  corpora:
+  - opentitan-spi_device
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: opentitan/lowrisc_dv_spi_device_env_0.1/spi_device_scoreboard.sv:427
+  message: $display in spi_device_scoreboard; use `uvm_info (or another report macro), which carries an
+    ID and verbosity and is counted and filtered
+  corpora:
+  - opentitan-spi_device
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator.svh:19
+  message: $display in fwvip_wb_initiator; use `uvm_info (or another report macro), which carries an ID
+    and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator.svh:21
+  message: $display in fwvip_wb_initiator; use `uvm_info (or another report macro), which carries an ID
+    and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator.svh:23
+  message: $display in fwvip_wb_initiator; use `uvm_info (or another report macro), which carries an ID
+    and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator_driver.svh:17
+  message: $display in fwvip_wb_initiator_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator_driver.svh:19
+  message: $display in fwvip_wb_initiator_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator_driver.svh:26
+  message: $display in fwvip_wb_initiator_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator_driver.svh:28
+  message: $display in fwvip_wb_initiator_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator_driver.svh:29
+  message: $display in fwvip_wb_initiator_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_initiator_driver.svh:31
+  message: $display in fwvip_wb_initiator_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target.svh:19
+  message: $display in fwvip_wb_target; use `uvm_info (or another report macro), which carries an ID and
+    verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target.svh:21
+  message: $display in fwvip_wb_target; use `uvm_info (or another report macro), which carries an ID and
+    verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target.svh:23
+  message: $display in fwvip_wb_target; use `uvm_info (or another report macro), which carries an ID and
+    verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:18
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:21
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:29
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:31
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:33
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:38
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:40
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:43
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:45
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:48
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:57
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:59
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'
+- at: uvm-tb-proto/vip/fwvip-wb/src/vip/uvm/fwvip_wb_target_driver.svh:64
+  message: $display in fwvip_wb_target_driver; use `uvm_info (or another report macro), which carries
+    an ID and verbosity and is counted and filtered
+  corpora:
+  - uvm-tb-proto
+  verdict: 'true'
+  note: 'first pass (Claude, 2026-10-17): debug prints (config found, method entry/exit, queue contents)
+    that bypass the report server and cannot be silenced'

@@ -246,9 +246,12 @@ int main(int argc, char** argv) {
                    !lint.profile.empty() || !lint.select.empty() || !lint.ignore.empty() ||
                    lint.query();
     if (linting) {
-        if (lint.contexts && lint.rules.empty() && lint.config.empty()) {
-            std::fprintf(stderr, "svcheck: --contexts needs --rules: the classifiers are in "
-                         "the rule files\n");
+        // The classifiers are in rule files, or in a built-in pack the
+        // selection runs (`--select SVCHK-UVM`).
+        if (lint.contexts && lint.rules.empty() && lint.config.empty() &&
+                lint.select.empty() && lint.profile.empty()) {
+            std::fprintf(stderr, "svcheck: --contexts needs classifiers: --rules, or a "
+                         "selection that runs a built-in pack (--select SVCHK-UVM)\n");
             return 2;
         }
         return svcheck::cli::runLint(driver, lint);

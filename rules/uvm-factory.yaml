@@ -8,10 +8,6 @@ sv-rules:
     # The registry a registered class declares: its own `type_id`'s type.
     registry(c): typedef_type(c.members.filter(m, m.name == "type_id")[0])
     typedef_type(d): "d.isa(Typedef) ? d.type : null"
-    # The class's parent argument of create() is `this`.
-    is_this(e): >-
-      (e.isa(NamedValue) && e.name == "this") ||
-      (e.isa(Conversion) && e.operand.isa(NamedValue) && e.operand.name == "this")
     # The name an assignment's target has: a variable's, or a member's.
     lhs_name(e): "e.isa(NamedValue) ? e.name : e.isa(MemberAccess) ? e.member : \"\""
   rules:
@@ -60,7 +56,7 @@ sv-rules:
       where: >-
         !node.inLibrary && !node.isAbstract && is(node, "uvm_object") && !registered(node) &&
         !(node.carrier != null && node.carrier.isa(Definition)) &&
-        !subclasses(node).exists(s, s.carrier != node.carrier) &&
+        !based(node) &&
         !descendants(node, NewClass).exists(n, n.type != null && n.type.classDecl == node &&
           method(n) != null && method(n).isStatic) &&
         !options.exempt_bases.exists(b, is(node, b))

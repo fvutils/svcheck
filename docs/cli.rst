@@ -175,6 +175,9 @@ Queries
    UVM's ``src`` directory for the examples that need it). With no rule file,
    it checks the built-in packs.
 ``--contexts``
-   Each unit the rules' classifiers find, its labels and their evidence.
+   Each unit the rules' classifiers find, its labels and their evidence. The
+   built-in UVM pack's classifiers (agent, env, test, tb-top, seq-lib,
+   regmodel, base-lib, on the ``unit`` axis) take part when the selection
+   runs one of its rules (``--select SVCHK-UVM``), as they do in a run.
 ``--statistics``, ``--stats``
    Findings per code; where the time and memory went.

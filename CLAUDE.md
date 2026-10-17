@@ -128,9 +128,13 @@ time; a file without `rules:` is a helper, `rules/uvm.yaml`, which any rule file
 `--rules` runs their examples. Every pack rule is run on the corpora before it ships:
 `scripts/precision.py --update` (it selects `SVCHK-UVM`), then review `tests/precision/<ID>.yaml`
 (a rule with no findings has no file). Rule files by family: `uvm-{construction,transactions,
-sequences,language,factory,phasing}.yaml`; IDs are numbered in order of addition (the plan's P2-22
-and P2-23 map them to the assessment's catalogue). `family:` takes only the loader's list
-(`uvm`, `factory`, `class`, `process`, ...).
+sequences,language,factory,phasing,config,components}.yaml`; IDs are numbered in order of
+addition (the plan's P2-22…P2-24 map them to the assessment's catalogue). `family:` takes only
+the loader's list (`uvm`, `factory`, `class`, `process`, ...); a rule below its tier's bar goes to
+`tier: nursery` (needs `since: "YYYY.N"`). `uvm.yaml` holds the pack's content classifiers (unit
+axis: agent, env, test, tb-top, seq-lib, regmodel, base-lib); a built-in file's classifiers run
+only when the selection enables a built-in rule (`LintEngine::classifiers(builtin)`), so
+`--contexts` alone needs `--rules` or `--select SVCHK-UVM`.
 
 ## Build and test
 

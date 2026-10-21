@@ -70,7 +70,7 @@ jobs:
       - name: Stamp the build version
         # Tag builds keep the clean number. Everything else gets a PEP 440
         # local version segment, which PyPI rejects outright:
-        #   0.0.0.dev33020374597+gh.g7775f37
+        #   0.1.0.dev33020374597+gh.g7775f37
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           case "$GITHUB_REF" in
@@ -128,7 +128,8 @@ jobs:
           fi
           for f in dist/*; do
             case "$(basename "$f")" in
-              svcheck-${base}-py3-none-*.whl) ;;
+              # Native wheels, one per CPython: cpXY-cpXY-manylinux_*.
+              svcheck-${base}-cp3*-cp3*-manylinux*.whl) ;;
               *) echo "::error::artifact $(basename "$f") is not version ${base}"; exit 1 ;;
             esac
           done

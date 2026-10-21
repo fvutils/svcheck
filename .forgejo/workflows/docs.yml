@@ -1,0 +1,95 @@
+# Docs build for fvutils/svcheck on Forgejo Actions.
+#
+# THIS IS THE ONLY THING THAT PUBLISHES THESE DOCS. dvkit.org publishes all
+# documentation: a repo's docs land at dvkit.org/<org>/<repo>/, here
+# dvkit.org/fvutils/svcheck/. The built HTML leaves as an ARTIFACT named
+# docs-fvutils-svcheck and nothing else; the host-side pipeline fetches,
+# promotes (main only) and deploys it. This job holds no deploy credential.
+# Only .forgejo/workflows/ publishes: there is no GitHub counterpart.
+#
+# NO RELEASE-AUTHORITY GATE, deliberately: that switch decides who publishes
+# packages. Docs are not a release.
+#
+# The doc toolchain only, not `ivpm update`: the docs need no build of svcheck.
+# The node reference (docs/model/) is rendered from src/ast/*.yaml by
+# pyastbuilder's Sphinx support, whose diagrams need Graphviz's `dot`; without
+# pyastbuilder, conf.py falls back to astb_fallback and Sphinx still exits 0.
+# The diagram count below is what catches that. pyastbuilder comes from git,
+# as ivpm.yaml takes it, through git.dvkit.org (anonymous; no credential).
+#
+# Runner constraints (dvkit-infra workflows.md): no third-party actions (a
+# bare `uses:` resolves against code.forgejo.org); `python` does not exist in
+# the image, python3 does.
+
+name: Docs
+
+on:
+  - push
+  - pull_request
+  - workflow_dispatch
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for internal identifiers in tracked files
+        # The pathspec excludes the whole workflow directory, so that ci.yml's
+        # copy of this pattern does not match.
+        run: |
+          pattern='perch-char\.ts\.net|\.ts\.net|a9550|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
+          if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/' ; then
+            echo "::error::internal identifier found in a tracked file (see matches above)"
+            exit 1
+          fi
+          echo "OK: no internal identifiers in tracked files"
+
+      - name: Install the documentation toolchain
+        # --break-system-packages is a fallback for an image that marks the
+        # interpreter externally managed (PEP 668).
+        run: |
+          if ! command -v dot >/dev/null; then
+            SUDO=$(command -v sudo || true)
+            $SUDO apt-get update -qq
+            $SUDO apt-get install -y -qq graphviz
+          fi
+          pip_install() {
+            ./py/bin/python3 -m pip install -q "$@" && return 0
+            ./py/bin/python3 -m pip install -q --break-system-packages "$@"
+          }
+          python3 -m venv py
+          pip_install --upgrade pip setuptools wheel
+          pip_install sphinx \
+            "pyastbuilder @ git+https://git.dvkit.org/mballance-utils/pyastbuilder.git"
+          ./py/bin/python3 -c "import sphinx, astbuilder.sphinx; print('doc toolchain importable')"
+          dot -V
+
+      - name: Build HTML docs
+        # -W: a broken reference or a missing extension fails the build.
+        run: |
+          ./py/bin/sphinx-build -W --keep-going -b html docs docs/_build/html
+
+      - name: Sanity-check the build
+        # Sphinx exits 0 on a build that produced almost nothing, and an empty
+        # doc set is worse than a failed one because it deploys. A local build
+        # on 2026-10-21 made 14 pages and 39 node-reference diagrams; the
+        # floors catch a collapsed build, not a deleted page.
+        run: |
+          out=docs/_build/html
+          test -s $out/index.html \
+            || { echo "::error::no index.html in the build output"; exit 1; }
+          n=$(find $out -name '*.html' | wc -l)
+          d=$(find $out/_images -name 'graphviz-*.svg' 2>/dev/null | wc -l)
+          echo "pages: $n  diagrams: $d"
+          [ "$n" -ge 10 ] || { echo "::error::only $n pages built (14 expected)"; exit 1; }
+          [ "$d" -ge 20 ] || { echo "::error::only $d node-reference diagrams (39 expected): pyastbuilder's Sphinx support did not run"; exit 1; }
+
+      - name: Upload docs
+        # Consumed by the host-side pipeline: docs-fetch fvutils/svcheck main
+        uses: forgejo/upload-artifact@v4
+        with:
+          name: docs-fvutils-svcheck
+          path: docs/_build/html/**
+          if-no-files-found: error

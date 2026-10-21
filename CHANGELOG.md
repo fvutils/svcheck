@@ -23,8 +23,10 @@ The first release.
 - **Python, in-process:** `svcheck.compile()` returns the model
   (`svcheck.sem`), `svcheck.lint()` the findings, `svcheck.run_cli()` the
   command.
-- **An agent skill**, `svcheck-rules`, for writing rules from a description,
-  shipped in the wheel.
+- **Agent skills**, shipped in the wheel as `agent.skills` entry points:
+  `svcheck`, for running svcheck (compiling a bench, choosing rules and
+  presets, output, waivers, configuration, CI, triage), and `svcheck-rules`,
+  for writing rules from a description.
 
 Experimental: `contexts:` and `applies_to:` (unit classification: agent, env,
 test, ...) and the `--config` format may change.

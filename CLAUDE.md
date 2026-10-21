@@ -147,14 +147,15 @@ project's (`Selection::build`). Naming a preset selects the pack; conventions co
 preset and feed only `SVCHK-UVM039` and `--contexts`. `scripts/presets.py` runs every preset on
 the corpora; tests: `tests/host/test_presets.py`, the CLI page's Presets section.
 
-The agent skill `svcheck-rules` (`skills/svcheck-rules/`: writing rules from a description) ships
-in the wheel (setup.py copies it to `svcheck/share/skills/`) and is an `agent.skills` entry point
-(`python/svcheck/skills.py`; one entry point per skill, named as its directory). Its
-`references/{model,functions,uvm-helpers,syntax-kinds}.md` are generated: rerun
+The agent skills ship in the wheel: `svcheck` (`skills/svcheck/`: running svcheck, triage, config,
+CI; hand-written, so update it with the CLI) and `svcheck-rules` (`skills/svcheck-rules/`: writing
+rules from a description). setup.py copies each to `svcheck/share/skills/`; each is an
+`agent.skills` entry point (`python/svcheck/skills.py`; one per skill, named as its directory).
+`svcheck-rules`' `references/{model,functions,uvm-helpers,syntax-kinds}.md` are generated: rerun
 `scripts/gen_skill_refs.py` after changing the model, a library function, `rules/uvm.yaml` or
 slang, or `tests/host/test_skills.py` fails. That test also runs `--check-rules` on every
 `yaml` block holding `sv-rules:` (tag a fragment `yaml no-check`) and checks the flags and IDs
-the text names. The skill must not cite `docs/design/` (unpublished); the generator strips such
+the text names. No skill may cite `docs/design/` (unpublished); the generator strips such
 references from what it copies.
 
 P2.6b put svcheck in-process. `libsvcheck` (shared; static on WASI, `SVCHECK_SHARED`) holds the

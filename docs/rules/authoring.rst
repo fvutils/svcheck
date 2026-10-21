@@ -318,10 +318,12 @@ Also see :doc:`functions` for every function a rule can call, and
 For coding agents
 =================
 
-The wheel carries an agent skill, ``svcheck-rules``, that walks an agent
+The wheel carries two agent skills. ``svcheck-rules`` walks an agent
 through writing a rule from a plain-language description: this page's
 workflow, the model and function references, the UVM helpers and slang's
-syntax kinds. It is registered as an ``agent.skills`` entry point, so a tool
-that discovers skills from installed packages (IVPM) links it into
-``.claude/skills/`` and the like; its source is ``skills/svcheck-rules/`` in
+syntax kinds. ``svcheck`` covers running svcheck (:doc:`../cli`): compiling a
+bench, choosing rules and presets, output, waivers, the configuration, CI and
+triaging findings. Each is registered as an ``agent.skills`` entry point, so
+a tool that discovers skills from installed packages (IVPM) links it into
+``.claude/skills/`` and the like; their sources are ``skills/<name>/`` in
 svcheck's repository.

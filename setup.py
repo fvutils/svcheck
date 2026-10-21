@@ -165,6 +165,7 @@ setup(
         ],
         # One entry point per skill: IVPM names a skill after its entry point.
         "agent.skills": [
+            "svcheck = svcheck.skills:usage_skill",
             "svcheck-rules = svcheck.skills:rules_skill",
         ],
     },

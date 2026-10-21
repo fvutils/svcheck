@@ -12,7 +12,7 @@ executable. After pssparser's ``pssparser.skills`` (svcheck-design §3.1).
 import os
 
 #: The skills the wheel carries, under svcheck/share/skills/<name>.
-SHIPPED = ("svcheck-rules",)
+SHIPPED = ("svcheck", "svcheck-rules")
 
 
 def _skill_dir(name: str) -> str:
@@ -22,6 +22,10 @@ def _skill_dir(name: str) -> str:
         return installed
     # A checkout or an editable install: <repo>/skills/<name>.
     return os.path.normpath(os.path.join(here, "..", "..", "skills", name))
+
+
+def usage_skill() -> str:
+    return _skill_dir("svcheck")
 
 
 def rules_skill() -> str:

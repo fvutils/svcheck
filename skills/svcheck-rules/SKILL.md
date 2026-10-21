@@ -34,7 +34,9 @@ passed.
 6. **Run it on real code:** `svcheck --rules acme.yaml -f tb.f --format json`
    (slang's own source arguments: `-f`/`-F`, `+incdir+`, `+define+`,
    `--top`). Read every finding. A wrong one is a near miss you missed: add
-   it as an example, narrow the rule, back to 5.
+   it as an example, narrow the rule, back to 5. (Compiling a bench that
+   will not compile, and selection, waivers and config: the `svcheck`
+   skill.)
 
 Where UVM's sources are: `--uvm` takes UVM's `src` directory (the one with
 `uvm_pkg.sv`). An example that mentions `uvm_` is compiled with that
